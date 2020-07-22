@@ -1,44 +1,79 @@
 package controller
 
 import (
-	//"time"
 	"context"
 	"fmt"
-	"regexp"
-	"strconv"
-	"strings"
+	"sync"
 	"time"
 
-	"github.com/masterminds/semver"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
-
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	corev1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/workqueue"
 
-	"github.com/joshvanl/version-checker/pkg/api"
+	"github.com/joshvanl/version-checker/pkg/metrics"
 	"github.com/joshvanl/version-checker/pkg/version"
 )
 
-type controller struct {
+const (
+	numWorkers = 5
+)
+
+// controller is the main controller that check and exposes metrics on
+// versions.
+type Controller struct {
 	log *logrus.Entry
 
+	kubeClient kubernetes.Interface
+	podLister  corev1listers.PodLister
+	workqueue  workqueue.RateLimitingInterface
+
 	versionGetter *version.VersionGetter
+	metrics       *metrics.Metrics
+
+	cacheMu      sync.RWMutex
+	cacheTimeout time.Duration
+	imageCache   map[string]imageCacheItem
 }
 
-func Run(ctx context.Context, kubeClient kubernetes.Interface) error {
-	c := &controller{
-		log:           logrus.NewEntry(logrus.New()),
-		versionGetter: version.New(),
+func New(
+	cacheTimeout time.Duration,
+	metrics *metrics.Metrics,
+	kubeClient kubernetes.Interface,
+) *Controller {
+	log := logrus.NewEntry(logrus.New())
+	// TODO:
+	log.Logger.SetLevel(logrus.DebugLevel)
+
+	c := &Controller{
+		log:           log.WithField("module", "controller"),
+		kubeClient:    kubeClient,
+		workqueue:     workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
+		versionGetter: version.New(log, cacheTimeout),
+		metrics:       metrics,
+		cacheTimeout:  cacheTimeout,
+		imageCache:    make(map[string]imageCacheItem),
 	}
 
-	sharedInformerFactory := informers.NewSharedInformerFactoryWithOptions(kubeClient, time.Second*30)
+	return c
+}
+
+// Run is a blocking func that will create and run new controller.
+func (c *Controller) Run(ctx context.Context) error {
+	defer c.workqueue.ShutDown()
+
+	sharedInformerFactory := informers.NewSharedInformerFactoryWithOptions(c.kubeClient, time.Second*30)
+	c.podLister = sharedInformerFactory.Core().V1().Pods().Lister()
 	podInformer := sharedInformerFactory.Core().V1().Pods().Informer()
 	podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    func(obj interface{}) { c.enqueue(ctx, obj) },
-		UpdateFunc: func(_, obj interface{}) { c.enqueue(ctx, obj) },
-		// DeleteFunc // TODO: delete from metrics and cache
+		AddFunc:    func(obj interface{}) { c.workqueue.Add(obj) },
+		UpdateFunc: func(_, obj interface{}) { c.workqueue.Add(obj) },
+		DeleteFunc: func(obj interface{}) { c.workqueue.Add(obj) },
 	})
 
 	c.log.Info("starting control loop")
@@ -47,167 +82,70 @@ func Run(ctx context.Context, kubeClient kubernetes.Interface) error {
 		return fmt.Errorf("error waiting for informer caches to sync")
 	}
 
+	c.log.Info("starting workers")
+	// Launch two workers to process Foo resources
+	for i := 0; i < numWorkers; i++ {
+		go wait.Until(func() { c.runWorker(ctx) }, time.Second, ctx.Done())
+	}
+
+	go c.garbageCollect(c.cacheTimeout / 2)
+
 	<-ctx.Done()
 
 	return nil
 }
 
-// enqueue will enqueue a given pod to run against the version checker.
-func (c *controller) enqueue(ctx context.Context, obj interface{}) {
-	pod, ok := obj.(*corev1.Pod)
-	if !ok {
-		c.log.Errorf("non-pod type passed to enqueue: %+v", obj)
-		return
-	}
-
-	// TODO: add option to enable all pods
-	//if enable, ok := pod.Annotations[api.EnableAnnotationKey]; !ok || enable != "true" {
-	//	return
-	//}
-
-	log := c.log.WithField("name", pod.Name).WithField("namespace", pod.Namespace)
-
-	log.Debug("processing pod images")
-
-	for _, container := range pod.Spec.Containers {
-		log = log.WithField("container", container.Name)
-
-		opts, err := c.buildOptions(container.Name, pod.Annotations)
-		if err != nil {
-			log.Errorf("failed to build options from annotations for %q: %s",
-				container.Name, err)
+// runWorker is a long-running function that will continually call the
+// processNextWorkItem function in order to read and process a message on the
+// workqueue.
+func (c *Controller) runWorker(ctx context.Context) {
+	for {
+		obj, shutdown := c.workqueue.Get()
+		if shutdown {
 			return
 		}
 
-		if err := c.testContainerImage(ctx, log, container.Image, opts); err != nil {
-			log.Errorf("failed to test container image: %s", err)
-			continue
+		if err := c.processNextWorkItem(ctx, obj); err != nil {
+			c.log.Error(err)
 		}
 	}
 }
 
-// testContainerImage will test a given image version to the latest image
-// available in the remote registry given the options.
-// TODO: create a cache
-func (c *controller) testContainerImage(ctx context.Context, log *logrus.Entry, image string, opts *api.Options) error {
-	imageSplit := strings.Split(image, ":")
-	if len(imageSplit) != 2 {
-		return fmt.Errorf("got unexpected image format [image:tag]: %s", image)
-	}
-	imageURL, tag := imageSplit[0], imageSplit[1]
+// processNextWorkItem will read a single work item off the workqueue and
+// attempt to process it, by calling the syncHandler.
+func (c *Controller) processNextWorkItem(ctx context.Context, obj interface{}) error {
+	defer c.workqueue.Done(obj)
 
-	// TODO: handle SHA only use with full tag list
-	tagV, err := semver.NewVersion(tag)
-	if err != nil {
-		return fmt.Errorf("failed to parse image tag: %s", err)
+	pod, ok := obj.(*corev1.Pod)
+	if !ok {
+		c.log.Errorf("non-pod type passed to sync: %+v", obj)
+		c.workqueue.Forget(obj)
+		return nil
 	}
 
-	latestImage, _, err := c.versionGetter.LatestTagFromImage(ctx, opts, imageURL)
-	if err != nil {
-		return err
+	if _, err := c.podLister.Pods(pod.Namespace).Get(pod.Name); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
+
+		for _, container := range pod.Spec.Containers {
+			imageURL, currentTag, err := urlAndTagFromImage(container.Image)
+			if err != nil {
+				return err
+			}
+
+			c.metrics.RemoveImage(pod.Namespace, pod.Name, container.Name, imageURL, currentTag)
+		}
+
+		return nil
 	}
 
-	// TODO: handle SHA only
-
-	if tagV.LessThan(latestImage.SemVer) {
-		log.Infof("image is not latest %s: %s -> %s",
-			imageURL, tag, latestImage.Tag)
-	} else {
-		log.Infof("image is latest %s:%s",
-			imageURL, tag)
+	if err := c.sync(ctx, pod); err != nil {
+		c.workqueue.AddRateLimited(pod)
+		return fmt.Errorf("error syncing '%s/%s': %s, requeuing",
+			pod.Name, pod.Namespace, err)
 	}
 
+	c.workqueue.Forget(obj)
 	return nil
-}
-
-// buildOptions will build the tag options based on pod annotations.
-func (c *controller) buildOptions(containerName string, annotations map[string]string) (*api.Options, error) {
-	var (
-		opts      api.Options
-		errs      []string
-		setNonSha bool
-	)
-
-	if useSHA, ok := annotations[api.UseSHAAnnotationKey+"/"+containerName]; ok && useSHA == "true" {
-		opts.UseSHA = true
-	}
-
-	if usePreRelease, ok := annotations[api.UsePreReleaseAnnotationKey+"/"+containerName]; ok && usePreRelease == "true" {
-		setNonSha = true
-		opts.UsePreRelease = true
-	}
-
-	if matchRegex, ok := annotations[api.MatchRegexAnnotationKey+"/"+containerName]; ok {
-		setNonSha = true
-
-		regexMatcher, err := regexp.Compile(matchRegex)
-		if err != nil {
-			errs = append(errs, fmt.Sprintf("failed to compile regex at annotation %q: %s",
-				api.MatchRegexAnnotationKey, err))
-		} else {
-			opts.RegexMatcher = regexMatcher
-		}
-	}
-
-	if pinMajor, ok := annotations[api.PinMajorAnnotationKey+"/"+containerName]; ok {
-		setNonSha = true
-
-		ma, err := strconv.ParseInt(pinMajor, 10, 64)
-		if err != nil {
-			errs = append(errs, fmt.Sprintf("failed to parse %s: %s",
-				api.PinMajorAnnotationKey+"/"+containerName, err))
-		} else {
-			opts.PinMajor = &ma
-		}
-	}
-
-	if pinMinor, ok := annotations[api.PinMinorAnnotationKey+"/"+containerName]; ok {
-		setNonSha = true
-
-		if opts.PinMajor == nil {
-			errs = append(errs, fmt.Sprintf("unable to set %q without setting %q",
-				api.PinMinorAnnotationKey+"/"+containerName, api.PinMajorAnnotationKey+"/"+containerName))
-		} else {
-
-			mi, err := strconv.ParseInt(pinMinor, 10, 64)
-			if err != nil {
-				errs = append(errs, fmt.Sprintf("failed to parse %s: %s",
-					api.PinMinorAnnotationKey+"/"+containerName, err))
-			} else {
-				opts.PinMinor = &mi
-			}
-		}
-	}
-
-	if pinPatch, ok := annotations[api.PinPatchAnnotationKey+"/"+containerName]; ok {
-		setNonSha = true
-
-		if opts.PinMajor == nil && opts.PinMinor == nil {
-			errs = append(errs, fmt.Sprintf("unable to set %q without setting %q or %q",
-				api.PinPatchAnnotationKey+"/"+containerName,
-				api.PinMinorAnnotationKey+"/"+containerName,
-				api.PinMajorAnnotationKey+"/"+containerName))
-		} else {
-
-			pa, err := strconv.ParseInt(pinPatch, 10, 64)
-			if err != nil {
-				errs = append(errs, fmt.Sprintf("failed to parse %s: %s",
-					api.PinPatchAnnotationKey+"/"+containerName, err))
-			} else {
-				opts.PinPatch = &pa
-			}
-		}
-	}
-
-	if opts.UseSHA && setNonSha {
-		errs = append(errs, fmt.Sprintf("cannot define %q with any semver otions",
-			api.UseSHAAnnotationKey+"/"+containerName))
-	}
-
-	if len(errs) > 0 {
-		return nil, fmt.Errorf("failed to build version options: %s",
-			strings.Join(errs, ", "))
-	}
-
-	return &opts, nil
 }

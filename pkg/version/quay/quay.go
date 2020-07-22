@@ -14,21 +14,20 @@ import (
 )
 
 const (
-	repoURL     = "https://quay.io/api/v1/repository/%s"
+	repoURL     = "https://quay.io/api/v1/repository/%s/tag/"
 	imagePrefix = "quay.io/"
 )
-
-var _ api.ImageClient = &Client{}
 
 type Client struct {
 	*http.Client
 }
 
 type Response struct {
-	Tags map[string]Tag `json:"tags"`
+	Tags []Tag `json:"tags"`
 }
 
 type Tag struct {
+	Name           string `json:"name"`
 	ManifestDigest string `json:"manifest_digest"`
 	LastModified   string `json:"last_modified"`
 }
@@ -73,7 +72,7 @@ func (c *Client) Tags(ctx context.Context, imageURL string) ([]api.ImageTag, err
 	}
 
 	var tags []api.ImageTag
-	for tagName, tag := range response.Tags {
+	for _, tag := range response.Tags {
 		timestamp, err := time.Parse(time.RFC1123Z, tag.LastModified)
 		if err != nil {
 			return nil, err
@@ -85,7 +84,7 @@ func (c *Client) Tags(ctx context.Context, imageURL string) ([]api.ImageTag, err
 		}
 
 		tags = append(tags, api.ImageTag{
-			Tag:       tagName,
+			Tag:       tag.Name,
 			SHA:       shaID,
 			Timestamp: timestamp,
 		})

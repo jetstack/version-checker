@@ -2,10 +2,15 @@ package version
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"hash/fnv"
+	"sync"
+	"time"
 
 	"github.com/masterminds/semver"
+	"github.com/sirupsen/logrus"
 
 	"github.com/joshvanl/version-checker/pkg/api"
 	"github.com/joshvanl/version-checker/pkg/version/docker"
@@ -13,51 +18,114 @@ import (
 	"github.com/joshvanl/version-checker/pkg/version/quay"
 )
 
-var (
-	zeroVersion = semver.MustParse("0.0.0")
-)
-
 type VersionGetter struct {
+	log *logrus.Entry
+
 	quay   *quay.Client
 	docker *docker.Client
 	gcr    *gcr.Client
+
+	// cacheTimeout is the amount of time a imageCache item is considered fresh
+	// for.
+	cacheTimeout time.Duration
+	cacheMu      sync.RWMutex
+	imageCache   map[string]imageCacheItem
 }
 
-// TODO: add comments to funcs
-func New() *VersionGetter {
-	return &VersionGetter{
-		quay:   quay.New(),
-		docker: docker.New(),
-		gcr:    gcr.New(),
+type ImageClient interface {
+	// IsClient will return true if this client is appropriate for the given
+	// image URL.
+	IsClient(imageURL string) bool
+
+	// Tags will return the available tags for the given image URL at the remote
+	// repository.
+	Tags(ctx context.Context, imageURL string) ([]api.ImageTag, error)
+}
+
+func New(log *logrus.Entry, cacheTimeout time.Duration) *VersionGetter {
+	vg := &VersionGetter{
+		log:          log.WithField("module", "version_getter"),
+		quay:         quay.New(),
+		docker:       docker.New(),
+		gcr:          gcr.New(),
+		imageCache:   make(map[string]imageCacheItem),
+		cacheTimeout: cacheTimeout,
 	}
+
+	// Start garbage collector
+	go vg.garbageCollect(cacheTimeout / 2)
+
+	return vg
 }
 
-// LatestTagFromImage will return the latest image tag from the remote registry
-// given an image URL, along with the full set of tags found for that image.
-func (v *VersionGetter) LatestTagFromImage(ctx context.Context, options *api.Options, imageURL string) (*api.ImageTag, []api.ImageTag, error) {
+// LatestTagFromOImage will return the latest tag given an imageURL, according
+// to the given options.
+func (v *VersionGetter) LatestTagFromImage(ctx context.Context, opts *api.Options, imageURL string) (*api.ImageTag, error) {
+	tags, err := v.allTagsFromImage(ctx, imageURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tags for image %q: %s",
+			imageURL, err)
+	}
+
+	// If UseSHA then return early
+	if opts.UseSHA {
+		return latestSHA(tags)
+	}
+
+	return latestSemver(opts, tags)
+}
+
+// allTagsFromImage will return all available tags from the remote repository
+// given an imageURL. It also holds a cache for each imageURL that is
+// periodically garbage collected.
+func (v *VersionGetter) allTagsFromImage(ctx context.Context, imageURL string) ([]api.ImageTag, error) {
+	// Check for cache hit
+	if tags, ok := v.tryImageCache(imageURL); ok {
+		return tags, nil
+	}
+
+	// Cache miss so pull fresh tags
 	client := v.clientFromImage(imageURL)
 
 	tags, err := client.Tags(ctx, imageURL)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get tags from remote registry for %q: %s",
+		return nil, fmt.Errorf("failed to get tags from remote registry for %q: %s",
 			imageURL, err)
 	}
 
 	if len(tags) == 0 {
-		return nil, nil, fmt.Errorf("no tags found for given image URL: %q", imageURL)
+		return nil, fmt.Errorf("no tags found for given image URL: %q", imageURL)
 	}
 
-	latestTag, err := latestTag(options, tags)
+	v.log.Debugf("committing image tags: %q", imageURL)
+
+	// Add tags to cache
+	v.imageCache[imageURL] = imageCacheItem{
+		timestamp: time.Now(),
+		tags:      tags,
+	}
+
+	return tags, nil
+}
+
+// CalculateHashIndex returns a hash index given an imageURL and options.
+func CalculateHashIndex(imageURL string, opts *api.Options) (string, error) {
+	opsJson, err := json.Marshal(opts)
 	if err != nil {
-		return nil, nil, err
+		return "", fmt.Errorf("failed to marshal options: %s", err)
 	}
 
-	return latestTag, tags, nil
+	hash := fnv.New32()
+	if _, err := hash.Write(append(opsJson, []byte(imageURL)...)); err != nil {
+		return "", fmt.Errorf("failed to calculate image hash: %s", err)
+	}
+
+	return fmt.Sprintf("%d", hash.Sum32()), nil
 }
 
 // clientFromImage will return the appropriate registry client for a given
 // image URL.
-func (v *VersionGetter) clientFromImage(imageURL string) api.ImageClient {
+func (v *VersionGetter) clientFromImage(imageURL string) ImageClient {
 	switch {
 	case v.quay.IsClient(imageURL):
 		return v.quay
@@ -71,18 +139,17 @@ func (v *VersionGetter) clientFromImage(imageURL string) api.ImageClient {
 	}
 }
 
-// latestTag will return the latest tag given a set of tags, according to the
-// given options.
-func latestTag(options *api.Options, tags []api.ImageTag) (*api.ImageTag, error) {
-	// If UseSHA then return early
-	if options.UseSHA {
-		return latestSHA(tags)
-	}
+// latestSemver will return the latest ImageTag based on the given options
+// restriction, using semver. This should not be used is UseSHA has been
+// enabled.
+func latestSemver(opts *api.Options, tags []api.ImageTag) (*api.ImageTag, error) {
+	var (
+		latestImageTag *api.ImageTag
+		latestSemVer   *semver.Version
+	)
 
-	var latest api.ImageTag
-
-	for i, tag := range tags {
-		v, err := semver.NewVersion(tag.Tag)
+	for i := range tags {
+		v, err := semver.NewVersion(tags[i].Tag)
 		if err == semver.ErrInvalidSemVer {
 			continue
 		}
@@ -90,40 +157,40 @@ func latestTag(options *api.Options, tags []api.ImageTag) (*api.ImageTag, error)
 			return nil, err
 		}
 
-		tags[i].SemVer = v
-
 		// If regex enabled but doesn't match tag, continue
-		if options.RegexMatcher != nil && !options.RegexMatcher.MatchString(tag.Tag) {
+		if opts.RegexMatcher != nil && !opts.RegexMatcher.MatchString(tags[i].Tag) {
 			continue
 		}
 
 		// Optionally use pre-release
-		if v.Prerelease() != "" && !options.UsePreRelease {
+		if v.Prerelease() != "" && !opts.UsePreRelease {
 			continue
 		}
 
-		if options.PinMajor != nil && v.Major() != *options.PinMajor {
+		if opts.PinMajor != nil && v.Major() != *opts.PinMajor {
 			continue
 		}
-		if options.PinMinor != nil && v.Minor() != *options.PinMinor {
+		if opts.PinMinor != nil && v.Minor() != *opts.PinMinor {
 			continue
 		}
-		if options.PinPatch != nil && v.Patch() != *options.PinPatch {
+		if opts.PinPatch != nil && v.Patch() != *opts.PinPatch {
 			continue
 		}
 
-		if latest.SemVer == nil || latest.SemVer.LessThan(v) {
-			latest = tags[i]
+		if latestSemVer == nil || latestSemVer.LessThan(v) {
+			latestSemVer = v
+			latestImageTag = &tags[i]
 		}
 	}
 
-	if latest.SemVer == nil {
-		return nil, fmt.Errorf("no image found with those option contraints: %+v", options)
+	if latestImageTag == nil {
+		return nil, fmt.Errorf("no image found with those option constraints: %+v", opts)
 	}
 
-	return &latest, nil
+	return latestImageTag, nil
 }
 
+// latestSHA will return the latest ImageTag based on image timestamps.
 func latestSHA(tags []api.ImageTag) (*api.ImageTag, error) {
 	var tag *api.ImageTag
 

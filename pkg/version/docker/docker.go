@@ -19,8 +19,6 @@ const (
 	imagePrefixHub = "registry.hub.docker.com/"
 )
 
-var _ api.ImageClient = &Client{}
-
 type Client struct {
 	*http.Client
 }
@@ -76,15 +74,25 @@ func (c *Client) Tags(ctx context.Context, imageURL string) ([]api.ImageTag, err
 		}
 
 		for _, result := range response.Results {
+			// No images in this result, so continue early
+			if len(result.Images) == 0 {
+				continue
+			}
+
 			timestamp, err := time.Parse(time.RFC3339Nano, result.Timestamp)
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse image timestamp: %s", err)
 			}
 
 			for _, image := range result.Images {
+				// Image without digest contains no real image.
+				if len(image.Digest) == 0 {
+					continue
+				}
+
 				shaID, err := util.ParseSHADigest(image.Digest)
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("%+v: %s", result, err)
 				}
 
 				tags = append(tags, api.ImageTag{

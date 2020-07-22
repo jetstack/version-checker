@@ -29,8 +29,6 @@ var (
 	regImageDomain = regexp.MustCompile(imageWithSubDomainRegex)
 )
 
-var _ api.ImageClient = &Client{}
-
 type Client struct {
 	*http.Client
 }

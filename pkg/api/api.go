@@ -1,15 +1,12 @@
 package api
 
 import (
-	"context"
 	"regexp"
 	"time"
-
-	"github.com/masterminds/semver"
 )
 
 const (
-	EnableAnnotationKey = "version-checker.io/enable"
+	EnableAnnotationKey = "enable.version-checker.io"
 
 	UseSHAAnnotationKey        = "use-sha.version-checker.io"
 	UsePreReleaseAnnotationKey = "use-prerelease.version-checker.io"
@@ -22,6 +19,8 @@ const (
 	// TODO: set OS + arch options
 )
 
+// Options is used to describe what restrictions should be used for determining
+// the latest image.
 type Options struct {
 	// UseSHA cannot be used with any other options
 	UseSHA bool `json:"use-sha,omitempty"`
@@ -36,22 +35,11 @@ type Options struct {
 	RegexMatcher *regexp.Regexp
 }
 
+// ImageTag describes a container image tag.
 type ImageTag struct {
 	Tag          string    `json:"tag"`
 	SHA          string    `json:"sha"`
 	Timestamp    time.Time `json:"timestamp"`
 	Architecture string    `json:"architecture,omitempty"`
 	OS           string    `json:"os,omitempty"`
-
-	SemVer *semver.Version
-}
-
-type ImageClient interface {
-	// IsClient will return true if this client is appropriate for the given
-	// image URL.
-	IsClient(imageURL string) bool
-
-	// Tags will return the available tags for the given image URL at the remote
-	// repository.
-	Tags(ctx context.Context, imageURL string) ([]ImageTag, error)
 }
