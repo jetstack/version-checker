@@ -63,8 +63,7 @@ func New(log *logrus.Entry, cacheTimeout time.Duration) *VersionGetter {
 func (v *VersionGetter) LatestTagFromImage(ctx context.Context, opts *api.Options, imageURL string) (*api.ImageTag, error) {
 	tags, err := v.allTagsFromImage(ctx, imageURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get tags for image %q: %s",
-			imageURL, err)
+		return nil, err
 	}
 
 	// If UseSHA then return early
@@ -192,17 +191,17 @@ func latestSemver(opts *api.Options, tags []api.ImageTag) (*api.ImageTag, error)
 
 // latestSHA will return the latest ImageTag based on image timestamps.
 func latestSHA(tags []api.ImageTag) (*api.ImageTag, error) {
-	var tag *api.ImageTag
+	var latestTag *api.ImageTag
 
 	for i := range tags {
-		if tag == nil || tags[i].Timestamp.After(tag.Timestamp) {
-			tag = &tags[i]
+		if latestTag == nil || tags[i].Timestamp.After(latestTag.Timestamp) {
+			latestTag = &tags[i]
 		}
 	}
 
-	if tag == nil {
+	if latestTag == nil {
 		return nil, errors.New("failed to find latest image based on SHA")
 	}
 
-	return tag, nil
+	return latestTag, nil
 }

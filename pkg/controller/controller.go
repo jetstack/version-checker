@@ -39,25 +39,26 @@ type Controller struct {
 	cacheMu      sync.RWMutex
 	cacheTimeout time.Duration
 	imageCache   map[string]imageCacheItem
+
+	defaultTestAll bool
 }
 
 func New(
 	cacheTimeout time.Duration,
 	metrics *metrics.Metrics,
 	kubeClient kubernetes.Interface,
+	log *logrus.Entry,
+	defaultTestAll bool,
 ) *Controller {
-	log := logrus.NewEntry(logrus.New())
-	// TODO:
-	log.Logger.SetLevel(logrus.DebugLevel)
-
 	c := &Controller{
-		log:           log.WithField("module", "controller"),
-		kubeClient:    kubeClient,
-		workqueue:     workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
-		versionGetter: version.New(log, cacheTimeout),
-		metrics:       metrics,
-		cacheTimeout:  cacheTimeout,
-		imageCache:    make(map[string]imageCacheItem),
+		log:            log.WithField("module", "controller"),
+		kubeClient:     kubeClient,
+		workqueue:      workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
+		versionGetter:  version.New(log, cacheTimeout),
+		metrics:        metrics,
+		cacheTimeout:   cacheTimeout,
+		imageCache:     make(map[string]imageCacheItem),
+		defaultTestAll: defaultTestAll,
 	}
 
 	return c
@@ -134,6 +135,8 @@ func (c *Controller) processNextWorkItem(ctx context.Context, obj interface{}) e
 				return err
 			}
 
+			c.log.Debugf("removing deleted container from metrics: %s/%s/%s: %s:%s",
+				pod.Namespace, pod.Name, container.Name, imageURL, currentTag)
 			c.metrics.RemoveImage(pod.Namespace, pod.Name, container.Name, imageURL, currentTag)
 		}
 

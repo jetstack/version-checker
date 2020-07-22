@@ -22,10 +22,16 @@ func (c *Controller) sync(ctx context.Context, pod *corev1.Pod) error {
 
 	var errs []string
 	for _, container := range pod.Spec.Containers {
-		// TODO: add option to enable all pods
-		//if enable, ok := pod.Annotations[api.EnableAnnotationKey+"/"+container.Name]; !ok || enable != "true" {
-		//	continue
-		//}
+		enable, ok := pod.Annotations[api.EnableAnnotationKey+"/"+container.Name]
+		if c.defaultTestAll {
+			if ok || enable == "false" {
+				continue
+			}
+		} else {
+			if !ok || enable != "true" {
+				continue
+			}
+		}
 
 		log = log.WithField("container", container.Name)
 
@@ -63,7 +69,6 @@ func (c *Controller) testContainerImage(ctx context.Context, log *logrus.Entry,
 		return err
 	}
 
-	// TODO: handle SHA only use with full tag list
 	currentImage, err := semver.NewVersion(currentTag)
 	if err != nil {
 		return fmt.Errorf("failed to parse image tag: %s", err)
@@ -74,18 +79,31 @@ func (c *Controller) testContainerImage(ctx context.Context, log *logrus.Entry,
 		return err
 	}
 
-	// TODO: handle SHA only
-	latestImageV, err := semver.NewVersion(latestImage.Tag)
-	if err != nil {
-		return err
+	var isLatest bool
+	if opts.UseSHA {
+		// If we are using SHA then we can do a string comparison of the latest
+		if currentTag == latestImage.SHA {
+			isLatest = true
+		}
+
+	} else {
+		// Test against normal semvar
+		latestImageV, err := semver.NewVersion(latestImage.Tag)
+		if err != nil {
+			return err
+		}
+
+		if !currentImage.LessThan(latestImageV) {
+			isLatest = true
+		}
 	}
 
-	if currentImage.LessThan(latestImageV) {
-		log.Infof("image is not latest %s: %s -> %s",
-			imageURL, currentTag, latestImage.Tag)
-	} else {
+	if isLatest {
 		log.Infof("image is latest %s:%s",
 			imageURL, currentTag)
+	} else {
+		log.Infof("image is not latest %s: %s -> %s",
+			imageURL, currentTag, latestImage.Tag)
 	}
 
 	c.metrics.AddImage(pod.Namespace, pod.Name,
