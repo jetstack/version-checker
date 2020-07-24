@@ -69,24 +69,29 @@ func (c *Controller) testContainerImage(ctx context.Context, log *logrus.Entry,
 		return err
 	}
 
-	currentImage, err := semver.NewVersion(currentTag)
-	if err != nil {
-		return fmt.Errorf("failed to parse image tag: %s", err)
-	}
-
 	latestImage, err := c.getLatestImage(ctx, log, imageURL, opts)
 	if err != nil {
 		return err
 	}
 
-	var isLatest bool
+	var (
+		latestTag string
+		isLatest  bool
+	)
+
 	if opts.UseSHA {
 		// If we are using SHA then we can do a string comparison of the latest
 		if currentTag == latestImage.SHA {
 			isLatest = true
 		}
 
+		latestTag = latestImage.SHA
 	} else {
+		currentImage, err := semver.NewVersion(currentTag)
+		if err != nil {
+			return fmt.Errorf("failed to parse image tag: %s", err)
+		}
+
 		// Test against normal semvar
 		latestImageV, err := semver.NewVersion(latestImage.Tag)
 		if err != nil {
@@ -96,6 +101,8 @@ func (c *Controller) testContainerImage(ctx context.Context, log *logrus.Entry,
 		if !currentImage.LessThan(latestImageV) {
 			isLatest = true
 		}
+
+		latestTag = latestImage.Tag
 	}
 
 	if isLatest {
@@ -103,11 +110,11 @@ func (c *Controller) testContainerImage(ctx context.Context, log *logrus.Entry,
 			imageURL, currentTag)
 	} else {
 		log.Infof("image is not latest %s: %s -> %s",
-			imageURL, currentTag, latestImage.Tag)
+			imageURL, currentTag, latestTag)
 	}
 
 	c.metrics.AddImage(pod.Namespace, pod.Name,
-		container.Name, imageURL, currentTag, latestImage.Tag)
+		container.Name, imageURL, currentTag, latestTag)
 
 	return nil
 }
@@ -205,7 +212,12 @@ func (c *Controller) buildOptions(containerName string, annotations map[string]s
 }
 
 func urlAndTagFromImage(image string) (string, string, error) {
-	imageSplit := strings.Split(image, ":")
+	imageSplit := strings.Split(image, "@")
+	if len(imageSplit) == 2 {
+		return imageSplit[0], imageSplit[1], nil
+	}
+
+	imageSplit = strings.Split(image, ":")
 	if len(imageSplit) != 2 {
 		return "", "", fmt.Errorf("got unexpected image format [image:tag]: %s", image)
 	}

@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/joshvanl/version-checker/pkg/api"
-	"github.com/joshvanl/version-checker/pkg/version/util"
 )
 
 const (
@@ -78,14 +77,9 @@ func (c *Client) Tags(ctx context.Context, imageURL string) ([]api.ImageTag, err
 			return nil, err
 		}
 
-		shaID, err := util.ParseSHADigest(tag.ManifestDigest)
-		if err != nil {
-			return nil, err
-		}
-
 		tags = append(tags, api.ImageTag{
 			Tag:       tag.Name,
-			SHA:       shaID,
+			SHA:       tag.ManifestDigest,
 			Timestamp: timestamp,
 		})
 	}

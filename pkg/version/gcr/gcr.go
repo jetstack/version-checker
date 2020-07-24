@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/joshvanl/version-checker/pkg/api"
-	"github.com/joshvanl/version-checker/pkg/version/util"
 )
 
 const (
@@ -85,11 +84,6 @@ func (c *Client) Tags(ctx context.Context, imageURL string) ([]api.ImageTag, err
 
 	var tags []api.ImageTag
 	for sha, manifestItem := range response.Manifest {
-		shaID, err := util.ParseSHADigest(sha)
-		if err != nil {
-			return nil, err
-		}
-
 		miliTimestamp, err := strconv.ParseInt(manifestItem.TimeCreated, 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert timestamp string: %s", err)
@@ -99,12 +93,12 @@ func (c *Client) Tags(ctx context.Context, imageURL string) ([]api.ImageTag, err
 
 		// If no tag, add without and continue early.
 		if len(manifestItem.Tag) == 0 {
-			tags = append(tags, api.ImageTag{SHA: shaID, Timestamp: timestamp})
+			tags = append(tags, api.ImageTag{SHA: sha, Timestamp: timestamp})
 			continue
 		}
 
 		for _, tag := range manifestItem.Tag {
-			tags = append(tags, api.ImageTag{Tag: tag, SHA: shaID, Timestamp: timestamp})
+			tags = append(tags, api.ImageTag{Tag: tag, SHA: sha, Timestamp: timestamp})
 		}
 	}
 
