@@ -59,9 +59,15 @@ func NewCommand(ctx context.Context) *cobra.Command {
 			}
 
 			metrics := metrics.New(log)
-			if err := metrics.Run(ctx, opts.MetricsServingAddress); err != nil {
+			if err := metrics.Run(opts.MetricsServingAddress); err != nil {
 				return fmt.Errorf("failed to start metrics server: %s", err)
 			}
+
+			defer func() {
+				if err := metrics.Shutdown(); err != nil {
+					log.Error(err)
+				}
+			}()
 
 			c := controller.New(opts.CacheTimeout, metrics,
 				kubeClient, log, opts.DefaultTestAll)
@@ -72,7 +78,7 @@ func NewCommand(ctx context.Context) *cobra.Command {
 	kubeConfigFlags.AddFlags(cmd.PersistentFlags())
 
 	cmd.PersistentFlags().StringVarP(&opts.MetricsServingAddress,
-		"metrics-serving-address", "m", "0.0.0.0:80",
+		"metrics-serving-address", "m", "0.0.0.0:8080",
 		"Address to serve metrics on at the /metrics path.")
 
 	cmd.PersistentFlags().BoolVarP(&opts.DefaultTestAll,

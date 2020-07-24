@@ -1,6 +1,9 @@
 package version
 
 import (
+	"encoding/json"
+	"fmt"
+	"hash/fnv"
 	"time"
 
 	"github.com/joshvanl/version-checker/pkg/api"
@@ -11,6 +14,21 @@ import (
 type imageCacheItem struct {
 	timestamp time.Time
 	tags      []api.ImageTag
+}
+
+// CalculateHashIndex returns a hash index given an imageURL and options.
+func CalculateHashIndex(imageURL string, opts *api.Options) (string, error) {
+	opsJson, err := json.Marshal(opts)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal options: %s", err)
+	}
+
+	hash := fnv.New32()
+	if _, err := hash.Write(append(opsJson, []byte(imageURL)...)); err != nil {
+		return "", fmt.Errorf("failed to calculate search hash: %s", err)
+	}
+
+	return fmt.Sprintf("%d", hash.Sum32()), nil
 }
 
 // tryImageCache return an imageCacheItem item and true if their is a cache hit

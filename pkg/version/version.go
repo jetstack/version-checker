@@ -2,10 +2,8 @@ package version
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"hash/fnv"
 	"sync"
 	"time"
 
@@ -66,6 +64,8 @@ func (v *VersionGetter) LatestTagFromImage(ctx context.Context, opts *api.Option
 		return nil, err
 	}
 
+	// TODO: handle ":latest"
+
 	// If UseSHA then return early
 	if opts.UseSHA {
 		return latestSHA(tags)
@@ -105,21 +105,6 @@ func (v *VersionGetter) allTagsFromImage(ctx context.Context, imageURL string) (
 	}
 
 	return tags, nil
-}
-
-// CalculateHashIndex returns a hash index given an imageURL and options.
-func CalculateHashIndex(imageURL string, opts *api.Options) (string, error) {
-	opsJson, err := json.Marshal(opts)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal options: %s", err)
-	}
-
-	hash := fnv.New32()
-	if _, err := hash.Write(append(opsJson, []byte(imageURL)...)); err != nil {
-		return "", fmt.Errorf("failed to calculate image hash: %s", err)
-	}
-
-	return fmt.Sprintf("%d", hash.Sum32()), nil
 }
 
 // clientFromImage will return the appropriate registry client for a given
@@ -183,7 +168,7 @@ func latestSemver(opts *api.Options, tags []api.ImageTag) (*api.ImageTag, error)
 	}
 
 	if latestImageTag == nil {
-		return nil, fmt.Errorf("no image found with those option constraints: %+v", opts)
+		return nil, fmt.Errorf("no tag found with those option constraints: %+v", opts)
 	}
 
 	return latestImageTag, nil

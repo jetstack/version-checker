@@ -50,7 +50,7 @@ func New(log *logrus.Entry) *Metrics {
 }
 
 // Run will run the metrics server
-func (m *Metrics) Run(ctx context.Context, servingAddress string) error {
+func (m *Metrics) Run(servingAddress string) error {
 	router := http.NewServeMux()
 	router.Handle("/metrics", promhttp.HandlerFor(m.registry, promhttp.HandlerOpts{}))
 
