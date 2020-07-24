@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: version-checker
+  namespace: monitoring
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: version-checker
+  namespace: monitoring
+  labels:
+    app: version-checker
+spec:
+  selector:
+    app: version-checker
+  ports:
+    - protocol: TCP
+      name: web
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: version-checker
+  name: version-checker
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: version-checker
+  template:
+    metadata:
+      labels:
+        app: version-checker
+      annotations:
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8080"
+        prometheus.io/scrape: "true"
+        use-prerelease.version-checker.io/version-checker: "true"
+    spec:
+      serviceAccountName: version-checker
+      containers:
+      - image: gcr.io/jetstack-cre/version-checker:v0.0.1-alpha.0
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        name: version-checker
+        command: ["version-checker"]
+        args:
+          - "--log-level=debug"
+          - "--test-all-containers"
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: version-checker
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "watch", "list"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: version-checker
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: version-checker
+subjects:
+- kind: ServiceAccount
+  name: version-checker
+  namespace: monitoring
