@@ -41,7 +41,9 @@ type Image struct {
 
 func New() *Client {
 	return &Client{
-		Client: http.DefaultClient,
+		&http.Client{
+			Timeout: time.Second * 5,
+		},
 	}
 }
 

@@ -10,18 +10,14 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/joshvanl/version-checker/pkg/api"
-	"github.com/joshvanl/version-checker/pkg/version/docker"
-	"github.com/joshvanl/version-checker/pkg/version/gcr"
-	"github.com/joshvanl/version-checker/pkg/version/quay"
+	"github.com/joshvanl/version-checker/pkg/client"
 	"github.com/joshvanl/version-checker/pkg/version/semver"
 )
 
 type VersionGetter struct {
 	log *logrus.Entry
 
-	quay   *quay.Client
-	docker *docker.Client
-	gcr    *gcr.Client
+	client *client.Client
 
 	// cacheTimeout is the amount of time a imageCache item is considered fresh
 	// for.
@@ -30,22 +26,10 @@ type VersionGetter struct {
 	imageCache   map[string]imageCacheItem
 }
 
-type ImageClient interface {
-	// IsClient will return true if this client is appropriate for the given
-	// image URL.
-	IsClient(imageURL string) bool
-
-	// Tags will return the available tags for the given image URL at the remote
-	// repository.
-	Tags(ctx context.Context, imageURL string) ([]api.ImageTag, error)
-}
-
-func New(log *logrus.Entry, cacheTimeout time.Duration) *VersionGetter {
+func New(log *logrus.Entry, client *client.Client, cacheTimeout time.Duration) *VersionGetter {
 	vg := &VersionGetter{
 		log:          log.WithField("module", "version_getter"),
-		quay:         quay.New(),
-		docker:       docker.New(),
-		gcr:          gcr.New(),
+		client:       client,
 		imageCache:   make(map[string]imageCacheItem),
 		cacheTimeout: cacheTimeout,
 	}
@@ -81,11 +65,8 @@ func (v *VersionGetter) allTagsFromImage(ctx context.Context, imageURL string) (
 		return tags, nil
 	}
 
-	// TODO: make client into new module + make seperate HTTP client per registry
 	// Cache miss so pull fresh tags
-	client := v.clientFromImage(imageURL)
-
-	tags, err := client.Tags(ctx, imageURL)
+	tags, err := v.client.Tags(ctx, imageURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tags from remote registry for %q: %s",
 			imageURL, err)
@@ -104,22 +85,6 @@ func (v *VersionGetter) allTagsFromImage(ctx context.Context, imageURL string) (
 	}
 
 	return tags, nil
-}
-
-// clientFromImage will return the appropriate registry client for a given
-// image URL.
-func (v *VersionGetter) clientFromImage(imageURL string) ImageClient {
-	switch {
-	case v.quay.IsClient(imageURL):
-		return v.quay
-	case v.gcr.IsClient(imageURL):
-		return v.gcr
-	case v.docker.IsClient(imageURL):
-		return v.docker
-	default:
-		// Fall back to docker if we can't determine the registry
-		return v.docker
-	}
 }
 
 // latestSemver will return the latest ImageTag based on the given options

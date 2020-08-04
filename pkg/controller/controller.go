@@ -16,6 +16,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
+	"github.com/joshvanl/version-checker/pkg/client"
 	"github.com/joshvanl/version-checker/pkg/metrics"
 	"github.com/joshvanl/version-checker/pkg/version"
 )
@@ -50,11 +51,12 @@ func New(
 	log *logrus.Entry,
 	defaultTestAll bool,
 ) *Controller {
+	imageClient := client.New()
 	c := &Controller{
 		log:            log.WithField("module", "controller"),
 		kubeClient:     kubeClient,
 		workqueue:      workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
-		versionGetter:  version.New(log, cacheTimeout),
+		versionGetter:  version.New(log, imageClient, cacheTimeout),
 		metrics:        metrics,
 		cacheTimeout:   cacheTimeout,
 		imageCache:     make(map[string]imageCacheItem),
