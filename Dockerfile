@@ -5,4 +5,4 @@ RUN apk --no-cache add ca-certificates
 
 COPY ./bin/version-checker-linux /usr/bin/version-checker
 
-CMD ["/usr/bin/version-checker"]
+ENTRYPOINT ["/usr/bin/version-checker"]

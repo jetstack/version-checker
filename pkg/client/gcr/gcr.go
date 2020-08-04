@@ -29,6 +29,8 @@ var (
 )
 
 type Client struct {
+	accessToken string
+
 	*http.Client
 }
 
@@ -41,9 +43,10 @@ type ManifestItem struct {
 	TimeCreated string   `json:"timeCreatedMs"`
 }
 
-func New() *Client {
+func New(accessToken string) *Client {
 	return &Client{
-		&http.Client{
+		accessToken: accessToken,
+		Client: &http.Client{
 			Timeout: time.Second * 5,
 		},
 	}
@@ -67,6 +70,11 @@ func (c *Client) Tags(ctx context.Context, imageURL string) ([]api.ImageTag, err
 		return nil, err
 	}
 
+	if len(c.accessToken) > 0 {
+		req.SetBasicAuth("oauth2accesstoken", c.accessToken)
+	}
+
+	req.URL.Scheme = "https"
 	req = req.WithContext(ctx)
 
 	resp, err := c.Do(req)

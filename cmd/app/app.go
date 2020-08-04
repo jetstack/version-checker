@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -11,6 +12,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth" // Load all auth plugins
 
+	"github.com/joshvanl/version-checker/pkg/client"
 	"github.com/joshvanl/version-checker/pkg/controller"
 	"github.com/joshvanl/version-checker/pkg/metrics"
 )
@@ -19,6 +21,9 @@ const (
 	version = "v0.0.1-alpha.0"
 
 	helpOutput = "Kubernetes utility for exposing used image versions compared to the latest version, as metrics."
+
+	envPrefix         = "VERSION_CHECKER"
+	envGCRAccessToken = "GCR_ACCESS_TOKEN"
 )
 
 // Options is a struct to hold options for the version-checker
@@ -27,6 +32,8 @@ type Options struct {
 	DefaultTestAll        bool
 	CacheTimeout          time.Duration
 	LogLevel              string
+
+	Client client.Options
 }
 
 func NewCommand(ctx context.Context) *cobra.Command {
@@ -38,6 +45,8 @@ func NewCommand(ctx context.Context) *cobra.Command {
 		Short: helpOutput,
 		Long:  helpOutput,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			opts.checkEnv()
+
 			logLevel, err := logrus.ParseLevel(opts.LogLevel)
 			if err != nil {
 				return fmt.Errorf("failed to parse --log-level %q: %s",
@@ -63,6 +72,8 @@ func NewCommand(ctx context.Context) *cobra.Command {
 				return fmt.Errorf("failed to start metrics server: %s", err)
 			}
 
+			client := client.New(&opts.Client)
+
 			defer func() {
 				if err := metrics.Shutdown(); err != nil {
 					log.Error(err)
@@ -70,7 +81,7 @@ func NewCommand(ctx context.Context) *cobra.Command {
 			}()
 
 			c := controller.New(opts.CacheTimeout, metrics,
-				kubeClient, log, opts.DefaultTestAll)
+				client, kubeClient, log, opts.DefaultTestAll)
 			return c.Run(ctx)
 		},
 	}
@@ -93,7 +104,20 @@ func NewCommand(ctx context.Context) *cobra.Command {
 
 	cmd.PersistentFlags().StringVarP(&opts.LogLevel,
 		"log-level", "v", "info",
-		"Log level (debug, info, warn, error, fatal, panic)")
+		"Log level (debug, info, warn, error, fatal, panic).")
+
+	cmd.PersistentFlags().StringVar(&opts.Client.GCRAccessToken,
+		"gcr-access-token", "",
+		fmt.Sprintf(
+			"Access token for read access to private GCR registries (%s_%s).",
+			envPrefix, envGCRAccessToken,
+		))
 
 	return cmd
+}
+
+func (o *Options) checkEnv() {
+	if len(o.Client.GCRAccessToken) == 0 {
+		o.Client.GCRAccessToken = os.Getenv(envPrefix + "_" + envGCRAccessToken)
+	}
 }

@@ -27,11 +27,16 @@ type Client struct {
 	gcr    *gcr.Client
 }
 
-func New() *Client {
+// Options used to configure client authentication.
+type Options struct {
+	GCRAccessToken string `json:"gcr_access_token"`
+}
+
+func New(opts *Options) *Client {
 	return &Client{
 		quay:   quay.New(),
 		docker: docker.New(),
-		gcr:    gcr.New(),
+		gcr:    gcr.New(opts.GCRAccessToken),
 	}
 }
 

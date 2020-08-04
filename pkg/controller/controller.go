@@ -47,11 +47,11 @@ type Controller struct {
 func New(
 	cacheTimeout time.Duration,
 	metrics *metrics.Metrics,
+	imageClient *client.Client,
 	kubeClient kubernetes.Interface,
 	log *logrus.Entry,
 	defaultTestAll bool,
 ) *Controller {
-	imageClient := client.New()
 	c := &Controller{
 		log:            log.WithField("module", "controller"),
 		kubeClient:     kubeClient,
