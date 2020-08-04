@@ -18,8 +18,6 @@ import (
 func (c *Controller) sync(ctx context.Context, pod *corev1.Pod) error {
 	log := c.log.WithField("name", pod.Name).WithField("namespace", pod.Namespace)
 
-	log.Debug("processing pod images")
-
 	var errs []string
 	for _, container := range pod.Spec.Containers {
 		enable, ok := pod.Annotations[api.EnableAnnotationKey+"/"+container.Name]
@@ -34,6 +32,7 @@ func (c *Controller) sync(ctx context.Context, pod *corev1.Pod) error {
 		}
 
 		log = log.WithField("container", container.Name)
+		log.Debug("processing conainer image")
 
 		opts, err := c.buildOptions(container.Name, pod.Annotations)
 		if err != nil {
@@ -64,12 +63,7 @@ func (c *Controller) sync(ctx context.Context, pod *corev1.Pod) error {
 // available in the remote registry given the options.
 func (c *Controller) testContainerImage(ctx context.Context, log *logrus.Entry,
 	pod *corev1.Pod, container *corev1.Container, opts *api.Options) error {
-	imageURL, currentTag, err := urlAndTagFromImage(container.Image)
-	if err != nil {
-		return err
-	}
-
-	// TODO: handle 'latest'
+	imageURL, currentTag := urlAndTagFromImage(container.Image)
 
 	latestImage, err := c.getLatestImage(ctx, log, imageURL, opts)
 	if err != nil {
@@ -80,6 +74,27 @@ func (c *Controller) testContainerImage(ctx context.Context, log *logrus.Entry,
 		latestTag string
 		isLatest  bool
 	)
+
+	// if container is using latest or '' image tag, compare SHA tag
+	if statusTag := currentTag; statusTag == "latest" ||
+		statusTag == "" {
+		for _, status := range pod.Status.ContainerStatuses {
+			if status.Name == container.Name {
+				_, currentTag = urlAndTagFromImage(status.ImageID)
+				break
+			}
+		}
+
+		if currentTag == "" {
+			log.Errorf("image using %q tag, and image ID not yet set",
+				statusTag)
+			return nil
+		}
+
+		opts.UseSHA = true
+		log.Warnf("image using %q tag, comparing image SHA %q",
+			statusTag, currentTag)
+	}
 
 	if opts.UseSHA {
 		// If we are using SHA then we can do a string comparison of the latest
@@ -206,16 +221,16 @@ func (c *Controller) buildOptions(containerName string, annotations map[string]s
 	return &opts, nil
 }
 
-func urlAndTagFromImage(image string) (string, string, error) {
+func urlAndTagFromImage(image string) (string, string) {
 	imageSplit := strings.Split(image, "@")
 	if len(imageSplit) == 2 {
-		return imageSplit[0], imageSplit[1], nil
+		return imageSplit[0], imageSplit[1]
 	}
 
 	imageSplit = strings.Split(image, ":")
-	if len(imageSplit) != 2 {
-		return "", "", fmt.Errorf("got unexpected image format [image:tag]: %s", image)
+	if len(imageSplit) == 2 {
+		return imageSplit[0], imageSplit[1]
 	}
 
-	return imageSplit[0], imageSplit[1], nil
+	return image, ""
 }

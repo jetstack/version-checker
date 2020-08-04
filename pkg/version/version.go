@@ -81,6 +81,7 @@ func (v *VersionGetter) allTagsFromImage(ctx context.Context, imageURL string) (
 		return tags, nil
 	}
 
+	// TODO: make client into new module + make seperate HTTP client per registry
 	// Cache miss so pull fresh tags
 	client := v.clientFromImage(imageURL)
 
@@ -127,7 +128,7 @@ func (v *VersionGetter) clientFromImage(imageURL string) ImageClient {
 func latestSemver(opts *api.Options, tags []api.ImageTag) (*api.ImageTag, error) {
 	var (
 		latestImageTag *api.ImageTag
-		latestSemVer   *semver.SemVer
+		latestV        *semver.SemVer
 	)
 
 	for i := range tags {
@@ -136,8 +137,10 @@ func latestSemver(opts *api.Options, tags []api.ImageTag) (*api.ImageTag, error)
 		// If regex enabled continue here.
 		// If we match, and is less than, update latest.
 		if opts.RegexMatcher != nil {
-			if opts.RegexMatcher.MatchString(tags[i].Tag) && latestSemVer.LessThan(v) {
-				latestSemVer = v
+			if opts.RegexMatcher.MatchString(tags[i].Tag) &&
+				(latestV == nil || latestV.LessThan(v)) {
+				latestV = v
+				latestImageTag = &tags[i]
 			}
 
 			continue
@@ -158,8 +161,8 @@ func latestSemver(opts *api.Options, tags []api.ImageTag) (*api.ImageTag, error)
 			continue
 		}
 
-		if latestSemVer == nil || latestSemVer.LessThan(v) {
-			latestSemVer = v
+		if latestV == nil || latestV.LessThan(v) {
+			latestV = v
 			latestImageTag = &tags[i]
 		}
 	}

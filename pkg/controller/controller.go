@@ -130,10 +130,7 @@ func (c *Controller) processNextWorkItem(ctx context.Context, obj interface{}) e
 		}
 
 		for _, container := range pod.Spec.Containers {
-			imageURL, currentTag, err := urlAndTagFromImage(container.Image)
-			if err != nil {
-				return err
-			}
+			imageURL, currentTag := urlAndTagFromImage(container.Image)
 
 			c.log.Debugf("removing deleted container from metrics: %s/%s/%s: %s:%s",
 				pod.Namespace, pod.Name, container.Name, imageURL, currentTag)
@@ -144,7 +141,7 @@ func (c *Controller) processNextWorkItem(ctx context.Context, obj interface{}) e
 	}
 
 	if err := c.sync(ctx, pod); err != nil {
-		c.workqueue.AddRateLimited(pod)
+		c.workqueue.AddAfter(pod, time.Second*5)
 		return fmt.Errorf("error syncing '%s/%s': %s, requeuing",
 			pod.Name, pod.Namespace, err)
 	}
