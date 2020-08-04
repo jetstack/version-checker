@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/joshvanl/version-checker/pkg/api"
 	"github.com/joshvanl/version-checker/pkg/client/docker"
@@ -29,15 +30,25 @@ type Client struct {
 
 // Options used to configure client authentication.
 type Options struct {
-	GCRAccessToken string `json:"gcr_access_token"`
+	Docker docker.Options
+	GCR    gcr.Options
 }
 
-func New(opts *Options) *Client {
+type GCR struct {
+	GCRAccessToken string
+}
+
+func New(ctx context.Context, opts Options) (*Client, error) {
+	dockerClient, err := docker.New(ctx, opts.Docker)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create docker client: %s", err)
+	}
+
 	return &Client{
 		quay:   quay.New(),
-		docker: docker.New(),
-		gcr:    gcr.New(opts.GCRAccessToken),
-	}
+		docker: dockerClient,
+		gcr:    gcr.New(opts.GCR),
+	}, nil
 }
 
 func (c *Client) Tags(ctx context.Context, imageURL string) ([]api.ImageTag, error) {

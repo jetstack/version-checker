@@ -3,6 +3,7 @@ package docker
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -18,11 +19,23 @@ const (
 	imagePrefixHub = "registry.hub.docker.com/"
 )
 
-type Client struct {
-	*http.Client
+type Options struct {
+	LoginURL string
+	Username string
+	Password string
+	JWT      string
 }
 
-type Response struct {
+type Client struct {
+	*http.Client
+	Options
+}
+
+type AuthResponse struct {
+	Token string `json:"token"`
+}
+
+type TagResponse struct {
 	Next    string   `json:"next"`
 	Results []Result `json:"results"`
 }
@@ -39,12 +52,28 @@ type Image struct {
 	Architecture string `json:"Architecture"`
 }
 
-func New() *Client {
-	return &Client{
-		&http.Client{
-			Timeout: time.Second * 5,
-		},
+func New(ctx context.Context, opts Options) (*Client, error) {
+	client := &http.Client{
+		Timeout: time.Second * 5,
 	}
+
+	// Setup Auth if username and password used.
+	if len(opts.Username) > 0 || len(opts.Password) > 0 {
+		if len(opts.JWT) > 0 {
+			return nil, errors.New("cannot specify JWT as well as username/password")
+		}
+
+		token, err := basicAuthSetup(client, opts)
+		if err != nil {
+			return nil, fmt.Errorf("failed to setup auth: %s", err)
+		}
+		opts.JWT = token
+	}
+
+	return &Client{
+		Options: opts,
+		Client:  client,
+	}, nil
 }
 
 func (c *Client) IsClient(imageURL string) bool {
@@ -107,13 +136,18 @@ func (c *Client) Tags(ctx context.Context, imageURL string) ([]api.ImageTag, err
 	return tags, nil
 }
 
-func (c *Client) doRequest(ctx context.Context, url string) (*Response, error) {
+func (c *Client) doRequest(ctx context.Context, url string) (*TagResponse, error) {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
 
+	req.URL.Scheme = "https"
 	req = req.WithContext(ctx)
+	if len(c.JWT) > 0 {
+		req.Header.Add("Authorization", "JWT "+c.JWT)
+	}
+
 	resp, err := c.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get docker image: %s", err)
@@ -124,10 +158,46 @@ func (c *Client) doRequest(ctx context.Context, url string) (*Response, error) {
 		return nil, err
 	}
 
-	response := new(Response)
+	response := new(TagResponse)
 	if err := json.Unmarshal(body, response); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unexpected image tags response: %s", body)
 	}
 
 	return response, nil
+}
+
+func basicAuthSetup(client *http.Client, opts Options) (string, error) {
+	upReader := strings.NewReader(
+		fmt.Sprintf(`{"username": "%s", "password": "%s"}`,
+			opts.Username, opts.Password,
+		),
+	)
+
+	req, err := http.NewRequest(http.MethodPost, opts.LoginURL, upReader)
+	if err != nil {
+		return "", err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", errors.New(string(body))
+	}
+
+	response := new(AuthResponse)
+	if err := json.Unmarshal(body, response); err != nil {
+		return "", err
+	}
+
+	return response.Token, nil
 }

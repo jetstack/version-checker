@@ -23,7 +23,10 @@ const (
 	helpOutput = "Kubernetes utility for exposing used image versions compared to the latest version, as metrics."
 
 	envPrefix         = "VERSION_CHECKER"
-	envGCRAccessToken = "GCR_ACCESS_TOKEN"
+	envGCRAccessToken = "GCR_TOKEN"
+	envDockerUsername = "DOCKER_USERNAME"
+	envDockerPassword = "DOCKER_PASSWORD"
+	envDockerJWT      = "DOCKER_TOKEN"
 )
 
 // Options is a struct to hold options for the version-checker
@@ -72,7 +75,10 @@ func NewCommand(ctx context.Context) *cobra.Command {
 				return fmt.Errorf("failed to start metrics server: %s", err)
 			}
 
-			client := client.New(&opts.Client)
+			client, err := client.New(ctx, opts.Client)
+			if err != nil {
+				return fmt.Errorf("failed to setup image registry clients: %s", err)
+			}
 
 			defer func() {
 				if err := metrics.Shutdown(); err != nil {
@@ -87,37 +93,73 @@ func NewCommand(ctx context.Context) *cobra.Command {
 	}
 
 	kubeConfigFlags.AddFlags(cmd.PersistentFlags())
+	opts.addFlags(cmd)
 
-	cmd.PersistentFlags().StringVarP(&opts.MetricsServingAddress,
+	return cmd
+}
+
+func (o *Options) addFlags(cmd *cobra.Command) {
+	cmd.PersistentFlags().StringVarP(&o.MetricsServingAddress,
 		"metrics-serving-address", "m", "0.0.0.0:8080",
 		"Address to serve metrics on at the /metrics path.")
 
-	cmd.PersistentFlags().BoolVarP(&opts.DefaultTestAll,
+	cmd.PersistentFlags().BoolVarP(&o.DefaultTestAll,
 		"test-all-containers", "a", false,
 		`If enable, all containers will be tested, unless they have the annotation `+
 			`"enable.version-checker/${my-container}=false".`)
 
-	cmd.PersistentFlags().DurationVarP(&opts.CacheTimeout,
+	cmd.PersistentFlags().DurationVarP(&o.CacheTimeout,
 		"image-cache-timeout", "c", time.Minute*30,
 		"The time for an image in the cache to be considered fresh. Images will be "+
 			"checked at this interval.")
 
-	cmd.PersistentFlags().StringVarP(&opts.LogLevel,
+	cmd.PersistentFlags().StringVarP(&o.LogLevel,
 		"log-level", "v", "info",
 		"Log level (debug, info, warn, error, fatal, panic).")
 
-	cmd.PersistentFlags().StringVar(&opts.Client.GCRAccessToken,
-		"gcr-access-token", "",
+	cmd.PersistentFlags().StringVar(&o.Client.GCR.Token,
+		"gcr-token", "",
 		fmt.Sprintf(
 			"Access token for read access to private GCR registries (%s_%s).",
 			envPrefix, envGCRAccessToken,
 		))
 
-	return cmd
+	cmd.PersistentFlags().StringVar(&o.Client.Docker.Username,
+		"docker-username", "",
+		fmt.Sprintf(
+			"Username is authenticate with docker registry (%s_%s).",
+			envPrefix, envDockerUsername,
+		))
+	cmd.PersistentFlags().StringVar(&o.Client.Docker.Password,
+		"docker-password", "",
+		fmt.Sprintf(
+			"Password is authenticate with docker registry (%s_%s).",
+			envPrefix, envDockerPassword,
+		))
+	cmd.PersistentFlags().StringVar(&o.Client.Docker.JWT,
+		"docker-token", "",
+		fmt.Sprintf(
+			"Token is authenticate with docker registry. Cannot be used with "+
+				"username/password (%s_%s).",
+			envPrefix, envDockerJWT,
+		))
+	cmd.PersistentFlags().StringVar(&o.Client.Docker.LoginURL,
+		"docker-login-url", "https://hub.docker.com/v2/users/login/",
+		"URL to login into docker using username/password.")
 }
 
 func (o *Options) checkEnv() {
-	if len(o.Client.GCRAccessToken) == 0 {
-		o.Client.GCRAccessToken = os.Getenv(envPrefix + "_" + envGCRAccessToken)
+	if len(o.Client.GCR.Token) == 0 {
+		o.Client.GCR.Token = os.Getenv(envPrefix + "_" + envGCRAccessToken)
+	}
+
+	if len(o.Client.Docker.Username) == 0 {
+		o.Client.Docker.Username = os.Getenv(envPrefix + "_" + envDockerUsername)
+	}
+	if len(o.Client.Docker.Password) == 0 {
+		o.Client.Docker.Password = os.Getenv(envPrefix + "_" + envDockerPassword)
+	}
+	if len(o.Client.Docker.JWT) == 0 {
+		o.Client.Docker.JWT = os.Getenv(envPrefix + "_" + envDockerJWT)
 	}
 }

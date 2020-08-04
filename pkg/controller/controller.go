@@ -143,7 +143,7 @@ func (c *Controller) processNextWorkItem(ctx context.Context, obj interface{}) e
 	}
 
 	if err := c.sync(ctx, pod); err != nil {
-		c.workqueue.AddAfter(pod, time.Second*5)
+		c.workqueue.AddAfter(pod, time.Second*20)
 		return fmt.Errorf("error syncing '%s/%s': %s, requeuing",
 			pod.Name, pod.Namespace, err)
 	}

@@ -28,10 +28,13 @@ var (
 	regImageDomain = regexp.MustCompile(imageWithSubDomainRegex)
 )
 
-type Client struct {
-	accessToken string
+type Options struct {
+	Token string
+}
 
+type Client struct {
 	*http.Client
+	Options
 }
 
 type Response struct {
@@ -43,9 +46,9 @@ type ManifestItem struct {
 	TimeCreated string   `json:"timeCreatedMs"`
 }
 
-func New(accessToken string) *Client {
+func New(opts Options) *Client {
 	return &Client{
-		accessToken: accessToken,
+		Options: opts,
 		Client: &http.Client{
 			Timeout: time.Second * 5,
 		},
@@ -70,8 +73,8 @@ func (c *Client) Tags(ctx context.Context, imageURL string) ([]api.ImageTag, err
 		return nil, err
 	}
 
-	if len(c.accessToken) > 0 {
-		req.SetBasicAuth("oauth2accesstoken", c.accessToken)
+	if len(c.Token) > 0 {
+		req.SetBasicAuth("oauth2accesstoken", c.Token)
 	}
 
 	req.URL.Scheme = "https"
