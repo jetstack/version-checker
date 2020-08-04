@@ -17,8 +17,13 @@ const (
 	imagePrefix = "quay.io/"
 )
 
+type Options struct {
+	Token string
+}
+
 type Client struct {
 	*http.Client
+	Options
 }
 
 type Response struct {
@@ -31,9 +36,10 @@ type Tag struct {
 	LastModified   string `json:"last_modified"`
 }
 
-func New() *Client {
+func New(opts Options) *Client {
 	return &Client{
-		&http.Client{
+		Options: opts,
+		Client: &http.Client{
 			Timeout: time.Second * 5,
 		},
 	}
@@ -55,6 +61,11 @@ func (c *Client) Tags(ctx context.Context, imageURL string) ([]api.ImageTag, err
 		return nil, err
 	}
 
+	if len(c.Token) > 0 {
+		req.Header.Add("Authorization", "Bearer "+c.Token)
+	}
+
+	req.URL.Scheme = "https"
 	req = req.WithContext(ctx)
 
 	resp, err := c.Do(req)

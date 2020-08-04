@@ -27,6 +27,7 @@ const (
 	envDockerUsername = "DOCKER_USERNAME"
 	envDockerPassword = "DOCKER_PASSWORD"
 	envDockerJWT      = "DOCKER_TOKEN"
+	envQuayToken      = "QUAY_TOKEN"
 )
 
 // Options is a struct to hold options for the version-checker
@@ -124,6 +125,13 @@ func (o *Options) addFlags(cmd *cobra.Command) {
 			envPrefix, envGCRAccessToken,
 		))
 
+	cmd.PersistentFlags().StringVar(&o.Client.Quay.Token,
+		"quay-token", "",
+		fmt.Sprintf(
+			"Access token for read access to private Quay registries (%s_%s).",
+			envPrefix, envQuayToken,
+		))
+
 	cmd.PersistentFlags().StringVar(&o.Client.Docker.Username,
 		"docker-username", "",
 		fmt.Sprintf(
@@ -161,5 +169,9 @@ func (o *Options) checkEnv() {
 	}
 	if len(o.Client.Docker.JWT) == 0 {
 		o.Client.Docker.JWT = os.Getenv(envPrefix + "_" + envDockerJWT)
+	}
+
+	if len(o.Client.Quay.Token) == 0 {
+		o.Client.Quay.Token = os.Getenv(envPrefix + "_" + envQuayToken)
 	}
 }

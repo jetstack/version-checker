@@ -32,10 +32,7 @@ type Client struct {
 type Options struct {
 	Docker docker.Options
 	GCR    gcr.Options
-}
-
-type GCR struct {
-	GCRAccessToken string
+	Quay   quay.Options
 }
 
 func New(ctx context.Context, opts Options) (*Client, error) {
@@ -45,7 +42,7 @@ func New(ctx context.Context, opts Options) (*Client, error) {
 	}
 
 	return &Client{
-		quay:   quay.New(),
+		quay:   quay.New(opts.Quay),
 		docker: dockerClient,
 		gcr:    gcr.New(opts.GCR),
 	}, nil
