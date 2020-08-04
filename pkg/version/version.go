@@ -7,13 +7,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/masterminds/semver"
 	"github.com/sirupsen/logrus"
 
 	"github.com/joshvanl/version-checker/pkg/api"
 	"github.com/joshvanl/version-checker/pkg/version/docker"
 	"github.com/joshvanl/version-checker/pkg/version/gcr"
 	"github.com/joshvanl/version-checker/pkg/version/quay"
+	"github.com/joshvanl/version-checker/pkg/version/semver"
 )
 
 type VersionGetter struct {
@@ -63,8 +63,6 @@ func (v *VersionGetter) LatestTagFromImage(ctx context.Context, opts *api.Option
 	if err != nil {
 		return nil, err
 	}
-
-	// TODO: handle ":latest"
 
 	// If UseSHA then return early
 	if opts.UseSHA {
@@ -129,35 +127,34 @@ func (v *VersionGetter) clientFromImage(imageURL string) ImageClient {
 func latestSemver(opts *api.Options, tags []api.ImageTag) (*api.ImageTag, error) {
 	var (
 		latestImageTag *api.ImageTag
-		latestSemVer   *semver.Version
+		latestSemVer   *semver.SemVer
 	)
 
 	for i := range tags {
-		v, err := semver.NewVersion(tags[i].Tag)
-		if err == semver.ErrInvalidSemVer {
-			continue
-		}
-		if err != nil {
-			return nil, err
-		}
+		v := semver.Parse(tags[i].Tag)
 
-		// If regex enabled but doesn't match tag, continue
-		if opts.RegexMatcher != nil && !opts.RegexMatcher.MatchString(tags[i].Tag) {
-			continue
-		}
+		// If regex enabled continue here.
+		// If we match, and is less than, update latest.
+		if opts.RegexMatcher != nil {
+			if opts.RegexMatcher.MatchString(tags[i].Tag) && latestSemVer.LessThan(v) {
+				latestSemVer = v
+			}
 
-		// Optionally use pre-release
-		if v.Prerelease() != "" && !opts.UsePreRelease {
 			continue
 		}
 
-		if opts.PinMajor != nil && v.Major() != *opts.PinMajor {
+		// If we have declared we wont use metadata but version has it, continue.
+		if !opts.UseMetaData && v.HasMetaData() {
 			continue
 		}
-		if opts.PinMinor != nil && v.Minor() != *opts.PinMinor {
+
+		if opts.PinMajor != nil && *opts.PinMajor != v.Major() {
 			continue
 		}
-		if opts.PinPatch != nil && v.Patch() != *opts.PinPatch {
+		if opts.PinMinor != nil && *opts.PinMinor != v.Minor() {
+			continue
+		}
+		if opts.PinPatch != nil && *opts.PinPatch != v.Patch() {
 			continue
 		}
 

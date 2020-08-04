@@ -7,11 +7,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/masterminds/semver"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/joshvanl/version-checker/pkg/api"
+	"github.com/joshvanl/version-checker/pkg/version/semver"
 )
 
 // sync will enqueue a given pod to run against the version checker.
@@ -69,6 +69,8 @@ func (c *Controller) testContainerImage(ctx context.Context, log *logrus.Entry,
 		return err
 	}
 
+	// TODO: handle 'latest'
+
 	latestImage, err := c.getLatestImage(ctx, log, imageURL, opts)
 	if err != nil {
 		return err
@@ -87,16 +89,9 @@ func (c *Controller) testContainerImage(ctx context.Context, log *logrus.Entry,
 
 		latestTag = latestImage.SHA
 	} else {
-		currentImage, err := semver.NewVersion(currentTag)
-		if err != nil {
-			return fmt.Errorf("failed to parse image tag: %s", err)
-		}
-
 		// Test against normal semvar
-		latestImageV, err := semver.NewVersion(latestImage.Tag)
-		if err != nil {
-			return err
-		}
+		currentImage := semver.Parse(currentTag)
+		latestImageV := semver.Parse(latestImage.Tag)
 
 		if !currentImage.LessThan(latestImageV) {
 			isLatest = true
@@ -106,10 +101,10 @@ func (c *Controller) testContainerImage(ctx context.Context, log *logrus.Entry,
 	}
 
 	if isLatest {
-		log.Infof("image is latest %s:%s",
+		log.Debugf("image is latest %s:%s",
 			imageURL, currentTag)
 	} else {
-		log.Infof("image is not latest %s: %s -> %s",
+		log.Debugf("image is not latest %s: %s -> %s",
 			imageURL, currentTag, latestTag)
 	}
 
@@ -131,9 +126,9 @@ func (c *Controller) buildOptions(containerName string, annotations map[string]s
 		opts.UseSHA = true
 	}
 
-	if usePreRelease, ok := annotations[api.UsePreReleaseAnnotationKey+"/"+containerName]; ok && usePreRelease == "true" {
+	if useMetaData, ok := annotations[api.UseMetaDataAnnotationKey+"/"+containerName]; ok && useMetaData == "true" {
 		setNonSha = true
-		opts.UsePreRelease = true
+		opts.UseMetaData = true
 	}
 
 	if matchRegex, ok := annotations[api.MatchRegexAnnotationKey+"/"+containerName]; ok {

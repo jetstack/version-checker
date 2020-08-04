@@ -6,14 +6,12 @@ require (
 	cloud.google.com/go v0.57.0 // indirect
 	github.com/Azure/go-autorest/autorest v0.10.2 // indirect
 	github.com/Azure/go-autorest/autorest/adal v0.8.3 // indirect
-	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/evanphx/json-patch v4.5.0+incompatible // indirect
 	github.com/google/go-cmp v0.4.1 // indirect
 	github.com/googleapis/gnostic v0.2.2 // indirect
 	github.com/hashicorp/golang-lru v0.5.3 // indirect
 	github.com/imdario/mergo v0.3.9 // indirect
 	github.com/kr/text v0.2.0 // indirect
-	github.com/masterminds/semver v1.5.0
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/pkg/errors v0.9.0 // indirect
 	github.com/prometheus/client_golang v1.7.1
