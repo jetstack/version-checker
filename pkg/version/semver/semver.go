@@ -18,11 +18,15 @@ type SemVer struct {
 
 	// metadata holds the metadata, which is the string suffixed from the patch
 	metadata string
+
+	// original holds the origin string of the tag
+	original string
 }
 
 func Parse(tag string) *SemVer {
 	s := &SemVer{
-		version: [3]int64{},
+		original: tag,
+		version:  [3]int64{},
 	}
 
 	match := versionRegex.FindStringSubmatch(tag)
@@ -46,7 +50,11 @@ func Parse(tag string) *SemVer {
 // will take place on the version.
 // e.g. v1.0.1-alpha.1 < v1.0.1-beta.0
 func (s *SemVer) LessThan(other *SemVer) bool {
-	// if s doesn't have metadata but other doest, false.
+	if len(other.original) == 0 || len(s.original) == 0 {
+		return len(s.original) < len(other.original)
+	}
+
+	// if s doesn't have metadata but other doesn't, false.
 	if !s.HasMetaData() && other.HasMetaData() {
 		return false
 	}
@@ -57,41 +65,26 @@ func (s *SemVer) LessThan(other *SemVer) bool {
 		}
 	}
 
-	sparts := strings.Split(s.metadata, ".")
-	oparts := strings.Split(other.metadata, ".")
-
-	l := len(sparts)
-	if len(oparts) > l {
-		l = len(oparts)
+	sWords := parseStringToWords(s.metadata)
+	otherWords := parseStringToWords(other.metadata)
+	l := len(sWords)
+	if len(otherWords) > l {
+		l = len(otherWords)
 	}
 
 	for i := 0; i < l; i++ {
-		if i > len(sparts) {
+		if i > len(sWords)-1 {
 			return false
 		}
-		if i > len(oparts) {
+		if i > len(otherWords)-1 {
 			return true
 		}
 
-		if sparts[i] == oparts[i] {
+		if sWords[i].equal(otherWords[i]) {
 			continue
 		}
 
-		si, se := strconv.ParseInt(sparts[i], 10, 64)
-		oi, oe := strconv.ParseInt(oparts[i], 10, 64)
-
-		// The case where both are strings compare the strings
-		if se != nil && oe != nil {
-			return sparts[i] < oparts[i]
-		} else if se != nil {
-			// s not a number
-			return false
-		} else if oe != nil {
-			// other not a number
-			return true
-		}
-
-		return si < oi
+		return sWords[i].lessThan(otherWords[i])
 	}
 
 	return false
@@ -117,4 +110,8 @@ func (s *SemVer) Minor() int64 {
 // Patch returns the patch version of this SemVer.
 func (s *SemVer) Patch() int64 {
 	return s.version[2]
+}
+
+func (s *SemVer) String() string {
+	return s.original
 }

@@ -48,19 +48,16 @@ func TestParse(t *testing.T) {
 		},
 		"v1.0.1-debian-3.hello-world-12 -> [1 0 1]": {
 			"v1.0.1-debian-3.hello-world-12",
-			//[]int64{1, 0, 1, 3, 12},
 			[3]int64{1, 0, 1},
 			"-debian-3.hello-world-12",
 		},
 		"v1.0.1- -> [1 0 1]": {
 			"v1.0.1-",
-			//[]int64{1, 0, 1, 3, 12},
 			[3]int64{1, 0, 1},
 			"-",
 		},
 		"v1.2-alpha -> [1 2 3]": {
 			"v1.0.1-",
-			//[]int64{1, 0, 1, 3, 12},
 			[3]int64{1, 0, 1},
 			"-",
 		},
@@ -197,6 +194,19 @@ func TestLessThan(t *testing.T) {
 		},
 		"If same with complications, false": {
 			"v1.3.hello1-debian-9.hello-world-12", "v1.3.hello1-debian-9.hello-world-12",
+			false,
+		},
+		"If same with complications for rnumber": {
+			"0.21.0-debian-10-r9", "0.21.0-debian-10-r39",
+			true,
+		},
+
+		"If same with complications for rnumber extra": {
+			"0.21.0-debian-10-r9-hello", "0.21.0-debian-10-r39-hello",
+			true,
+		},
+		"If same with complications for rnumber extra reverse": {
+			"0.21.0-debian-10-r39-hello", "0.21.0-debian-10-r9-hello",
 			false,
 		},
 	}
