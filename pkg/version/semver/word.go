@@ -41,17 +41,21 @@ func (s *stringWord) isInt() bool {
 }
 
 func (s *stringWord) lessThan(w word) bool {
-	if _, ok := w.(*intWord); ok {
+	ws, ok := w.(*stringWord)
+	if !ok {
 		return true
 	}
-	return s.ss < w.(*stringWord).ss
+
+	return s.ss < ws.ss
 }
 
 func (s *stringWord) equal(w word) bool {
-	if _, ok := w.(*intWord); ok {
+	ws, ok := w.(*stringWord)
+	if !ok {
 		return true
 	}
-	return s.ss == w.(*stringWord).ss
+
+	return s.ss == ws.ss
 }
 
 func newIntWord(s rune) word {
@@ -67,20 +71,23 @@ func (i *intWord) isInt() bool {
 }
 
 func (i *intWord) lessThan(w word) bool {
-	if _, ok := w.(*stringWord); ok {
+	wi, ok := w.(*intWord)
+	if !ok {
 		return false
 	}
-	wi := w.(*intWord)
+
 	iii, _ := strconv.ParseInt(i.ii, 10, 64)
 	wiii, _ := strconv.ParseInt(wi.ii, 10, 64)
 	return iii < wiii
 }
 
 func (i *intWord) equal(w word) bool {
-	if _, ok := w.(*stringWord); ok {
+	wi, ok := w.(*intWord)
+	if !ok {
 		return true
 	}
-	return i.ii == w.(*intWord).ii
+
+	return i.ii == wi.ii
 }
 
 func parseStringToWords(ss string) []word {
