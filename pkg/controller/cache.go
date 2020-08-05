@@ -36,9 +36,6 @@ func (c *Controller) getLatestImage(ctx context.Context, log *logrus.Entry,
 
 	// Test if exists in the cache or is too old
 	if !ok || cacheItem.timestamp.Add(c.cacheTimeout).Before(time.Now()) {
-		c.cacheMu.Lock()
-		defer c.cacheMu.Unlock()
-
 		latestImage, err := c.versionGetter.LatestTagFromImage(ctx, opts, imageURL)
 		if err != nil {
 			return nil, fmt.Errorf("%q: %s", imageURL, err)
@@ -46,7 +43,9 @@ func (c *Controller) getLatestImage(ctx context.Context, log *logrus.Entry,
 
 		// Commit to the cache
 		log.Debugf("committing search: %q", hashIndex)
+		c.cacheMu.Lock()
 		c.imageCache[hashIndex] = imageCacheItem{time.Now(), latestImage}
+		c.cacheMu.Unlock()
 
 		return latestImage, nil
 	}

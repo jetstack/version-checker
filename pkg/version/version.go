@@ -79,6 +79,8 @@ func (v *VersionGetter) allTagsFromImage(ctx context.Context, imageURL string) (
 	v.log.Debugf("committing image tags: %q", imageURL)
 
 	// Add tags to cache
+	v.cacheMu.Lock()
+	defer v.cacheMu.Unlock()
 	v.imageCache[imageURL] = imageCacheItem{
 		timestamp: time.Now(),
 		tags:      tags,
@@ -90,6 +92,7 @@ func (v *VersionGetter) allTagsFromImage(ctx context.Context, imageURL string) (
 // latestSemver will return the latest ImageTag based on the given options
 // restriction, using semver. This should not be used is UseSHA has been
 // enabled.
+// TODO: add tests..
 func latestSemver(opts *api.Options, tags []api.ImageTag) (*api.ImageTag, error) {
 	var (
 		latestImageTag *api.ImageTag

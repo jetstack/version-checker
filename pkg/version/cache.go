@@ -35,6 +35,9 @@ func CalculateHashIndex(imageURL string, opts *api.Options) (string, error) {
 // on the given image URL. Deletes the item, and returns nil and false if there
 // is a miss.
 func (v *VersionGetter) tryImageCache(imageURL string) ([]api.ImageTag, bool) {
+	v.cacheMu.RLock()
+	defer v.cacheMu.RUnlock()
+
 	if imageCacheItem, ok := v.imageCache[imageURL]; ok &&
 		!imageCacheItem.timestamp.Add(v.cacheTimeout).Before(time.Now()) {
 
@@ -57,6 +60,8 @@ func (v *VersionGetter) garbageCollect(refreshRate time.Duration) {
 	for {
 		<-ticker.C
 
+		v.cacheMu.Lock()
+
 		now := time.Now()
 		for imageURL, cacheItem := range v.imageCache {
 			if cacheItem.timestamp.Add(v.cacheTimeout).Before(now) {
@@ -65,5 +70,7 @@ func (v *VersionGetter) garbageCollect(refreshRate time.Duration) {
 				delete(v.imageCache, imageURL)
 			}
 		}
+
+		v.cacheMu.Unlock()
 	}
 }
