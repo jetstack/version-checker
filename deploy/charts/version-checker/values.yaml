@@ -16,7 +16,7 @@ versionChecker:
   imageCacheTimeout: 30m
   logLevel: info # debug, info, warn, error, fatal, panic
   metricsServingAddress: 0.0.0.0:8080
-  testAllContainers: false
+  testAllContainers: true # don't require the enable.version-checker.io annotation
 
 docker:
   loginURL: https://hub.docker.com/v2/users/login/
