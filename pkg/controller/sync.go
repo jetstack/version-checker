@@ -10,8 +10,8 @@ import (
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/joshvanl/version-checker/pkg/api"
-	"github.com/joshvanl/version-checker/pkg/version/semver"
+	"github.com/jetstack/version-checker/pkg/api"
+	"github.com/jetstack/version-checker/pkg/version/semver"
 )
 
 // sync will enqueue a given pod to run against the version checker.

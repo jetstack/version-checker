@@ -7,8 +7,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/joshvanl/version-checker/pkg/api"
-	"github.com/joshvanl/version-checker/pkg/version"
+	"github.com/jetstack/version-checker/pkg/api"
+	"github.com/jetstack/version-checker/pkg/version"
 )
 
 // imageCacheItem is a single node item for the cache of a lastest image search.

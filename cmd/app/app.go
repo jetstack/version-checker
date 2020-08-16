@@ -12,9 +12,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth" // Load all auth plugins
 
-	"github.com/joshvanl/version-checker/pkg/client"
-	"github.com/joshvanl/version-checker/pkg/controller"
-	"github.com/joshvanl/version-checker/pkg/metrics"
+	"github.com/jetstack/version-checker/pkg/client"
+	"github.com/jetstack/version-checker/pkg/controller"
+	"github.com/jetstack/version-checker/pkg/metrics"
 )
 
 const (

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/joshvanl/version-checker/pkg/api"
+	"github.com/jetstack/version-checker/pkg/api"
 )
 
 const (

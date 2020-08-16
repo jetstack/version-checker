@@ -6,7 +6,7 @@ import (
 	"hash/fnv"
 	"time"
 
-	"github.com/joshvanl/version-checker/pkg/api"
+	"github.com/jetstack/version-checker/pkg/api"
 )
 
 // imageCache is used to store a cache of all remote images for a given

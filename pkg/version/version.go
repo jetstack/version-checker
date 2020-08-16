@@ -9,9 +9,9 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/joshvanl/version-checker/pkg/api"
-	"github.com/joshvanl/version-checker/pkg/client"
-	"github.com/joshvanl/version-checker/pkg/version/semver"
+	"github.com/jetstack/version-checker/pkg/api"
+	"github.com/jetstack/version-checker/pkg/client"
+	"github.com/jetstack/version-checker/pkg/version/semver"
 )
 
 type VersionGetter struct {

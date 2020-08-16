@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/joshvanl/version-checker/pkg/api"
-	"github.com/joshvanl/version-checker/pkg/client/docker"
-	"github.com/joshvanl/version-checker/pkg/client/gcr"
-	"github.com/joshvanl/version-checker/pkg/client/quay"
+	"github.com/jetstack/version-checker/pkg/api"
+	"github.com/jetstack/version-checker/pkg/client/docker"
+	"github.com/jetstack/version-checker/pkg/client/gcr"
+	"github.com/jetstack/version-checker/pkg/client/quay"
 )
 
 type ImageClient interface {

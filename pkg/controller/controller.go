@@ -16,9 +16,9 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
-	"github.com/joshvanl/version-checker/pkg/client"
-	"github.com/joshvanl/version-checker/pkg/metrics"
-	"github.com/joshvanl/version-checker/pkg/version"
+	"github.com/jetstack/version-checker/pkg/client"
+	"github.com/jetstack/version-checker/pkg/metrics"
+	"github.com/jetstack/version-checker/pkg/version"
 )
 
 const (

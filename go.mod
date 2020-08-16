@@ -1,4 +1,4 @@
-module github.com/joshvanl/version-checker
+module github.com/jetstack/version-checker
 
 go 1.14
 
