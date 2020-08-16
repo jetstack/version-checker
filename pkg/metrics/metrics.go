@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -23,6 +24,7 @@ type Metrics struct {
 	containerImageVersion *prometheus.GaugeVec
 	log                   *logrus.Entry
 
+	mu               sync.Mutex
 	latestImageLabel map[string]string
 }
 
@@ -80,6 +82,9 @@ func (m *Metrics) Run(servingAddress string) error {
 }
 
 func (m *Metrics) AddImage(namespace, pod, container, imageURL string, currentImage, latestImage string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	isLatest := 0.0
 	if currentImage == latestImage {
 		isLatest = 1.0
@@ -94,6 +99,9 @@ func (m *Metrics) AddImage(namespace, pod, container, imageURL string, currentIm
 }
 
 func (m *Metrics) RemoveImage(namespace, pod, container, imageURL, currentImage string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	index := m.latestImageIndex(namespace, pod, container)
 	m.containerImageVersion.Delete(
 		m.buildLabels(namespace, pod, container, imageURL, currentImage,
