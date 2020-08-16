@@ -1,0 +1,9 @@
+apiVersion: v1
+appVersion: "v0.1.0"
+version: 0.1.0
+description: A Helm chart for version-checker
+home: https://github.com/joshvanl/verison-checker
+name: version-checker
+version: 0.1.0
+maintainers:
+- name: joshvanl

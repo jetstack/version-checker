@@ -1,0 +1,84 @@
+{{- $secretEnabled := false }}
+{{- if or  .Values.docker.token .Values.docker.username .Values.docker.password .Values.gcr.token  .Values.quay.token }}
+{{- $secretEnabled = true }}
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "version-checker.name" . }}
+  labels:
+{{ include "version-checker.labels" . | indent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "version-checker.name" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "version-checker.name" . }}
+      annotations:
+        prometheus.io/path: "/metrics"
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        enable.version-checker.io/{{ include "version-checker.name" . }}: "true"
+    spec:
+      serviceAccountName: {{ include "version-checker.name" . }}
+      containers:
+      - name: {{ include "version-checker.name" . }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: 8080
+        command: ["version-checker"]
+        args:
+          - "--image-cache-timeout={{.Values.versionChecker.imageCacheTimeout}}"
+          - "--log-level={{.Values.versionChecker.logLevel}}"
+          - "--metrics-serving-address={{.Values.versionChecker.metricsServingAddress}}"
+          - "--test-all-containers={{.Values.versionChecker.testAllContainers}}"
+          - "--docker-login-url={{.Values.docker.loginURL}}"
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+        env:
+        {{- if .Values.docker.token }}
+        - name: VERSION_CHECKER_DOCKER_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "version-checker.name" . }}
+              key: docker.token
+        {{- end }}
+        {{- if .Values.docker.username }}
+        - name: VERSION_CHECKER_DOCKER_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "version-checker.name" . }}
+              key: docker.username
+        {{- end }}
+        {{- if .Values.docker.password }}
+        - name: VERSION_CHECKER_DOCKER_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "version-checker.name" . }}
+              key: docker.password
+        {{- end }}
+        {{- if .Values.gcr.token }}
+        - name: VERSION_CHECKER_GCR_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "version-checker.name" . }}
+              key: gcr.token
+        {{- end }}
+        {{- if .Values.quay.token }}
+        - name: VERSION_CHECKER_QUAY_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "version-checker.name" . }}
+              key: quay.token
+        {{- end }}
+      volumes:
+        {{- if $secretEnabled }}
+        - name: {{ include "version-checker.name" . }}
+          secret:
+            secretName: {{ include "version-checker.name" . }}
+        {{ end }}
+

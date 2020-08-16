@@ -1,0 +1,49 @@
+# Default values for version-checker.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: quay.io/jetstack/version-checker
+  tag: v0.1.0
+  pullPolicy: IfNotPresent
+
+service:
+  port: 8080
+
+versionChecker:
+  imageCacheTimeout: 30m
+  logLevel: info # debug, info, warn, error, fatal, panic
+  metricsServingAddress: 0.0.0.0:8080
+  testAllContainers: false
+
+docker:
+  loginURL: https://hub.docker.com/v2/users/login/
+  username:
+  password:
+  token:
+
+gcr:
+  token:
+
+quay:
+  token:
+
+resources: {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+  #
+
+# Prometheus Operator
+prometheus:
+  enabled: false
+  replicas: 1
+  serviceAccountName: prometheus
+
+serviceMonitor:
+  enabled: false
