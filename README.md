@@ -16,6 +16,39 @@ version-checker currently supports the following registries:
 
 These registries support authentication.
 
+---
+
+## Installation
+
+vesion-checker can be installed as either static manifests;
+
+```sh
+$ cd ./deploy/yaml && kubectl apply -f .,
+```
+
+Or through helm;
+
+```sh
+$ cd ./deploy/charts/version-checker && kubectl create namespace verison-checker
+$ helm install version-checker . -n version-checker
+```
+
+The helm chart supports creating a Prometheus/ServiceMonitor to expose the
+version-checker metrics.
+
+#### Grafana Dashboard
+
+A [grafana dashboard](https://grafana.com/grafana/dashboards/12833) is also
+available to view the image versions as a table.
+
+![](img/grafana.jpg)
+<center></center>
+<p align="center">
+  <b>Grafana Dashboard</b><br>
+</p>
+
+---
+
 ## Options
 
 By default without the flag `-a, --test-all-containers`, version-checker will
@@ -23,8 +56,8 @@ only test containers where the pod has the annotation
 `enable.version-checker.io/*my-container*`, where `*my-continer*` is the `name`
 of the container in the pod.
 
-version-checker supports the following annotations to enrich version checking for
-image tags:
+version-checker supports the following annotations present on **other** pods to
+enrich version checking on image tags:
 
 - `pin-major.version-checker.io/my-continer: 4`: will pin the major version to
     check to 4 (`v4.0.0`).
@@ -55,7 +88,7 @@ image tags:
 ## Metrics
 
 By default, version-checker will expose the version information as Prometheus
-metrics on `0.0.0.0:8080/metrics`. TODO: add grafana dashboard when ready.
+metrics on `0.0.0.0:8080/metrics`.
 
 ## Future Development
 
