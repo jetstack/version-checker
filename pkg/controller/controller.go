@@ -131,6 +131,7 @@ func (c *Controller) processNextWorkItem(ctx context.Context, obj interface{}) e
 			return err
 		}
 
+		// If the pod has been deleted, remove from metrics
 		for _, container := range pod.Spec.Containers {
 			imageURL, currentTag := urlAndTagFromImage(container.Image)
 

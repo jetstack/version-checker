@@ -22,10 +22,12 @@ func (c *Controller) sync(ctx context.Context, pod *corev1.Pod) error {
 	for _, container := range pod.Spec.Containers {
 		enable, ok := pod.Annotations[api.EnableAnnotationKey+"/"+container.Name]
 		if c.defaultTestAll {
-			if ok || enable == "false" {
+			// If default all and we explicitly disable, ignore
+			if ok && enable == "false" {
 				continue
 			}
 		} else {
+			// If not default all and we don't enable, ignore
 			if !ok || enable != "true" {
 				continue
 			}
