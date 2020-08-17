@@ -23,7 +23,7 @@ These registries support authentication.
 vesion-checker can be installed as either static manifests;
 
 ```sh
-$ cd ./deploy/yaml && kubectl apply -f .,
+$ cd ./deploy/yaml && kubectl apply -f .
 ```
 
 Or through helm;
