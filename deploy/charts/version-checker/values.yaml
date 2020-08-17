@@ -47,3 +47,4 @@ prometheus:
 
 serviceMonitor:
   enabled: false
+  additionalLabels: {}

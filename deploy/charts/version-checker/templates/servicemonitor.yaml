@@ -5,6 +5,9 @@ metadata:
   name: {{ include "version-checker.name" . }}
   labels:
     app: {{ include "version-checker.name" . }}
+    {{- if .Values.serviceMonitor.additionalLabels }}
+{{- .Values.serviceMonitor.additionalLabels | toYaml | nindent 4 }}
+    {{- end }}
 spec:
   selector:
     matchLabels:
