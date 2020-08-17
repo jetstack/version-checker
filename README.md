@@ -21,7 +21,7 @@ These registries support authentication.
 
 ## Installation
 
-vesion-checker can be installed as either static manifests;
+version-checker can be installed as either static manifests;
 
 ```sh
 $ cd ./deploy/yaml && kubectl apply -f .
