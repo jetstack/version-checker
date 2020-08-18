@@ -54,19 +54,19 @@ available to view the image versions as a table.
 
 By default without the flag `-a, --test-all-containers`, version-checker will
 only test containers where the pod has the annotation
-`enable.version-checker.io/*my-container*`, where `*my-continer*` is the `name`
+`enable.version-checker.io/*my-container*`, where `*my-container*` is the `name`
 of the container in the pod.
 
 version-checker supports the following annotations present on **other** pods to
 enrich version checking on image tags:
 
-- `pin-major.version-checker.io/my-continer: 4`: will pin the major version to
+- `pin-major.version-checker.io/my-container: 4`: will pin the major version to
     check to 4 (`v4.0.0`).
 
-- `pin-minor.version-checker.io/my-continer: 3`: will pin the minor version to
+- `pin-minor.version-checker.io/my-container: 3`: will pin the minor version to
     check to 3 (`v0.3.0`).
 
-- `pin-patch.version-checker.io/my-continer: 23`: will pin the patch version to
+- `pin-patch.version-checker.io/my-container: 23`: will pin the patch version to
     check to 23 (`v0.0.23`).
 
 - `use-metadata.version-checker.io/my-container: "true"`: will allow to search
