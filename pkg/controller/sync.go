@@ -94,7 +94,7 @@ func (c *Controller) testContainerImage(ctx context.Context, log *logrus.Entry,
 		}
 
 		opts.UseSHA = true
-		log.Warnf("image using %q tag, comparing image SHA %q",
+		log.Debugf("image using %q tag, comparing image SHA %q",
 			statusTag, currentTag)
 	}
 
