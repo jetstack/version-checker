@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/jetstack/version-checker/pkg/client/docker"
@@ -11,27 +12,31 @@ import (
 )
 
 type ImageClient interface {
-	// IsClient will return true if this client is appropriate for the given
-	// image URL.
-	IsClient(imageURL string) bool
+	// IsHost will return true if this client is appropriate for the given
+	// host.
+	IsHost(host string) bool
 
-	// Tags will return the available tags for the given image URL at the remote
-	// repository.
-	Tags(ctx context.Context, imageURL string) ([]api.ImageTag, error)
+	// RepoImage will return the registries repository and image, from a given
+	// URL path.
+	RepoImageFromPath(path string) (string, string)
+
+	// Tags will return the available tags for the given host, repo, and image
+	// using that client.
+	Tags(ctx context.Context, host, repo, image string) ([]api.ImageTag, error)
 }
 
 // Client is a container image registry client to list tags of given image
 // URLs.
 type Client struct {
-	quay   *quay.Client
-	docker *docker.Client
 	gcr    *gcr.Client
+	docker *docker.Client
+	quay   *quay.Client
 }
 
 // Options used to configure client authentication.
 type Options struct {
-	Docker docker.Options
 	GCR    gcr.Options
+	Docker docker.Options
 	Quay   quay.Options
 }
 
@@ -48,22 +53,32 @@ func New(ctx context.Context, opts Options) (*Client, error) {
 	}, nil
 }
 
+// Tags returns the full list of image tags available, for a given image URL.
 func (c *Client) Tags(ctx context.Context, imageURL string) ([]api.ImageTag, error) {
-	return c.fromImageURL(imageURL).Tags(ctx, imageURL)
+	client, host, path := c.fromImageURL(imageURL)
+	repo, image := client.RepoImageFromPath(path)
+	return client.Tags(ctx, host, repo, image)
 }
 
-// ClientFromImage will return the appropriate registry client for a given
-// image URL.
-func (c *Client) fromImageURL(imageURL string) ImageClient {
-	switch {
-	case c.quay.IsClient(imageURL):
-		return c.quay
-	case c.gcr.IsClient(imageURL):
-		return c.gcr
-	case c.docker.IsClient(imageURL):
-		return c.docker
-	default:
-		// Fall back to docker if we can't determine the registry
-		return c.docker
+// fromImageURL will return the appropriate registry client for a given
+// image URL, and the host + path to search
+func (c *Client) fromImageURL(imageURL string) (ImageClient, string, string) {
+	split := strings.SplitN(imageURL, "/", 2)
+	if len(split) < 2 {
+		return c.docker, "", imageURL
 	}
+
+	host, path := split[0], split[1]
+
+	switch {
+	case c.docker.IsHost(host):
+		return c.docker, host, path
+	case c.gcr.IsHost(host):
+		return c.gcr, host, path
+	case c.quay.IsHost(host):
+		return c.quay, host, path
+	}
+
+	// fall back to docker with no path split
+	return c.docker, "", imageURL
 }
