@@ -82,6 +82,9 @@ func (m *Metrics) Run(servingAddress string) error {
 }
 
 func (m *Metrics) AddImage(namespace, pod, container, imageURL string, currentImage, latestImage string) {
+	// Remove old image url/version if it exists
+	m.RemoveImage(namespace, pod, container, imageURL, currentImage)
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
