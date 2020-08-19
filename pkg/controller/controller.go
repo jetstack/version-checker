@@ -91,7 +91,8 @@ func (c *Controller) Run(ctx context.Context) error {
 		go wait.Until(func() { c.runWorker(ctx) }, time.Second, ctx.Done())
 	}
 
-	go c.garbageCollect(c.cacheTimeout / 2)
+	// Start image tag garbage collector
+	go c.versionGetter.StartGarbageCollector(c.cacheTimeout / 2)
 
 	<-ctx.Done()
 

@@ -16,6 +16,31 @@ type imageCacheItem struct {
 	tags      []api.ImageTag
 }
 
+// garbageCollect is a blocking func that will run the garbage collector
+// against the images tag cache.
+func (v *VersionGetter) StartGarbageCollector(refreshRate time.Duration) {
+	log := v.log.WithField("tag_cache", "garbage_collector")
+	log.Infof("starting image tags cache garbage collector")
+	ticker := time.NewTicker(refreshRate)
+
+	for {
+		<-ticker.C
+
+		v.cacheMu.Lock()
+
+		now := time.Now()
+		for imageURL, cacheItem := range v.imageCache {
+			if cacheItem.timestamp.Add(v.cacheTimeout).Before(now) {
+
+				log.Debugf("removing stale image tags: %q", imageURL)
+				delete(v.imageCache, imageURL)
+			}
+		}
+
+		v.cacheMu.Unlock()
+	}
+}
+
 // CalculateHashIndex returns a hash index given an imageURL and options.
 func CalculateHashIndex(imageURL string, opts *api.Options) (string, error) {
 	opsJson, err := json.Marshal(opts)
@@ -41,36 +66,11 @@ func (v *VersionGetter) tryImageCache(imageURL string) ([]api.ImageTag, bool) {
 	if imageCacheItem, ok := v.imageCache[imageURL]; ok &&
 		!imageCacheItem.timestamp.Add(v.cacheTimeout).Before(time.Now()) {
 
-		v.log.WithField("cache", "getter").Debugf(
+		v.log.WithField("tag_cache", "getter").Debugf(
 			"found image tags: %q", imageURL)
 
 		return imageCacheItem.tags, true
 	}
 
 	return nil, false
-}
-
-// garbageCollect is a blocking func that will run the garbage collector
-// against the images tag cache.
-func (v *VersionGetter) garbageCollect(refreshRate time.Duration) {
-	log := v.log.WithField("cache", "garbage_collector")
-	log.Infof("starting image tags cache garbage collector")
-	ticker := time.NewTicker(refreshRate)
-
-	for {
-		<-ticker.C
-
-		v.cacheMu.Lock()
-
-		now := time.Now()
-		for imageURL, cacheItem := range v.imageCache {
-			if cacheItem.timestamp.Add(v.cacheTimeout).Before(now) {
-
-				log.Debugf("removing stale image tags: %q", imageURL)
-				delete(v.imageCache, imageURL)
-			}
-		}
-
-		v.cacheMu.Unlock()
-	}
 }

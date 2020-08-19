@@ -17,13 +17,39 @@ type imageCacheItem struct {
 	latestImage *api.ImageTag
 }
 
+// StartGabageCollector will start the garbage collector for image search cache.
+func (c *Controller) StartGabageCollector(refreshRate time.Duration) {
+	log := c.log.WithField("search_cache", "garbage_collector")
+	log.Infof("starting search cache garbage collector")
+
+	ticker := time.NewTicker(refreshRate)
+	for {
+		<-ticker.C
+
+		c.cacheMu.Lock()
+		now := time.Now()
+		for hashIndex, cacheItem := range c.imageCache {
+
+			// Check is cache item is fresh
+			if cacheItem.timestamp.Add(c.cacheTimeout).Before(now) {
+
+				log.Debugf("removing stale search from cache: %q",
+					hashIndex)
+
+				delete(c.imageCache, hashIndex)
+			}
+		}
+		c.cacheMu.Unlock()
+	}
+}
+
 // getLatestImage will get the latestImage image given an image URL and
 // options. If not found in the cache, or is too old, then will do a fresh
 // lookup and commit to the cache.
 func (c *Controller) getLatestImage(ctx context.Context, log *logrus.Entry,
 	imageURL string, opts *api.Options) (*api.ImageTag, error) {
 
-	log = c.log.WithField("cache", "getter")
+	log = c.log.WithField("search_cache", "getter")
 
 	hashIndex, err := version.CalculateHashIndex(imageURL, opts)
 	if err != nil {
@@ -53,31 +79,4 @@ func (c *Controller) getLatestImage(ctx context.Context, log *logrus.Entry,
 	log.Debugf("found search: %q", hashIndex)
 
 	return cacheItem.latestImage, nil
-}
-
-func (c *Controller) garbageCollect(refreshRate time.Duration) {
-	log := c.log.WithField("cache", "garbage_collector")
-	log.Infof("starting search cache garbage collector")
-
-	ticker := time.NewTicker(refreshRate)
-	for {
-		<-ticker.C
-
-		c.cacheMu.Lock()
-		now := time.Now()
-		for hashIndex, cacheItem := range c.imageCache {
-
-			// Check is cache item is fresh
-			if cacheItem.timestamp.Add(c.cacheTimeout).Before(now) {
-
-				log.Debugf("removing stale search from cache: %q",
-					hashIndex)
-
-				delete(c.imageCache, hashIndex)
-			}
-		}
-		c.cacheMu.Unlock()
-	}
-
-	return
 }

@@ -34,9 +34,6 @@ func New(log *logrus.Entry, client *client.Client, cacheTimeout time.Duration) *
 		cacheTimeout: cacheTimeout,
 	}
 
-	// Start garbage collector
-	go vg.garbageCollect(cacheTimeout / 2)
-
 	return vg
 }
 
