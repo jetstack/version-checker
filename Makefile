@@ -6,9 +6,14 @@ help:  ## display this help
 
 .PHONY: help build docker all clean
 
-build: ## build version-checkers
+test: ## test version-checker
+	go test ./...
+
+build: ## build version-checker
 	mkdir -p $(BINDIR)
 	CGO_ENABLED=0 go build -o ./bin/version-checker ./cmd/.
+
+verify: test build ## tests and builds version-checker
 
 image: ## build docker image
 	GOARCH=$(ARCH) GOOS=linux CGO_ENABLED=0 go build -o ./bin/version-checker-linux ./cmd/.
@@ -18,4 +23,4 @@ clean: ## clean up created files
 	rm -rf \
 		$(BINDIR)
 
-all: build docker ## runs build and docker
+all: test build docker ## runs test, build and docker
