@@ -90,6 +90,11 @@ func (s *SemVer) LessThan(other *SemVer) bool {
 	return false
 }
 
+// Equal will return true if the given semver is equal.
+func (s *SemVer) Equal(other *SemVer) bool {
+	return s.original == other.original
+}
+
 // HasMetaData returns whether this SemVer has metadata. MetaData is defined
 // as a tag containing anything after the patch digit.
 // e.g. v1.0.1-gke.3, v1.0.1-alpha.0, v1.2.3.4

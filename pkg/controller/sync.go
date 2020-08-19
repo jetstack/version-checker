@@ -62,10 +62,49 @@ func (c *Controller) sync(ctx context.Context, pod *corev1.Pod) error {
 }
 
 // testContainerImage will test a given image version to the latest image
-// available in the remote registry given the options.
+// available in the remote registry, given the options.
 func (c *Controller) testContainerImage(ctx context.Context, log *logrus.Entry,
 	pod *corev1.Pod, container *corev1.Container, opts *api.Options) error {
-	imageURL, currentTag := urlAndTagFromImage(container.Image)
+	var usingSHA bool
+
+	imageURL, currentTag, currentSHA := urlTagSHAFromImage(container.Image)
+	if len(currentSHA) > 0 {
+		usingSHA = true
+	}
+
+	currentMetricsVersion := strings.Join([]string{currentTag, currentSHA}, "@")
+
+	if len(currentSHA) == 0 {
+		// Get the SHA of the current image
+		for _, status := range pod.Status.ContainerStatuses {
+			if status.Name == container.Name {
+				statusImage, _, statusSHA := urlTagSHAFromImage(status.ImageID)
+				currentSHA = statusImage
+
+				// If the image ID contains a URL, use the parsed SHA
+				if len(statusSHA) > 0 {
+					currentSHA = statusSHA
+				}
+
+				break
+			}
+		}
+	}
+
+	// if no image SHA set on container yet and none specified, wait for next
+	// sync
+	if currentSHA == "" {
+		return nil
+	}
+
+	// if tag is set to latest or "", use latest SHA comparison
+	if currentTag == "" || currentTag == "latest" {
+		opts.UseSHA = true
+		currentTag = currentSHA
+
+		log.Debugf("image using %q tag, comparing image SHA %q",
+			currentTag, currentSHA)
+	}
 
 	latestImage, err := c.getLatestImage(ctx, log, imageURL, opts)
 	if err != nil {
@@ -73,48 +112,39 @@ func (c *Controller) testContainerImage(ctx context.Context, log *logrus.Entry,
 	}
 
 	var (
-		latestTag string
-		isLatest  bool
+		latestVersion string
+		isLatest      bool
 	)
 
-	// if container is using latest or '' image tag, compare SHA tag
-	if statusTag := currentTag; statusTag == "latest" ||
-		statusTag == "" {
-		for _, status := range pod.Status.ContainerStatuses {
-			if status.Name == container.Name {
-				_, currentTag = urlAndTagFromImage(status.ImageID)
-				break
-			}
-		}
-
-		if currentTag == "" {
-			log.Errorf("image using %q tag, and image ID not yet set",
-				statusTag)
-			return nil
-		}
-
-		opts.UseSHA = true
-		log.Debugf("image using %q tag, comparing image SHA %q",
-			statusTag, currentTag)
-	}
-
 	if opts.UseSHA {
-		// If we are using SHA then we can do a string comparison of the latest
+		// If we are using SHA, then we can do a string comparison of the latest
 		if currentTag == latestImage.SHA {
 			isLatest = true
 		}
 
-		latestTag = latestImage.SHA
+		latestVersion = latestImage.SHA
 	} else {
 		// Test against normal semvar
 		currentImage := semver.Parse(currentTag)
 		latestImageV := semver.Parse(latestImage.Tag)
 
+		// If current image not less than latest, is latest
 		if !currentImage.LessThan(latestImageV) {
 			isLatest = true
 		}
 
-		latestTag = latestImage.Tag
+		// If using the same image version, but the SHA has been updated upstream,
+		// make not latest
+		if currentImage.Equal(latestImageV) && currentSHA != latestImage.SHA {
+			isLatest = false
+		}
+
+		latestVersion = latestImage.Tag
+
+		// If we are using SHA and tag, make latest version include both
+		if usingSHA {
+			latestVersion = fmt.Sprintf("%s@%s", latestVersion, latestImage.SHA)
+		}
 	}
 
 	if isLatest {
@@ -122,11 +152,11 @@ func (c *Controller) testContainerImage(ctx context.Context, log *logrus.Entry,
 			imageURL, currentTag)
 	} else {
 		log.Debugf("image is not latest %s: %s -> %s",
-			imageURL, currentTag, latestTag)
+			imageURL, currentMetricsVersion, latestVersion)
 	}
 
 	c.metrics.AddImage(pod.Namespace, pod.Name,
-		container.Name, imageURL, currentTag, latestTag)
+		container.Name, imageURL, currentMetricsVersion, latestVersion)
 
 	return nil
 }
@@ -223,16 +253,33 @@ func (c *Controller) buildOptions(containerName string, annotations map[string]s
 	return &opts, nil
 }
 
-func urlAndTagFromImage(image string) (string, string) {
-	imageSplit := strings.Split(image, "@")
-	if len(imageSplit) == 2 {
-		return imageSplit[0], imageSplit[1]
+// urlTagSHAFromImage from will return the image URL, and the semver version
+// and or SHA tag.
+func urlTagSHAFromImage(image string) (url, version, sha string) {
+	// If using SHA tag
+	if split := strings.SplitN(image, "@", 2); len(split) > 1 {
+		url = split[0]
+		sha = split[1]
+
+		// Check is url contains version, but also handle ports
+		firstSlashIndex := strings.Index(split[0], "/")
+		if firstSlashIndex == -1 {
+			firstSlashIndex = 0
+		}
+
+		// url contains version
+		if strings.LastIndex(split[0][firstSlashIndex:], ":") > -1 {
+			lastColonIndex := strings.LastIndex(split[0], ":")
+			url = split[0][:lastColonIndex]
+			version = split[0][lastColonIndex+1:]
+		}
+
+		return
 	}
 
-	imageSplit = strings.Split(image, ":")
-	if len(imageSplit) == 2 {
-		return imageSplit[0], imageSplit[1]
+	if split := strings.Split(image, ":"); len(split) == 2 {
+		return split[0], split[1], ""
 	}
 
-	return image, ""
+	return image, "", ""
 }

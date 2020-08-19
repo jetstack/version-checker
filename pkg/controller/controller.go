@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -134,11 +135,13 @@ func (c *Controller) processNextWorkItem(ctx context.Context, obj interface{}) e
 
 		// If the pod has been deleted, remove from metrics
 		for _, container := range pod.Spec.Containers {
-			imageURL, currentTag := urlAndTagFromImage(container.Image)
+			imageURL, currentTag, currentSHA := urlTagSHAFromImage(container.Image)
+
+			currentVersion := strings.Join([]string{currentTag, currentSHA}, "@")
 
 			c.log.Debugf("removing deleted container from metrics: %s/%s/%s: %s:%s",
 				pod.Namespace, pod.Name, container.Name, imageURL, currentTag)
-			c.metrics.RemoveImage(pod.Namespace, pod.Name, container.Name, imageURL, currentTag)
+			c.metrics.RemoveImage(pod.Namespace, pod.Name, container.Name, imageURL, currentVersion)
 		}
 
 		return nil
