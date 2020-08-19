@@ -14,9 +14,7 @@ import (
 )
 
 const (
-	repoURL        = "https://registry.hub.docker.com/v2/repositories/%s/tags"
-	imagePrefix    = "docker.io/"
-	imagePrefixHub = "registry.hub.docker.com/"
+	lookupURL = "https://registry.hub.docker.com/v2/repositories/%s/%s/tags"
 )
 
 type Options struct {
@@ -76,25 +74,8 @@ func New(ctx context.Context, opts Options) (*Client, error) {
 	}, nil
 }
 
-func (c *Client) IsClient(imageURL string) bool {
-	return strings.HasPrefix(imageURL, imagePrefix) ||
-		strings.HasPrefix(imageURL, imagePrefixHub)
-}
-
-func (c *Client) Tags(ctx context.Context, imageURL string) ([]api.ImageTag, error) {
-	if strings.HasPrefix(imageURL, imagePrefix) {
-		imageURL = strings.TrimPrefix(imageURL, imagePrefix)
-	}
-
-	if strings.HasPrefix(imageURL, imagePrefixHub) {
-		imageURL = strings.TrimPrefix(imageURL, imagePrefixHub)
-	}
-
-	if len(strings.Split(imageURL, "/")) == 1 {
-		imageURL = fmt.Sprintf("library/%s", imageURL)
-	}
-
-	url := fmt.Sprintf(repoURL, imageURL)
+func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTag, error) {
+	url := fmt.Sprintf(lookupURL, repo, image)
 
 	var tags []api.ImageTag
 	for url != "" {

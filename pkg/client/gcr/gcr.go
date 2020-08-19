@@ -6,26 +6,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/jetstack/version-checker/pkg/api"
 )
 
 const (
-	repoURL                = "https://gcr.io/v2/%s/tags/list"
-	repoGoogleContainerURL = "https://gcr.io/v2/google-containers/%s/tags/list"
-
-	// Some GCR images contain subdomains (k8s, gke etc.). These should be
-	// treated as being part of the google-containers project
-	imageWithSubDomainRegex = `^(\w+)\.gcr\.io/(.+)$`
-	imagePrefix             = "gcr.io/"
-)
-
-var (
-	regImageDomain = regexp.MustCompile(imageWithSubDomainRegex)
+	lookupURL = "https://%s/v2/%s/%s/tags/list"
 )
 
 type Options struct {
@@ -55,18 +43,12 @@ func New(opts Options) *Client {
 	}
 }
 
-func (c *Client) IsClient(imageURL string) bool {
-	return strings.HasPrefix(imageURL, imagePrefix) || regImageDomain.MatchString(imageURL)
-}
-
-func (c *Client) Tags(ctx context.Context, imageURL string) ([]api.ImageTag, error) {
-	// Check if google container.
-	var url string
-	if match := regImageDomain.FindStringSubmatch(imageURL); len(match) == 3 {
-		url = fmt.Sprintf(repoGoogleContainerURL, match[2])
-	} else {
-		url = fmt.Sprintf(repoURL, strings.TrimPrefix(imageURL, imagePrefix))
+func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.ImageTag, error) {
+	if repo == "google-containers" {
+		host = "gcr.io"
 	}
+
+	url := fmt.Sprintf(lookupURL, host, repo, image)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
@@ -77,7 +59,6 @@ func (c *Client) Tags(ctx context.Context, imageURL string) ([]api.ImageTag, err
 		req.SetBasicAuth("oauth2accesstoken", c.Token)
 	}
 
-	req.URL.Scheme = "https"
 	req = req.WithContext(ctx)
 
 	resp, err := c.Do(req)
