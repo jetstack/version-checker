@@ -11,6 +11,8 @@ import (
 	"github.com/jetstack/version-checker/pkg/client/quay"
 )
 
+// ImageClient represents a image registry client that can list available tags
+// for image URLs.
 type ImageClient interface {
 	// IsHost will return true if this client is appropriate for the given
 	// host.
