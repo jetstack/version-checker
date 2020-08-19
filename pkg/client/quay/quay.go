@@ -6,15 +6,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/jetstack/version-checker/pkg/api"
 )
 
 const (
-	repoURL     = "https://quay.io/api/v1/repository/%s/tag/"
-	imagePrefix = "quay.io/"
+	lookupURL = "https://quay.io/api/v1/repository/%s/%s/tag/"
 )
 
 type Options struct {
@@ -45,16 +43,8 @@ func New(opts Options) *Client {
 	}
 }
 
-func (c *Client) IsClient(imageURL string) bool {
-	return strings.HasPrefix(imageURL, imagePrefix)
-}
-
-func (c *Client) Tags(ctx context.Context, imageURL string) ([]api.ImageTag, error) {
-	if !c.IsClient(imageURL) {
-		return nil, fmt.Errorf("image does not have %q prefix: %s", imagePrefix, imageURL)
-	}
-
-	url := fmt.Sprintf(repoURL, strings.TrimPrefix(imageURL, imagePrefix))
+func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTag, error) {
+	url := fmt.Sprintf(lookupURL, repo, image)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
