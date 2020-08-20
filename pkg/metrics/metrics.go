@@ -24,8 +24,16 @@ type Metrics struct {
 	containerImageVersion *prometheus.GaugeVec
 	log                   *logrus.Entry
 
-	mu               sync.Mutex
-	latestImageLabel map[string]string
+	// container cache stores a cache of a container's current image, version,
+	// and the latest
+	containerCache map[string]cacheItem
+	mu             sync.Mutex
+}
+
+type cacheItem struct {
+	image          string
+	currentVersion string
+	latestVersion  string
 }
 
 func New(log *logrus.Entry) *Metrics {
@@ -47,7 +55,7 @@ func New(log *logrus.Entry) *Metrics {
 		log:                   log.WithField("module", "metrics"),
 		registry:              registry,
 		containerImageVersion: containerImageVersion,
-		latestImageLabel:      make(map[string]string),
+		containerCache:        make(map[string]cacheItem),
 	}
 }
 
@@ -81,48 +89,58 @@ func (m *Metrics) Run(servingAddress string) error {
 	return nil
 }
 
-func (m *Metrics) AddImage(namespace, pod, container, imageURL string, currentImage, latestImage string) {
+func (m *Metrics) AddImage(namespace, pod, container, imageURL string, currentVersion, latestVersion string) {
+	// Remove old image url/version if it exists
+	m.RemoveImage(namespace, pod, container)
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	isLatest := 0.0
-	if currentImage == latestImage {
+	if currentVersion == latestVersion {
 		isLatest = 1.0
 	}
 
 	m.containerImageVersion.With(
-		m.buildLabels(namespace, pod, container, imageURL, currentImage, latestImage),
+		m.buildLabels(namespace, pod, container, imageURL, currentVersion, latestVersion),
 	).Set(isLatest)
 
 	index := m.latestImageIndex(namespace, pod, container)
-	m.latestImageLabel[index] = latestImage
+	m.containerCache[index] = cacheItem{
+		image:          imageURL,
+		currentVersion: currentVersion,
+		latestVersion:  latestVersion,
+	}
 }
 
-func (m *Metrics) RemoveImage(namespace, pod, container, imageURL, currentImage string) {
+func (m *Metrics) RemoveImage(namespace, pod, container string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	index := m.latestImageIndex(namespace, pod, container)
+	item, ok := m.containerCache[index]
+	if !ok {
+		return
+	}
+
 	m.containerImageVersion.Delete(
-		m.buildLabels(namespace, pod, container, imageURL, currentImage,
-			m.latestImageLabel[index],
-		),
+		m.buildLabels(namespace, pod, container, item.image, item.currentVersion, item.latestVersion),
 	)
-	delete(m.latestImageLabel, index)
+	delete(m.containerCache, index)
 }
 
 func (m *Metrics) latestImageIndex(namespace, pod, container string) string {
 	return strings.Join([]string{namespace, pod, container}, "")
 }
 
-func (m *Metrics) buildLabels(namespace, pod, container, imageURL, currentImage, latestImage string) prometheus.Labels {
+func (m *Metrics) buildLabels(namespace, pod, container, imageURL, currentVersion, latestVersion string) prometheus.Labels {
 	return prometheus.Labels{
 		"namespace":       namespace,
 		"pod":             pod,
 		"container":       container,
 		"image":           imageURL,
-		"current_version": currentImage,
-		"latest_version":  latestImage,
+		"current_version": currentVersion,
+		"latest_version":  latestVersion,
 	}
 }
 

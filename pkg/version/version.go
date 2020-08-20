@@ -2,7 +2,7 @@ package version
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -11,6 +11,7 @@ import (
 
 	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/jetstack/version-checker/pkg/client"
+	"github.com/jetstack/version-checker/pkg/version/errors"
 	"github.com/jetstack/version-checker/pkg/version/semver"
 )
 
@@ -45,12 +46,34 @@ func (v *VersionGetter) LatestTagFromImage(ctx context.Context, opts *api.Option
 		return nil, err
 	}
 
+	var tag *api.ImageTag
+
 	// If UseSHA then return early
 	if opts.UseSHA {
-		return latestSHA(tags)
+		tag, err = latestSHA(tags)
+		if err != nil {
+			return nil, err
+		}
+
+		if tag == nil {
+			return nil, errors.NewVersionErrorNotFound("%s: failed to find latest image based on SHA",
+				imageURL)
+		}
+
+	} else {
+		tag, err = latestSemver(opts, tags)
+		if err != nil {
+			return nil, err
+		}
+
+		if tag == nil {
+			optsBytes, _ := json.Marshal(opts)
+			return nil, errors.NewVersionErrorNotFound("%s: no tags found with these option constraints: %s",
+				imageURL, optsBytes)
+		}
 	}
 
-	return latestSemver(opts, tags)
+	return tag, err
 }
 
 // allTagsFromImage will return all available tags from the remote repository
@@ -70,7 +93,7 @@ func (v *VersionGetter) allTagsFromImage(ctx context.Context, imageURL string) (
 	}
 
 	if len(tags) == 0 {
-		return nil, fmt.Errorf("no tags found for given image URL: %q", imageURL)
+		return nil, errors.NewVersionErrorNotFound("no tags found for given image URL")
 	}
 
 	v.log.Debugf("committing image tags: %q", imageURL)
@@ -126,14 +149,15 @@ func latestSemver(opts *api.Options, tags []api.ImageTag) (*api.ImageTag, error)
 			continue
 		}
 
-		if latestV == nil || latestV.LessThan(v) {
+		// If no latest yet set
+		if latestV == nil ||
+			// If the latest set is less than
+			latestV.LessThan(v) ||
+			// If the latest is the same tag, but smaller timestamp
+			(latestV.Equal(v) && tags[i].Timestamp.After(latestImageTag.Timestamp)) {
 			latestV = v
 			latestImageTag = &tags[i]
 		}
-	}
-
-	if latestImageTag == nil {
-		return nil, fmt.Errorf("no tag found with those option constraints: %+v", opts)
 	}
 
 	return latestImageTag, nil
@@ -147,10 +171,6 @@ func latestSHA(tags []api.ImageTag) (*api.ImageTag, error) {
 		if latestTag == nil || tags[i].Timestamp.After(latestTag.Timestamp) {
 			latestTag = &tags[i]
 		}
-	}
-
-	if latestTag == nil {
-		return nil, errors.New("failed to find latest image based on SHA")
 	}
 
 	return latestTag, nil
