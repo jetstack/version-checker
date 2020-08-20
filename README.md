@@ -79,7 +79,7 @@ enrich version checking on image tags:
     set to true if no image tag, or "latest" image tag is set. Cannot be used with
     any other options.
 
-- `match-regex.version-checker.io/my-container: ^v\d+\.\d+\.\d+-debian\.*`: is
+- `match-regex.version-checker.io/my-container: ^v\d+\.\d+\.\d+-debian-`: is
     used for only comparing against image tags which match the regex set. For
     example, the above annotation will only check against image tags which have
     the form of something like `v1.3.4-debian-r30`.
