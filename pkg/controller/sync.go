@@ -11,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/jetstack/version-checker/pkg/api"
+	versionerrors "github.com/jetstack/version-checker/pkg/version/errors"
 	"github.com/jetstack/version-checker/pkg/version/semver"
 )
 
@@ -72,7 +73,7 @@ func (c *Controller) testContainerImage(ctx context.Context, log *logrus.Entry,
 		usingSHA = true
 	}
 
-	currentMetricsVersion := strings.Join([]string{currentTag, currentSHA}, "@")
+	currentMetricsVersion := metricsLabel(currentTag, currentSHA)
 
 	if len(currentSHA) == 0 {
 		// Get the SHA of the current image
@@ -107,6 +108,11 @@ func (c *Controller) testContainerImage(ctx context.Context, log *logrus.Entry,
 	}
 
 	latestImage, err := c.getLatestImage(ctx, log, imageURL, opts)
+	// Don't re-sync, if no version found meeting search criteria
+	if versionerrors.IsNoVersionFound(err) {
+		log.Error(err.Error())
+		return nil
+	}
 	if err != nil {
 		return err
 	}
@@ -117,6 +123,8 @@ func (c *Controller) testContainerImage(ctx context.Context, log *logrus.Entry,
 	)
 
 	if opts.UseSHA {
+		currentTag = currentSHA
+
 		// If we are using SHA, then we can do a string comparison of the latest
 		if currentTag == latestImage.SHA {
 			isLatest = true
@@ -180,6 +188,7 @@ func (c *Controller) buildOptions(containerName string, annotations map[string]s
 
 	if matchRegex, ok := annotations[api.MatchRegexAnnotationKey+"/"+containerName]; ok {
 		setNonSha = true
+		opts.MatchRegex = &matchRegex
 
 		regexMatcher, err := regexp.Compile(matchRegex)
 		if err != nil {
@@ -282,4 +291,17 @@ func urlTagSHAFromImage(image string) (url, version, sha string) {
 	}
 
 	return image, "", ""
+}
+
+// metricsLabel will return a version string, containing the tag and/or sha
+func metricsLabel(tag, sha string) string {
+	if len(sha) > 0 {
+		if len(tag) == 0 {
+			tag = sha
+		} else {
+			tag = fmt.Sprintf("%s@%s", tag, sha)
+		}
+	}
+
+	return tag
 }

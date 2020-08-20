@@ -38,7 +38,7 @@ type Options struct {
 	PinMinor *int64 `json:"pin-minor,omitempty"`
 	PinPatch *int64 `json:"pin-patch,omitempty"`
 
-	RegexMatcher *regexp.Regexp
+	RegexMatcher *regexp.Regexp `json:"-"`
 }
 
 // ImageTag describes a container image tag.

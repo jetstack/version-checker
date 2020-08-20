@@ -3,7 +3,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -111,7 +110,7 @@ func (c *Controller) runWorker(ctx context.Context) {
 		}
 
 		if err := c.processNextWorkItem(ctx, obj); err != nil {
-			c.log.Error(err)
+			c.log.Error(err.Error())
 		}
 	}
 }
@@ -137,11 +136,11 @@ func (c *Controller) processNextWorkItem(ctx context.Context, obj interface{}) e
 		for _, container := range pod.Spec.Containers {
 			imageURL, currentTag, currentSHA := urlTagSHAFromImage(container.Image)
 
-			currentVersion := strings.Join([]string{currentTag, currentSHA}, "@")
+			c.log.Debugf("removing deleted container from metrics: %s/%s/%s: %s %s",
+				pod.Namespace, pod.Name, container.Name, imageURL,
+				metricsLabel(currentTag, currentSHA))
 
-			c.log.Debugf("removing deleted container from metrics: %s/%s/%s: %s:%s",
-				pod.Namespace, pod.Name, container.Name, imageURL, currentTag)
-			c.metrics.RemoveImage(pod.Namespace, pod.Name, container.Name, imageURL, currentVersion)
+			c.metrics.RemoveImage(pod.Namespace, pod.Name, container.Name, imageURL)
 		}
 
 		return nil

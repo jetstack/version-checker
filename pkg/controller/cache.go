@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -64,7 +63,7 @@ func (c *Controller) getLatestImage(ctx context.Context, log *logrus.Entry,
 	if !ok || cacheItem.timestamp.Add(c.cacheTimeout).Before(time.Now()) {
 		latestImage, err := c.versionGetter.LatestTagFromImage(ctx, opts, imageURL)
 		if err != nil {
-			return nil, fmt.Errorf("%q: %s", imageURL, err)
+			return nil, err
 		}
 
 		// Commit to the cache

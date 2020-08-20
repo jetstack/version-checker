@@ -58,3 +58,41 @@ func TestURLAndTagFromImage(t *testing.T) {
 		})
 	}
 }
+
+func TestMetricsLabel(t *testing.T) {
+	tests := map[string]struct {
+		tag, sha  string
+		expOutput string
+	}{
+		"no input should output nothing": {
+			tag:       "",
+			sha:       "",
+			expOutput: "",
+		},
+		"just tag, make tag": {
+			tag:       "v1",
+			sha:       "",
+			expOutput: "v1",
+		},
+		"just sha, make sha": {
+			tag:       "",
+			sha:       "123",
+			expOutput: "123",
+		},
+		"tag + sha, make tag@sha": {
+			tag:       "v1",
+			sha:       "123",
+			expOutput: "v1@123",
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			out := metricsLabel(test.tag, test.sha)
+			if out != test.expOutput {
+				t.Errorf("unexpected output for %q %q exp=%q got=%q",
+					test.tag, test.sha, test.expOutput, out)
+			}
+		})
+	}
+}
