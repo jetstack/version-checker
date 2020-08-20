@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
@@ -80,14 +81,14 @@ func (c *Controller) Run(ctx context.Context) error {
 	c.podLister = sharedInformerFactory.Core().V1().Pods().Lister()
 	podInformer := sharedInformerFactory.Core().V1().Pods().Informer()
 	podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) { c.addObject(obj) },
+		AddFunc: c.addObject,
 		UpdateFunc: func(old, new interface{}) {
 			if key, err := cache.MetaNamespaceKeyFunc(old); err == nil {
 				c.scheduledWorkQueue.Forget(key)
 			}
 			c.addObject(new)
 		},
-		DeleteFunc: func(obj interface{}) { c.addObject(obj) },
+		DeleteFunc: c.deleteObject,
 	})
 
 	c.log.Info("starting control loop")
@@ -139,6 +140,19 @@ func (c *Controller) addObject(obj interface{}) {
 	c.workqueue.AddRateLimited(key)
 }
 
+func (c *Controller) deleteObject(obj interface{}) {
+	pod, ok := obj.(*corev1.Pod)
+	if !ok {
+		return
+	}
+
+	for _, container := range pod.Spec.Containers {
+		c.log.Debugf("removing deleted pod containers from metrics: %s/%s/%s",
+			pod.Namespace, pod.Name, container.Name)
+		c.metrics.RemoveImage(pod.Namespace, pod.Name, container.Name)
+	}
+}
+
 // processNextWorkItem will read a single work item off the workqueue and
 // attempt to process it, by calling the syncHandler.
 func (c *Controller) processNextWorkItem(ctx context.Context, key string) error {
@@ -151,23 +165,11 @@ func (c *Controller) processNextWorkItem(ctx context.Context, key string) error 
 	}
 
 	pod, err := c.podLister.Pods(namespace).Get(name)
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			return err
-		}
-
-		// If the pod has been deleted, remove from metrics
-		for _, container := range pod.Spec.Containers {
-			imageURL, currentTag, currentSHA := urlTagSHAFromImage(container.Image)
-
-			c.log.Debugf("removing deleted container from metrics: %s/%s/%s: %s %s",
-				pod.Namespace, pod.Name, container.Name, imageURL,
-				metricsLabel(currentTag, currentSHA))
-
-			c.metrics.RemoveImage(pod.Namespace, pod.Name, container.Name, imageURL)
-		}
-
+	if apierrors.IsNotFound(err) {
 		return nil
+	}
+	if err != nil {
+		return err
 	}
 
 	if err := c.sync(ctx, pod); err != nil {

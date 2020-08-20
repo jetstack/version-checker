@@ -91,7 +91,7 @@ func (m *Metrics) Run(servingAddress string) error {
 
 func (m *Metrics) AddImage(namespace, pod, container, imageURL string, currentVersion, latestVersion string) {
 	// Remove old image url/version if it exists
-	m.RemoveImage(namespace, pod, container, imageURL)
+	m.RemoveImage(namespace, pod, container)
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -113,7 +113,7 @@ func (m *Metrics) AddImage(namespace, pod, container, imageURL string, currentVe
 	}
 }
 
-func (m *Metrics) RemoveImage(namespace, pod, container, imageURL string) {
+func (m *Metrics) RemoveImage(namespace, pod, container string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

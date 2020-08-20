@@ -63,16 +63,13 @@ func (c *Controller) sync(ctx context.Context, pod *corev1.Pod) error {
 // available in the remote registry, given the options.
 func (c *Controller) testContainerImage(ctx context.Context, log *logrus.Entry,
 	pod *corev1.Pod, container *corev1.Container, opts *api.Options) error {
-	var usingSHA bool
 
 	imageURL, currentTag, currentSHA := urlTagSHAFromImage(container.Image)
-	if len(currentSHA) > 0 {
-		usingSHA = true
-	}
+	usingSHA := len(currentSHA) > 0
 
 	currentMetricsVersion := metricsLabel(currentTag, currentSHA)
 
-	if len(currentSHA) == 0 {
+	if !usingSHA {
 		// Get the SHA of the current image
 		for _, status := range pod.Status.ContainerStatuses {
 			if status.Name == container.Name {
@@ -121,13 +118,12 @@ func (c *Controller) testContainerImage(ctx context.Context, log *logrus.Entry,
 
 	if opts.UseSHA {
 		currentTag = currentSHA
+		latestVersion = latestImage.SHA
 
 		// If we are using SHA, then we can do a string comparison of the latest
 		if currentTag == latestImage.SHA {
 			isLatest = true
 		}
-
-		latestVersion = latestImage.SHA
 	} else {
 		// Test against normal semvar
 		currentImage := semver.Parse(currentTag)
@@ -154,7 +150,7 @@ func (c *Controller) testContainerImage(ctx context.Context, log *logrus.Entry,
 
 	if isLatest {
 		log.Debugf("image is latest %s:%s",
-			imageURL, currentTag)
+			imageURL, currentMetricsVersion)
 	} else {
 		log.Debugf("image is not latest %s: %s -> %s",
 			imageURL, currentMetricsVersion, latestVersion)
