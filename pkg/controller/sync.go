@@ -51,9 +51,6 @@ func (c *Controller) sync(ctx context.Context, pod *corev1.Pod) error {
 		}
 	}
 
-	// Check the image tag again after the cache timeout.
-	c.workqueue.AddAfter(pod, c.cacheTimeout)
-
 	if len(errs) > 0 {
 		return fmt.Errorf("failed to sync pod %s/%s: %s",
 			pod.Name, pod.Namespace, strings.Join(errs, ","))
