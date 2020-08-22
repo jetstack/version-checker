@@ -108,30 +108,21 @@ func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTa
 
 	for _, tag := range response.Tags {
 
-		if tag == tag {
+		manifestResponse, err := c.doManifestRequest(ctx, urlManifest+tag)
+		if err != nil {
+			return nil, err
+		}
 
-			manifestResponse, err := c.doManifestRequest(ctx, urlManifest+tag)
-			if err != nil {
-				return nil, err
-			}
+		for _, manifest := range manifestResponse.Manifests {
 
-			for _, manifest := range manifestResponse.Manifests {
+			sha := strings.Replace(manifest.Digest, "sha256:", "", 1)
 
-				sha := strings.Replace(manifest.Digest, "sha256:", "", 1)
-
-				tags = append(tags, api.ImageTag{
-					Tag:          tag,
-					SHA:          sha,
-					Timestamp:    time.Now(),
-					OS:           manifest.Platform.Os,
-					Architecture: manifest.Platform.Architecture,
-				})
-			}
-		} else {
 			tags = append(tags, api.ImageTag{
-				Tag:       tag,
-				SHA:       "",
-				Timestamp: time.Now(),
+				Tag:          tag,
+				SHA:          sha,
+				Timestamp:    time.Now(),
+				OS:           manifest.Platform.Os,
+				Architecture: manifest.Platform.Architecture,
 			})
 		}
 	}

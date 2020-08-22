@@ -112,7 +112,7 @@ func (o *Options) addFlags(cmd *cobra.Command) {
 		"Address to serve metrics on at the /metrics path.")
 
 	cmd.PersistentFlags().BoolVarP(&o.DefaultTestAll,
-		"test-all-containers", "a", true,
+		"test-all-containers", "a", false,
 		`If enable, all containers will be tested, unless they have the annotation `+
 			`"enable.version-checker/${my-container}=false".`)
 

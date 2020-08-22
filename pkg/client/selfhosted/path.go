@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -16,13 +18,12 @@ func (c *Client) IsHost(host string) bool {
 
 	u, err := url.Parse(c.Options.URL)
 	if err != nil {
-		//TODO
-		panic(err)
+		// If we can't parse the host given by the options, it's useless to keep running
+		log.Fatalf("failed parsing host: %s", c.Options.URL)
+		return false
 	}
 
 	urlRegex := fmt.Sprintf(regTemplate, u.Host)
-	// fmt.Println(urlRegex)
-	// fmt.Println(host)
 	reg := regexp.MustCompile(urlRegex)
 	return reg.MatchString(host)
 }
