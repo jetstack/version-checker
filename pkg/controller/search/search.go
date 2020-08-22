@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
-	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -21,14 +20,6 @@ type Search struct {
 
 	versionGetter *version.Version
 	searchCache   *cache.Cache
-}
-
-// searchCacheItem is a single node item for the cache of a lastest image
-// search. This cache is periodically garbage collected.
-type searchCacheItem struct {
-	itemMu      sync.Mutex
-	timestamp   time.Time
-	latestImage *api.ImageTag
 }
 
 // New creates a new Search for querying searches over image tags
@@ -80,13 +71,13 @@ func (s *Search) Run(refreshRate time.Duration) {
 
 // calculateHashIndex returns a hash index given an imageURL and options.
 func calculateHashIndex(imageURL string, opts *api.Options) (string, error) {
-	opsJson, err := json.Marshal(opts)
+	optsJSON, err := json.Marshal(opts)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal options: %s", err)
 	}
 
 	hash := fnv.New32()
-	if _, err := hash.Write(append(opsJson, []byte(imageURL)...)); err != nil {
+	if _, err := hash.Write(append(optsJSON, []byte(imageURL)...)); err != nil {
 		return "", fmt.Errorf("failed to calculate search hash: %s", err)
 	}
 

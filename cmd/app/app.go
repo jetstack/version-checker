@@ -18,8 +18,6 @@ import (
 )
 
 const (
-	version = "v0.0.1-alpha.0"
-
 	helpOutput = "Kubernetes utility for exposing used image versions compared to the latest version, as metrics."
 
 	envPrefix         = "VERSION_CHECKER"

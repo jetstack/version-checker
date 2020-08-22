@@ -41,7 +41,7 @@ func (v *Version) Run(refreshRate time.Duration) {
 	v.imageCache.StartGarbageCollector(refreshRate)
 }
 
-// LatestTagFromOImage will return the latest tag given an imageURL, according
+// LatestTagFromImage will return the latest tag given an imageURL, according
 // to the given options.
 func (v *Version) LatestTagFromImage(ctx context.Context, imageURL string, opts *api.Options) (*api.ImageTag, error) {
 	tagsI, err := v.imageCache.Get(ctx, imageURL, imageURL, nil)

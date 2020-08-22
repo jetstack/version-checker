@@ -27,7 +27,7 @@ const (
 	numWorkers = 10
 )
 
-// controller is the main controller that check and exposes metrics on
+// Controller is the main controller that check and exposes metrics on
 // versions.
 type Controller struct {
 	log *logrus.Entry
