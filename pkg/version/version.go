@@ -81,7 +81,7 @@ func (v *Version) LatestTagFromImage(ctx context.Context, imageURL string, opts 
 }
 
 // Fetch returns the given image tags for a given image URL.
-func (v *Version) Fetch(ctx context.Context, imageURL string, _ interface{}) (interface{}, error) {
+func (v *Version) Fetch(ctx context.Context, imageURL string, _ *api.Options) (interface{}, error) {
 	// fetch tags from image URL
 	tags, err := v.client.Tags(ctx, imageURL)
 	if err != nil {

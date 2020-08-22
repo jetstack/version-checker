@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+
+	"github.com/jetstack/version-checker/pkg/api"
 )
 
 // Cache is a generic cache store.
@@ -30,7 +32,7 @@ type cacheItem struct {
 // Handler is an interface for implementations of the cache fetch
 type Handler interface {
 	// Fetch should fetch an item by the given index and options
-	Fetch(ctx context.Context, index string, opts interface{}) (interface{}, error)
+	Fetch(ctx context.Context, index string, opts *api.Options) (interface{}, error)
 }
 
 // New returns a new generic Cache
@@ -45,7 +47,7 @@ func New(log *logrus.Entry, timeout time.Duration, handler Handler) *Cache {
 
 // Get returns the cache item from the store given the index. Will populate
 // the cache if the index does not currently exist.
-func (c *Cache) Get(ctx context.Context, index string, fetchIndex string, opts interface{}) (interface{}, error) {
+func (c *Cache) Get(ctx context.Context, index string, fetchIndex string, opts *api.Options) (interface{}, error) {
 	c.mu.RLock()
 	item, ok := c.store[index]
 	c.mu.RUnlock()

@@ -34,9 +34,7 @@ func New(log *logrus.Entry, cacheTimeout time.Duration, versionGetter *version.V
 	return s
 }
 
-func (s *Search) Fetch(ctx context.Context, imageURL string, optsI interface{}) (interface{}, error) {
-	opts := optsI.(*api.Options)
-
+func (s *Search) Fetch(ctx context.Context, imageURL string, opts *api.Options) (interface{}, error) {
 	latestImage, err := s.versionGetter.LatestTagFromImage(ctx, imageURL, opts)
 	if err != nil {
 		return nil, err
