@@ -9,6 +9,7 @@ import (
 	"github.com/jetstack/version-checker/pkg/client/docker"
 	"github.com/jetstack/version-checker/pkg/client/gcr"
 	"github.com/jetstack/version-checker/pkg/client/quay"
+	"github.com/jetstack/version-checker/pkg/client/selfhosted"
 )
 
 // ImageClient represents a image registry client that can list available tags
@@ -20,7 +21,7 @@ type ImageClient interface {
 
 	// RepoImage will return the registries repository and image, from a given
 	// URL path.
-	RepoImageFromPath(path string) (string, string)
+	RepoImageFromPath(path string) (string, string, error)
 
 	// Tags will return the available tags for the given host, repo, and image
 	// using that client.
@@ -30,16 +31,18 @@ type ImageClient interface {
 // Client is a container image registry client to list tags of given image
 // URLs.
 type Client struct {
-	gcr    *gcr.Client
-	docker *docker.Client
-	quay   *quay.Client
+	gcr        *gcr.Client
+	docker     *docker.Client
+	quay       *quay.Client
+	selfhosted *selfhosted.Client
 }
 
 // Options used to configure client authentication.
 type Options struct {
-	GCR    gcr.Options
-	Docker docker.Options
-	Quay   quay.Options
+	GCR        gcr.Options
+	Docker     docker.Options
+	Quay       quay.Options
+	Selfhosted selfhosted.Options
 }
 
 func New(ctx context.Context, opts Options) (*Client, error) {
@@ -48,17 +51,26 @@ func New(ctx context.Context, opts Options) (*Client, error) {
 		return nil, fmt.Errorf("failed to create docker client: %s", err)
 	}
 
+	selfhostedClient, err := selfhosted.New(ctx, opts.Selfhosted)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create docker client: %s", err)
+	}
+
 	return &Client{
-		quay:   quay.New(opts.Quay),
-		docker: dockerClient,
-		gcr:    gcr.New(opts.GCR),
+		quay:       quay.New(opts.Quay),
+		docker:     dockerClient,
+		gcr:        gcr.New(opts.GCR),
+		selfhosted: selfhostedClient,
 	}, nil
 }
 
 // Tags returns the full list of image tags available, for a given image URL.
 func (c *Client) Tags(ctx context.Context, imageURL string) ([]api.ImageTag, error) {
 	client, host, path := c.fromImageURL(imageURL)
-	repo, image := client.RepoImageFromPath(path)
+	repo, image, err := client.RepoImageFromPath(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get image tags: %s", err)
+	}
 	return client.Tags(ctx, host, repo, image)
 }
 
@@ -73,6 +85,8 @@ func (c *Client) fromImageURL(imageURL string) (ImageClient, string, string) {
 	host, path := split[0], split[1]
 
 	switch {
+	case c.selfhosted.URL != "" && c.selfhosted.IsHost(host):
+		return c.selfhosted, host, path
 	case c.docker.IsHost(host):
 		return c.docker, host, path
 	case c.gcr.IsHost(host):
