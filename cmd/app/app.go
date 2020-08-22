@@ -22,12 +22,15 @@ const (
 
 	helpOutput = "Kubernetes utility for exposing used image versions compared to the latest version, as metrics."
 
-	envPrefix         = "VERSION_CHECKER"
-	envGCRAccessToken = "GCR_TOKEN"
-	envDockerUsername = "DOCKER_USERNAME"
-	envDockerPassword = "DOCKER_PASSWORD"
-	envDockerJWT      = "DOCKER_TOKEN"
-	envQuayToken      = "QUAY_TOKEN"
+	envPrefix             = "VERSION_CHECKER"
+	envGCRAccessToken     = "GCR_TOKEN"
+	envDockerUsername     = "DOCKER_USERNAME"
+	envDockerPassword     = "DOCKER_PASSWORD"
+	envDockerJWT          = "DOCKER_TOKEN"
+	envSelfhostedUsername = "SELFHOSTED_USERNAME"
+	envSelfhostedPassword = "SELFHOSTED_PASSWORD"
+	envSelfhostedBearer   = "SELFHOSTED_TOKEN"
+	envQuayToken          = "QUAY_TOKEN"
 )
 
 // Options is a struct to hold options for the version-checker
@@ -109,7 +112,7 @@ func (o *Options) addFlags(cmd *cobra.Command) {
 		"Address to serve metrics on at the /metrics path.")
 
 	cmd.PersistentFlags().BoolVarP(&o.DefaultTestAll,
-		"test-all-containers", "a", false,
+		"test-all-containers", "a", true,
 		`If enable, all containers will be tested, unless they have the annotation `+
 			`"enable.version-checker/${my-container}=false".`)
 
@@ -158,6 +161,31 @@ func (o *Options) addFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().StringVar(&o.Client.Docker.LoginURL,
 		"docker-login-url", "https://hub.docker.com/v2/users/login/",
 		"URL to login into docker using username/password.")
+	cmd.PersistentFlags().StringVar(&o.Client.Selfhosted.Username,
+		"selfhosted-username", "",
+		fmt.Sprintf(
+			"Username is authenticate with a selfhosted registry (%s_%s).",
+			envPrefix, envSelfhostedUsername,
+		))
+	cmd.PersistentFlags().StringVar(&o.Client.Selfhosted.Password,
+		"selfhosted-password", "",
+		fmt.Sprintf(
+			"Password is authenticate with a selfhosted registry (%s_%s).",
+			envPrefix, envSelfhostedPassword,
+		))
+	cmd.PersistentFlags().StringVar(&o.Client.Selfhosted.Bearer,
+		"selfhosted-token", "",
+		fmt.Sprintf(
+			"Token is authenticate with a selfhosted registry. Cannot be used with "+
+				"username/password (%s_%s).",
+			envPrefix, envSelfhostedBearer,
+		))
+	cmd.PersistentFlags().StringVar(&o.Client.Selfhosted.LoginURL,
+		"selfhosted-login-url", "",
+		"URL to login into selfhosted registry using username/password.")
+	cmd.PersistentFlags().StringVar(&o.Client.Selfhosted.URL,
+		"selfhosted-registry-url", "",
+		"URL of the selfhosted registry.")
 }
 
 func (o *Options) checkEnv() {
@@ -173,6 +201,16 @@ func (o *Options) checkEnv() {
 	}
 	if len(o.Client.Docker.JWT) == 0 {
 		o.Client.Docker.JWT = os.Getenv(envPrefix + "_" + envDockerJWT)
+	}
+
+	if len(o.Client.Selfhosted.Username) == 0 {
+		o.Client.Selfhosted.Username = os.Getenv(envPrefix + "_" + envSelfhostedUsername)
+	}
+	if len(o.Client.Selfhosted.Password) == 0 {
+		o.Client.Selfhosted.Password = os.Getenv(envPrefix + "_" + envSelfhostedPassword)
+	}
+	if len(o.Client.Selfhosted.Bearer) == 0 {
+		o.Client.Selfhosted.Bearer = os.Getenv(envPrefix + "_" + envSelfhostedBearer)
 	}
 
 	if len(o.Client.Quay.Token) == 0 {

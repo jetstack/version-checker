@@ -35,7 +35,7 @@ func (c *Controller) sync(ctx context.Context, pod *corev1.Pod) error {
 		}
 
 		log = log.WithField("container", container.Name)
-		log.Debug("processing conainer image")
+		log.Debug("processing container image")
 
 		opts, err := c.buildOptions(container.Name, pod.Annotations)
 		if err != nil {

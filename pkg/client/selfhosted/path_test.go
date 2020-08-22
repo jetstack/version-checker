@@ -1,4 +1,4 @@
-package docker
+package selfhosted
 
 import "testing"
 
@@ -19,28 +19,28 @@ func TestIsHost(t *testing.T) {
 			host:  "foobar.foo",
 			expIs: false,
 		},
-		"just docker.io should be true": {
+		"just docker.io should be false": {
 			host:  "docker.io",
-			expIs: true,
-		},
-		"just docker.com should be true": {
-			host:  "docker.com",
-			expIs: true,
-		},
-		"docker.com with random sub domains should be true": {
-			host:  "foo.bar.docker.com",
-			expIs: true,
-		},
-		"docker.io with random sub domains should be true": {
-			host:  "foo.bar.docker.io",
-			expIs: true,
-		},
-		"foodocker.com should be false": {
-			host:  "foodocker.com",
 			expIs: false,
 		},
-		"foodocker.io should be false": {
-			host:  "foodocker.io",
+		"just docker.com should be false": {
+			host:  "docker.com",
+			expIs: false,
+		},
+		"docker.com with random sub domains should be false": {
+			host:  "foo.bar.docker.com",
+			expIs: false,
+		},
+		"docker.io with random sub domains should be false": {
+			host:  "foo.bar.docker.io",
+			expIs: false,
+		},
+		"docker.repositories.yourdomain.ext should be true": {
+			host:  "docker.repositories.yourdomain.ext",
+			expIs: true,
+		},
+		"docker.repositories.yourdomain.ext/testing should be true": {
+			host:  "docker.repositories.yourdomain.ext/testing",
 			expIs: false,
 		},
 		"docker.comfoo should be false": {
@@ -54,6 +54,7 @@ func TestIsHost(t *testing.T) {
 	}
 
 	handler := new(Client)
+	handler.Options.URL = "https://docker.repositories.yourdomain.ext/artifactory/v2"
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			if isHost := handler.IsHost(test.host); isHost != test.expIs {
@@ -68,21 +69,25 @@ func TestRepoImage(t *testing.T) {
 	tests := map[string]struct {
 		path              string
 		expRepo, expImage string
+		expError          bool
 	}{
-		"single image should return libary": {
+		"single image should return error": {
 			path:     "nginx",
-			expRepo:  "library",
-			expImage: "nginx",
+			expRepo:  "",
+			expImage: "",
+			expError: true,
 		},
 		"two segments to path should return both": {
 			path:     "joshvanl/version-checker",
 			expRepo:  "joshvanl",
 			expImage: "version-checker",
+			expError: false,
 		},
 		"multiple segments to path should return last two": {
 			path:     "registry/joshvanl/version-checker",
 			expRepo:  "joshvanl",
 			expImage: "version-checker",
+			expError: false,
 		},
 	}
 
@@ -90,15 +95,15 @@ func TestRepoImage(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			repo, image, err := handler.RepoImageFromPath(test.path)
-			if repo != test.expRepo && image != test.expImage {
+
+			if test.expError && err == nil {
+				t.Errorf("%s: Expected error, exp=%s/%s/error got=%s/%s/nil",
+					test.path, test.expRepo, test.expImage, repo, image)
+			} else if repo != test.expRepo && image != test.expImage {
 				t.Errorf("%s: unexpected repo/image, exp=%s/%s got=%s/%s",
 					test.path, test.expRepo, test.expImage, repo, image)
 			}
 
-			if err != nil {
-				t.Errorf("%s: unexpected error: %s, exp=%s/%s got=%s/%s",
-					test.path, err, test.expRepo, test.expImage, repo, image)
-			}
 		})
 	}
 }
