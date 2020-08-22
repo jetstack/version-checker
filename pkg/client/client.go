@@ -53,7 +53,7 @@ func New(ctx context.Context, opts Options) (*Client, error) {
 
 	selfhostedClient, err := selfhosted.New(ctx, opts.Selfhosted)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create docker client: %s", err)
+		return nil, fmt.Errorf("failed to create selfhosted client: %s", err)
 	}
 
 	return &Client{
