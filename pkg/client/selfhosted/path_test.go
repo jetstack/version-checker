@@ -39,8 +39,12 @@ func TestIsHost(t *testing.T) {
 			host:  "docker.repositories.yourdomain.ext",
 			expIs: true,
 		},
-		"docker.repositories.yourdomain.ext/testing should be true": {
+		"docker.repositories.yourdomain.ext/testing should be false": {
 			host:  "docker.repositories.yourdomain.ext/testing",
+			expIs: false,
+		},
+		"docker.repositories.yourdomain.ext/artifactory/v2 should be false": {
+			host:  "docker.repositories.yourdomain.ext/artifactory/v2",
 			expIs: false,
 		},
 		"docker.comfoo should be false": {
