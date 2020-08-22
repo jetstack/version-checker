@@ -86,10 +86,17 @@ func TestFromImageURL(t *testing.T) {
 			expHost:   "us.quay.io",
 			expPath:   "k8s-artifacts-prod/ingress-nginx/nginx",
 		},
+		"selfhosted should be selfhosted": {
+			url:       "docker.repositories.yourdomain.com/ingress-nginx/nginx",
+			expClient: handler.selfhosted,
+			expHost:   "docker.repositories.yourdomain.com",
+			expPath:   "ingress-nginx/nginx",
+		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			handler.selfhosted.Options.URL = "https://docker.repositories.yourdomain.com/artifactory/v2"
 			client, host, path := handler.fromImageURL(test.url)
 
 			if client != test.expClient {
