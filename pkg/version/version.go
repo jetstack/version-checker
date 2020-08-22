@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
 
 	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/jetstack/version-checker/pkg/client"
+	"github.com/jetstack/version-checker/pkg/version/cache"
 	"github.com/jetstack/version-checker/pkg/version/errors"
 	"github.com/jetstack/version-checker/pkg/version/semver"
 )
@@ -20,27 +20,27 @@ type VersionGetter struct {
 
 	client *client.Client
 
-	// cacheTimeout is the amount of time a imageCache item is considered fresh
-	// for.
-	cacheTimeout time.Duration
-	cacheMu      sync.RWMutex
-	imageCache   map[string]imageCacheItem
+	imageCache *cache.Cache
 }
 
 func New(log *logrus.Entry, client *client.Client, cacheTimeout time.Duration) *VersionGetter {
-	vg := &VersionGetter{
-		log:          log.WithField("module", "version_getter"),
-		client:       client,
-		imageCache:   make(map[string]imageCacheItem),
-		cacheTimeout: cacheTimeout,
-	}
+	log = log.WithField("module", "version_getter")
 
-	return vg
+	return &VersionGetter{
+		log:        log,
+		client:     client,
+		imageCache: cache.New(log, cacheTimeout),
+	}
+}
+
+// Run is a blocking func that will start the image cache garbage collector.
+func (v *VersionGetter) Run(refreshRate time.Duration) {
+	v.imageCache.StartGarbageCollector(refreshRate)
 }
 
 // LatestTagFromOImage will return the latest tag given an imageURL, according
 // to the given options.
-func (v *VersionGetter) LatestTagFromImage(ctx context.Context, opts *api.Options, imageURL string) (*api.ImageTag, error) {
+func (v *VersionGetter) LatestTagFromImage(ctx context.Context, imageURL string, opts *api.Options) (*api.ImageTag, error) {
 	tags, err := v.allTagsFromImage(ctx, imageURL)
 	if err != nil {
 		return nil, err
@@ -81,7 +81,7 @@ func (v *VersionGetter) LatestTagFromImage(ctx context.Context, opts *api.Option
 // periodically garbage collected.
 func (v *VersionGetter) allTagsFromImage(ctx context.Context, imageURL string) ([]api.ImageTag, error) {
 	// Check for cache hit
-	if tags, ok := v.tryImageCache(imageURL); ok {
+	if tags, ok := v.imageCache.ImageTags(imageURL); ok {
 		return tags, nil
 	}
 
@@ -92,18 +92,13 @@ func (v *VersionGetter) allTagsFromImage(ctx context.Context, imageURL string) (
 			imageURL, err)
 	}
 
+	// commit tags to cache even if there are empty tags, to prevent needlessly
+	// querying a bad URL.
+	v.log.Debugf("committing image tags: %q", imageURL)
+	v.imageCache.CommitTags(imageURL, tags)
+
 	if len(tags) == 0 {
 		return nil, errors.NewVersionErrorNotFound("no tags found for given image URL")
-	}
-
-	v.log.Debugf("committing image tags: %q", imageURL)
-
-	// Add tags to cache
-	v.cacheMu.Lock()
-	defer v.cacheMu.Unlock()
-	v.imageCache[imageURL] = imageCacheItem{
-		timestamp: time.Now(),
-		tags:      tags,
 	}
 
 	return tags, nil
