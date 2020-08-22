@@ -77,17 +77,20 @@ func New(ctx context.Context, opts Options) (*Client, error) {
 		Timeout: time.Second * 5,
 	}
 
-	// Setup Auth if username and password used.
-	if len(opts.Username) > 0 || len(opts.Password) > 0 {
-		if len(opts.Bearer) > 0 {
-			return nil, errors.New("cannot specify Bearer as well as username/password")
-		}
+	// Only try to setup auth if an actually URL is present.
+	if opts.URL != "" {
+		// Setup Auth if username and password used.
+		if len(opts.Username) > 0 || len(opts.Password) > 0 {
+			if len(opts.Bearer) > 0 {
+				return nil, errors.New("cannot specify Bearer as well as username/password")
+			}
 
-		token, err := basicAuthSetup(client, opts)
-		if err != nil {
-			return nil, fmt.Errorf("failed to setup auth: %s", err)
+			token, err := basicAuthSetup(client, opts)
+			if err != nil {
+				return nil, fmt.Errorf("failed to setup auth: %s", err)
+			}
+			opts.Bearer = token
 		}
-		opts.Bearer = token
 	}
 
 	return &Client{
