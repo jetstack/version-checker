@@ -87,6 +87,13 @@ func NewCommand(ctx context.Context) *cobra.Command {
 				}
 			}()
 
+			defaultTestAllInfoMsg := `only containers with the annotation "enable.version-checker/${my-container}=true" will be parsed`
+			if opts.DefaultTestAll {
+				defaultTestAllInfoMsg = `all containers will be tested, unless they have the annotation "enable.version-checker/${my-container}=false"`
+			}
+
+			log.Infof("flag --test-all-containers=%t %s", opts.DefaultTestAll, defaultTestAllInfoMsg)
+			
 			c := controller.New(opts.CacheTimeout, metrics,
 				client, kubeClient, log, opts.DefaultTestAll)
 
