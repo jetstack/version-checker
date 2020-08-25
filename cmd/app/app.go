@@ -87,8 +87,8 @@ func NewCommand(ctx context.Context) *cobra.Command {
 				}
 			}()
 
-			defaultTestAllInfoMsg := `only containers with the annotation "enable.version-checker.io" will be parsed`
-			if(opts.DefaultTestAll) {
+			defaultTestAllInfoMsg := `only containers with the annotation "enable.version-checker/${my-container}=true" will be parsed`
+			if opts.DefaultTestAll {
 				defaultTestAllInfoMsg = `all containers will be tested, unless they have the annotation "enable.version-checker/${my-container}=false"`
 			}
 
