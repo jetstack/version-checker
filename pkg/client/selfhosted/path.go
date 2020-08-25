@@ -2,29 +2,12 @@ package selfhosted
 
 import (
 	"errors"
-	"fmt"
-	"net/url"
 	"regexp"
 	"strings"
-
-	log "github.com/sirupsen/logrus"
-)
-
-var (
-	regTemplate = `(^(.*\.)?%s$)`
 )
 
 func (c *Client) IsHost(host string) bool {
-
-	u, err := url.Parse(c.Options.URL)
-	if err != nil {
-		// If we can't parse the host given by the options, it's useless to keep running
-		log.Fatalf("failed parsing host: %s", c.Options.URL)
-		return false
-	}
-
-	urlRegex := fmt.Sprintf(regTemplate, u.Host)
-	reg := regexp.MustCompile(urlRegex)
+	reg := regexp.MustCompile(c.Options.HostRegex)
 	return reg.MatchString(host)
 }
 

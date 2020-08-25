@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
 	"github.com/jetstack/version-checker/pkg/api"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -18,14 +20,16 @@ const (
 	// Not all versions support pagination AND not all Artifactory versions are handling the "latest" argument
 	lookupURL   = "%s/%s/%s/tags/list?n=500"
 	manifestURL = "%s/%s/%s/manifests/"
+	regTemplate = `(^(.*\.)?%s$)`
 )
 
 type Options struct {
-	URL      string
-	LoginURL string
-	Username string
-	Password string
-	Bearer   string
+	URL       string
+	LoginURL  string
+	Username  string
+	Password  string
+	Bearer    string
+	HostRegex string
 }
 
 type Client struct {
@@ -76,6 +80,15 @@ func New(ctx context.Context, opts Options) (*Client, error) {
 	client := &http.Client{
 		Timeout: time.Second * 5,
 	}
+
+	u, err := url.Parse(opts.URL)
+	if err != nil {
+		// If we can't parse the host given by the options, we should exit fatal
+		log.Fatalf("failed parsing host: %s", opts.URL)
+	}
+
+	// Set the rexex which is used by our path IsHost function
+	opts.HostRegex = fmt.Sprintf(regTemplate, u.Host)
 
 	// Only try to setup auth if an actually URL is present.
 	if opts.URL != "" {
