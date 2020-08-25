@@ -87,8 +87,9 @@ func (o *Options) addAppFlags(fs *pflag.FlagSet) {
 
 	fs.DurationVarP(&o.CacheTimeout,
 		"image-cache-timeout", "c", time.Minute*30,
-		"The time for an image in the cache to be considered fresh. Images will be "+
-			"checked at this interval.")
+		"The time for an image version in the cache to be considered fresh. Images "+
+			"will be rechecked after this interval.")
+
 	fs.StringVarP(&o.LogLevel,
 		"log-level", "v", "info",
 		"Log level (debug, info, warn, error, fatal, panic).")
