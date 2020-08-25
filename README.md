@@ -30,7 +30,7 @@ $ cd ./deploy/yaml && kubectl apply -f .
 Or through helm;
 
 ```sh
-$ cd ./deploy/charts/version-checker && kubectl create namespace verison-checker
+$ cd ./deploy/charts/version-checker && kubectl create namespace version-checker
 $ helm install version-checker . -n version-checker
 ```
 
