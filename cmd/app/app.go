@@ -7,7 +7,6 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth" // Load all auth plugins
 
@@ -22,14 +21,13 @@ const (
 
 func NewCommand(ctx context.Context) *cobra.Command {
 	opts := new(Options)
-	kubeConfigFlags := genericclioptions.NewConfigFlags(true)
 
 	cmd := &cobra.Command{
 		Use:   "version-checker",
 		Short: helpOutput,
 		Long:  helpOutput,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			opts.checkEnv()
+			opts.complete()
 
 			logLevel, err := logrus.ParseLevel(opts.LogLevel)
 			if err != nil {
@@ -42,7 +40,7 @@ func NewCommand(ctx context.Context) *cobra.Command {
 			nlog.SetLevel(logLevel)
 			log := logrus.NewEntry(nlog)
 
-			restConfig, err := kubeConfigFlags.ToRESTConfig()
+			restConfig, err := opts.kubeConfigFlags.ToRESTConfig()
 			if err != nil {
 				return fmt.Errorf("failed to build kubernetes rest config: %s", err)
 			}
@@ -82,7 +80,6 @@ func NewCommand(ctx context.Context) *cobra.Command {
 		},
 	}
 
-	kubeConfigFlags.AddFlags(cmd.PersistentFlags())
 	opts.addFlags(cmd)
 
 	return cmd
