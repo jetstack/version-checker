@@ -85,12 +85,11 @@ func (c *Client) getClient(region string) (*ecr.ECR, error) {
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
 
-	var err error
-
 	client, ok := c.cachedRegionClients[region]
 	if !ok || client == nil || client.Config.Credentials.IsExpired() {
-
 		// If the client is not yet created, or the token has expired, create new.
+
+		var err error
 		client, err = c.createRegionClient(region)
 		if err != nil {
 			return nil, err
