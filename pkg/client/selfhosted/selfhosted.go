@@ -59,17 +59,17 @@ type Image struct {
 }
 
 type ManifestResponse struct {
-	Manifests []Manifest `json:"manifests"`
+	Digest       string
+	Architecture string    `json:"architecture"`
+	History      []History `json:"history"`
 }
 
-type Manifest struct {
-	Digest   string   `json:"digest"`
-	Platform Platform `json:"platform"`
+type History struct {
+	V1Compatibility string `json:"v1Compatibility"`
 }
 
-type Platform struct {
-	Architecture string `json:"architecture"`
-	Os           string `json:"os"`
+type V1Compatibility struct {
+	Created time.Time `json:"created,omitempty"`
 }
 
 func New(ctx context.Context, opts Options) (*Client, error) {
@@ -125,18 +125,29 @@ func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTa
 			return nil, err
 		}
 
-		for _, manifest := range manifestResponse.Manifests {
+		// Set default
+		time := time.Now()
 
-			sha := strings.Replace(manifest.Digest, "sha256:", "", 1)
+		for _, v1History := range manifestResponse.History {
+			data := V1Compatibility{}
+			if err := json.Unmarshal([]byte(v1History.V1Compatibility), &data); err != nil {
+				return nil, err
+			}
 
-			tags = append(tags, api.ImageTag{
-				Tag:          tag,
-				SHA:          sha,
-				Timestamp:    time.Now(),
-				OS:           manifest.Platform.Os,
-				Architecture: manifest.Platform.Architecture,
-			})
+			if &data.Created != nil {
+				time = data.Created
+				// Each layer has its own created timestamp. We just want a general reference.
+				// Take the first and step out the loop
+				break
+			}
 		}
+
+		tags = append(tags, api.ImageTag{
+			Tag:          tag,
+			SHA:          manifestResponse.Digest,
+			Timestamp:    time,
+			Architecture: manifestResponse.Architecture,
+		})
 	}
 
 	return tags, nil
@@ -153,8 +164,6 @@ func (c *Client) doManifestRequest(ctx context.Context, url string) (*ManifestRe
 		req.Header.Add("Authorization", "Bearer "+c.Bearer)
 	}
 
-	req.Header.Add("Accept", "application/vnd.docker.distribution.manifest.list.v2+json")
-
 	resp, err := c.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get docker image: %s", err)
@@ -168,6 +177,12 @@ func (c *Client) doManifestRequest(ctx context.Context, url string) (*ManifestRe
 	response := new(ManifestResponse)
 	if err := json.Unmarshal(body, response); err != nil {
 		return nil, fmt.Errorf("unexpected image tags response: %s", body)
+	}
+
+	response.Digest = resp.Header.Get("Docker-Content-Digest")
+
+	if response.Digest == "" {
+		return nil, fmt.Errorf("Missing Docker-Content-Digest in response header: %s", resp.Header)
 	}
 
 	return response, nil
