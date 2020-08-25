@@ -1,5 +1,5 @@
 {{- $secretEnabled := false }}
-{{- if or  .Values.docker.token .Values.docker.username .Values.docker.password .Values.gcr.token  .Values.quay.token .Values.acr.refreshToken .Values.acr.username .Values.acr.password  }}
+{{- if or .Values.acr.refreshToken .Values.acr.username .Values.acr.password .Values.docker.token .Values.docker.username .Values.docker.password .Values.ecr.accessKeyID .Values.ecr.secretAccessKey .Values.ecr.sessionToken .Values.gcr.token .Values.quay.token .Values.selfhosted.token .Values.selfhosted.username .Values.selfhosted.password }}
 {{- $secretEnabled = true }}
 {{- end }}
 apiVersion: apps/v1
@@ -41,27 +41,8 @@ spec:
         resources:
           {{- toYaml .Values.resources | nindent 12 }}
         env:
-        {{- if .Values.docker.token }}
-        - name: VERSION_CHECKER_DOCKER_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: {{ include "version-checker.name" . }}
-              key: docker.token
-        {{- end }}
-        {{- if .Values.docker.username }}
-        - name: VERSION_CHECKER_DOCKER_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: {{ include "version-checker.name" . }}
-              key: docker.username
-        {{- end }}
-        {{- if .Values.docker.password }}
-        - name: VERSION_CHECKER_DOCKER_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: {{ include "version-checker.name" . }}
-              key: docker.password
-        {{- end }}
+
+        # ACR
         {{- if .Values.acr.refreshToken }}
         - name: VERSION_CHECKER_ACR_REFRESH_TOKEN
           valueFrom:
@@ -83,6 +64,54 @@ spec:
               name: {{ include "version-checker.name" . }}
               key: acr.password
         {{- end }}
+
+        # ECR
+        {{- if .Values.ecr.accessKeyID }}
+        - name: VERSION_CHECKER_ECR_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "version-checker.name" . }}
+              key: ecr.accessKeyID
+        {{- end }}
+        {{- if .Values.ecr.secretAccessKey }}
+        - name: VERSION_CHECKER_ECR_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "version-checker.name" . }}
+              key: ecr.secretAccessKey
+        {{- end }}
+        {{- if .Values.ecr.sessionToken }}
+        - name: VERSION_CHECKER_ECR_SESSION_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "version-checker.name" . }}
+              key: ecr.sessionToken
+        {{- end }}
+
+        # Docker
+        {{- if .Values.docker.token }}
+        - name: VERSION_CHECKER_DOCKER_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "version-checker.name" . }}
+              key: docker.token
+        {{- end }}
+        {{- if .Values.docker.username }}
+        - name: VERSION_CHECKER_DOCKER_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "version-checker.name" . }}
+              key: docker.username
+        {{- end }}
+        {{- if .Values.docker.password }}
+        - name: VERSION_CHECKER_DOCKER_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "version-checker.name" . }}
+              key: docker.password
+        {{- end }}
+
+        # GCR
         {{- if .Values.gcr.token }}
         - name: VERSION_CHECKER_GCR_TOKEN
           valueFrom:
@@ -90,6 +119,8 @@ spec:
               name: {{ include "version-checker.name" . }}
               key: gcr.token
         {{- end }}
+
+        # Quay
         {{- if .Values.quay.token }}
         - name: VERSION_CHECKER_QUAY_TOKEN
           valueFrom:
@@ -97,13 +128,8 @@ spec:
               name: {{ include "version-checker.name" . }}
               key: quay.token
         {{- end }}
-        {{- if .Values.selfhosted.token }}
-        - name: VERSION_CHECKER_SELFHOSTED_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: {{ include "version-checker.name" . }}
-              key: selfhosted.token
-        {{- end }}     
+
+        # Selfhosted
         {{- if .Values.selfhosted.username }}
         - name: VERSION_CHECKER_SELFHOSTED_USERNAME
           valueFrom:
@@ -117,7 +143,15 @@ spec:
             secretKeyRef:
               name: {{ include "version-checker.name" . }}
               key: selfhosted.password
-        {{- end }}           
+        {{- end }}
+        {{- if .Values.selfhosted.token }}
+        - name: VERSION_CHECKER_SELFHOSTED_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "version-checker.name" . }}
+              key: selfhosted.token
+        {{- end }}
+
       volumes:
         {{- if $secretEnabled }}
         - name: {{ include "version-checker.name" . }}

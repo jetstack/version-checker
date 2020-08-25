@@ -18,16 +18,21 @@ versionChecker:
   metricsServingAddress: 0.0.0.0:8080
   testAllContainers: true # don't require the enable.version-checker.io annotation
 
+acr:
+  username:
+  password:
+  refreshToken:
+
 docker:
   loginURL: https://hub.docker.com/v2/users/login/
   username:
   password:
   token:
 
-acr:
-  username:
-  password:
-  refreshToken:
+ecr:
+  accessKeyID:
+  secretAccessKey:
+  sessionToken:
 
 gcr:
   token:
