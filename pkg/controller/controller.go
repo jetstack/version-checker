@@ -94,7 +94,7 @@ func (c *Controller) Run(ctx context.Context, cacheRefreshRate time.Duration) er
 	}
 
 	c.log.Info("starting workers")
-	// Launch two workers to process Foo resources
+	// Launch 10 workers to process pod resources
 	for i := 0; i < numWorkers; i++ {
 		go wait.Until(func() { c.runWorker(ctx, cacheRefreshRate) }, time.Second, ctx.Done())
 	}
