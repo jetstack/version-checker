@@ -176,7 +176,7 @@ func (o *Options) addFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().StringVar(&o.Client.Selfhosted.Bearer,
 		"selfhosted-token", "",
 		fmt.Sprintf(
-			"Token is authenticate with a selfhosted registry. Cannot be used with "+
+			"Token to authenticate to a selfhosted registry. Cannot be used with "+
 				"username/password (%s_%s).",
 			envPrefix, envSelfhostedBearer,
 		))
