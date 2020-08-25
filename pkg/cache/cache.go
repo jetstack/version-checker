@@ -54,8 +54,8 @@ func (c *Cache) Get(ctx context.Context, index string, fetchIndex string, opts *
 
 	// If the item doesn't yet exist, create a new zero item.
 	if !ok {
-		item = new(cacheItem)
 		c.mu.Lock()
+		item = new(cacheItem)
 		c.store[index] = item
 		c.mu.Unlock()
 	}
