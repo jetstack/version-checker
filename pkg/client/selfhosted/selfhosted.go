@@ -59,16 +59,12 @@ type Image struct {
 }
 
 type ManifestResponse struct {
-	SchemaVersion int        `json:"schemaVersion"`
-	MediaType     string     `json:"mediaType"`
-	Manifests     []Manifest `json:"manifests"`
+	Manifests []Manifest `json:"manifests"`
 }
 
 type Manifest struct {
-	MediaType string   `json:"mediaType"`
-	Size      int      `json:"size"`
-	Digest    string   `json:"digest"`
-	Platform  Platform `json:"platform"`
+	Digest   string   `json:"digest"`
+	Platform Platform `json:"platform"`
 }
 
 type Platform struct {
@@ -152,7 +148,6 @@ func (c *Client) doManifestRequest(ctx context.Context, url string) (*ManifestRe
 		return nil, err
 	}
 
-	req.URL.Scheme = "https"
 	req = req.WithContext(ctx)
 	if len(c.Bearer) > 0 {
 		req.Header.Add("Authorization", "Bearer "+c.Bearer)
@@ -184,7 +179,6 @@ func (c *Client) doRequest(ctx context.Context, url string) (*TagResponse, error
 		return nil, err
 	}
 
-	req.URL.Scheme = "https"
 	req = req.WithContext(ctx)
 	if len(c.Bearer) > 0 {
 		req.Header.Add("Authorization", "Bearer "+c.Bearer)
