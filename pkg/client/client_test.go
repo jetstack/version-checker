@@ -82,6 +82,19 @@ func TestFromImageURL(t *testing.T) {
 			expPath:   "version-checker",
 		},
 
+		"123.dkr.foo.amazon.com should be ecr": {
+			url:       "123.dkr.ecr.foo.amazonaws.com/version-checker",
+			expClient: handler.ecr,
+			expHost:   "123.dkr.ecr.foo.amazonaws.com",
+			expPath:   "version-checker",
+		},
+		"hello.dkr.eu-west-1.amazon.com.cn should be ecr": {
+			url:       "hello.dkr.ecr.eu-west-1.amazonaws.com.cn/jetstack/joshvanl/version-checker",
+			expClient: handler.ecr,
+			expHost:   "hello.dkr.ecr.eu-west-1.amazonaws.com.cn",
+			expPath:   "jetstack/joshvanl/version-checker",
+		},
+
 		"gcr.io should be gcr": {
 			url:       "gcr.io/jetstack-cre/version-checker",
 			expClient: handler.gcr,
