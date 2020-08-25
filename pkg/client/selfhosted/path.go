@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	regTemplate = (`(^(.*\.)?%s$)`)
+	regTemplate = `(^(.*\.)?%s$)`
 )
 
 func (c *Client) IsHost(host string) bool {
