@@ -8,11 +8,11 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/jetstack/version-checker/pkg/api"
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -24,17 +24,17 @@ const (
 )
 
 type Options struct {
-	URL       string
-	LoginURL  string
-	Username  string
-	Password  string
-	Bearer    string
-	HostRegex string
+	URL      string
+	LoginURL string
+	Username string
+	Password string
+	Bearer   string
 }
 
 type Client struct {
 	*http.Client
 	Options
+	hostRegex *regexp.Regexp
 }
 
 type AuthResponse struct {
@@ -77,14 +77,16 @@ func New(ctx context.Context, opts Options) (*Client, error) {
 		Timeout: time.Second * 5,
 	}
 
-	u, err := url.Parse(opts.URL)
+	parsedURL, err := url.Parse(opts.URL)
 	if err != nil {
 		// If we can't parse the host given by the options, we should exit fatal
-		log.Fatalf("failed parsing host: %s", opts.URL)
+		return nil, fmt.Errorf("failed parsing host: %s", opts.URL)
 	}
 
-	// Set the rexex which is used by our path IsHost function
-	opts.HostRegex = fmt.Sprintf(regTemplate, u.Host)
+	hostRegex, err := regexp.Compile(fmt.Sprintf(regTemplate, parsedURL.Host))
+	if err != nil {
+		return nil, fmt.Errorf("failed parsing regex: %s for host: %s", regTemplate, parsedURL.Host)
+	}
 
 	// Only try to setup auth if an actually URL is present.
 	if opts.URL != "" {
@@ -102,9 +104,12 @@ func New(ctx context.Context, opts Options) (*Client, error) {
 		}
 	}
 
+	fmt.Println(hostRegex)
+
 	return &Client{
-		Options: opts,
-		Client:  client,
+		Options:   opts,
+		Client:    client,
+		hostRegex: hostRegex,
 	}, nil
 }
 
@@ -112,6 +117,7 @@ func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTa
 	url := fmt.Sprintf(lookupURL, c.Options.URL, repo, image)
 	urlManifest := fmt.Sprintf(manifestURL, c.Options.URL, repo, image)
 	var tags []api.ImageTag
+	var time time.Time
 
 	response, err := c.doRequest(ctx, url)
 	if err != nil {
@@ -125,16 +131,13 @@ func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTa
 			return nil, err
 		}
 
-		// Set default
-		time := time.Now()
-
 		for _, v1History := range manifestResponse.History {
 			data := V1Compatibility{}
 			if err := json.Unmarshal([]byte(v1History.V1Compatibility), &data); err != nil {
 				return nil, err
 			}
 
-			if &data.Created != nil {
+			if !data.Created.IsZero() {
 				time = data.Created
 				// Each layer has its own created timestamp. We just want a general reference.
 				// Take the first and step out the loop
@@ -163,6 +166,8 @@ func (c *Client) doManifestRequest(ctx context.Context, url string) (*ManifestRe
 	if len(c.Bearer) > 0 {
 		req.Header.Add("Authorization", "Bearer "+c.Bearer)
 	}
+
+	req.Header.Add("Accept", "application/vnd.docker.distribution.manifest.list.v1+json")
 
 	resp, err := c.Do(req)
 	if err != nil {

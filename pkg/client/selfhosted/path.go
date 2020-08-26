@@ -1,25 +1,27 @@
 package selfhosted
 
 import (
-	"errors"
-	"regexp"
+	"fmt"
 	"strings"
 )
 
 func (c *Client) IsHost(host string) bool {
-	reg := regexp.MustCompile(c.Options.HostRegex)
-	return reg.MatchString(host)
+	fmt.Println(c.hostRegex)
+	return c.hostRegex.MatchString(host)
 }
 
-func (c *Client) RepoImageFromPath(path string) (string, string, error) {
+func (c *Client) RepoImageFromPath(path string) (string, string) {
 	split := strings.Split(path, "/")
 
 	lenSplit := len(split)
 
-	if lenSplit >= 2 {
-		return split[lenSplit-2], split[lenSplit-1], nil
+	if lenSplit == 1 {
+		return "", split[0]
 	}
 
-	return "", "", errors.New("bad split path length")
+	if lenSplit > 1 {
+		return split[lenSplit-2], split[lenSplit-1]
+	}
 
+	return path, ""
 }

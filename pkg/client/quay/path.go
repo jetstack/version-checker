@@ -13,12 +13,12 @@ func (c *Client) IsHost(host string) bool {
 	return reg.MatchString(host)
 }
 
-func (c *Client) RepoImageFromPath(path string) (string, string, error) {
+func (c *Client) RepoImageFromPath(path string) (string, string) {
 	lastIndex := strings.LastIndex(path, "/")
 
 	if lastIndex == -1 {
-		return path, "", nil
+		return path, ""
 	}
 
-	return path[:lastIndex], path[lastIndex+1:], nil
+	return path[:lastIndex], path[lastIndex+1:]
 }

@@ -73,15 +73,10 @@ func TestRepoImage(t *testing.T) {
 	handler := new(Client)
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			repo, image, err := handler.RepoImageFromPath(test.path)
+			repo, image := handler.RepoImageFromPath(test.path)
 			if repo != test.expRepo && image != test.expImage {
 				t.Errorf("%s: unexpected repo/image, exp=%s/%s got=%s/%s",
 					test.path, test.expRepo, test.expImage, repo, image)
-			}
-
-			if err != nil {
-				t.Errorf("%s: unexpected error: %s, exp=%s/%s got=%s/%s",
-					test.path, err, test.expRepo, test.expImage, repo, image)
 			}
 		})
 	}
