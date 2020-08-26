@@ -21,7 +21,7 @@ type ImageClient interface {
 
 	// RepoImage will return the registries repository and image, from a given
 	// URL path.
-	RepoImageFromPath(path string) (string, string, error)
+	RepoImageFromPath(path string) (string, string)
 
 	// Tags will return the available tags for the given host, repo, and image
 	// using that client.
@@ -67,10 +67,7 @@ func New(ctx context.Context, opts Options) (*Client, error) {
 // Tags returns the full list of image tags available, for a given image URL.
 func (c *Client) Tags(ctx context.Context, imageURL string) ([]api.ImageTag, error) {
 	client, host, path := c.fromImageURL(imageURL)
-	repo, image, err := client.RepoImageFromPath(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get image tags: %s", err)
-	}
+	repo, image := client.RepoImageFromPath(path)
 	return client.Tags(ctx, host, repo, image)
 }
 
