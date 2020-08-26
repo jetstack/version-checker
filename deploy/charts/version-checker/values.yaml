@@ -30,6 +30,12 @@ gcr:
 quay:
   token:
 
+selfhosted:
+  URL:
+  username:
+  password:
+  token:
+
 resources: {}
   # limits:
   #   cpu: 100m

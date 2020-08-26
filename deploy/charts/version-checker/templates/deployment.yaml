@@ -37,6 +37,7 @@ spec:
           - "--metrics-serving-address={{.Values.versionChecker.metricsServingAddress}}"
           - "--test-all-containers={{.Values.versionChecker.testAllContainers}}"
           - "--docker-login-url={{.Values.docker.loginURL}}"
+          - "--selfhosted-registry-url={{.Values.selfhosted.URL}}"
         resources:
           {{- toYaml .Values.resources | nindent 12 }}
         env:
@@ -75,6 +76,27 @@ spec:
               name: {{ include "version-checker.name" . }}
               key: quay.token
         {{- end }}
+        {{- if .Values.selfhosted.token }}
+        - name: VERSION_CHECKER_SELFHOSTED_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "version-checker.name" . }}
+              key: selfhosted.token
+        {{- end }}     
+        {{- if .Values.selfhosted.username }}
+        - name: VERSION_CHECKER_SELFHOSTED_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "version-checker.name" . }}
+              key: selfhosted.username
+        {{- end }}
+        {{- if .Values.selfhosted.password }}
+        - name: VERSION_CHECKER_SELFHOSTED_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "version-checker.name" . }}
+              key: selfhosted.password
+        {{- end }}           
       volumes:
         {{- if $secretEnabled }}
         - name: {{ include "version-checker.name" . }}

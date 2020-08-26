@@ -80,13 +80,19 @@ func New(ctx context.Context, opts Options) (*Client, error) {
 		Timeout: time.Second * 5,
 	}
 
-	hostRegex, parsedURL, err := parseURL(opts)
-	if err != nil {
-		return nil, fmt.Errorf("failed parsing URL: %s", err)
-	}
+	// Initialize base vars for when no URL for this client is set.
+	var hostRegex *regexp.Regexp = nil
+	var parsedURL *url.URL = nil
+	var err error = nil
 
-	// Only try to setup auth if an actually URL is present.
 	if opts.URL != "" {
+		hostRegex, parsedURL, err = parseURL(opts)
+		if err != nil {
+			return nil, fmt.Errorf("failed parsing URL: %s", err)
+		}
+
+		// Only try to setup auth if an actually URL is present.
+
 		// Setup Auth if username and password used.
 		if len(opts.Username) > 0 || len(opts.Password) > 0 {
 			if len(opts.Bearer) > 0 {
