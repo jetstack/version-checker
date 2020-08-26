@@ -16,16 +16,18 @@ import (
 )
 
 const (
-	// This n=500 is a temporary work around until pagination is properly tested
-	// Not all versions support pagination AND not all Artifactory versions are handling the "latest" argument
-	lookupURL   = "%s/%s/%s/tags/list?n=500"
-	manifestURL = "%s/%s/%s/manifests/"
-	regTemplate = `(^(.*\.)?%s$)`
+	// /v2/{repo}/{image}/tags/list?n=500
+	tagsPath = "/v2/%s/%s/tags/list?n=500"
+	// /v2/{repo}/{image}/manifests/{tag}
+	manifestPath = "/v2/%s/%s/manifests/%s"
+	// Token endpoint
+	tokenPath = "/v2/token"
+	// Regex template to be used to check "isHost"
+	hostRegTemplate = `(^(.*\.)?%s$)`
 )
 
 type Options struct {
 	URL      string
-	LoginURL string
 	Username string
 	Password string
 	Bearer   string
@@ -34,6 +36,7 @@ type Options struct {
 type Client struct {
 	*http.Client
 	Options
+	parsedURL *url.URL
 	hostRegex *regexp.Regexp
 }
 
@@ -77,15 +80,9 @@ func New(ctx context.Context, opts Options) (*Client, error) {
 		Timeout: time.Second * 5,
 	}
 
-	parsedURL, err := url.Parse(opts.URL)
+	hostRegex, parsedURL, err := parseURL(opts)
 	if err != nil {
-		// If we can't parse the host given by the options, we should exit fatal
-		return nil, fmt.Errorf("failed parsing host: %s", opts.URL)
-	}
-
-	hostRegex, err := regexp.Compile(fmt.Sprintf(regTemplate, parsedURL.Host))
-	if err != nil {
-		return nil, fmt.Errorf("failed parsing regex: %s for host: %s", regTemplate, parsedURL.Host)
+		return nil, fmt.Errorf("failed parsing URL: %s", err)
 	}
 
 	// Only try to setup auth if an actually URL is present.
@@ -104,29 +101,45 @@ func New(ctx context.Context, opts Options) (*Client, error) {
 		}
 	}
 
-	fmt.Println(hostRegex)
-
 	return &Client{
 		Options:   opts,
 		Client:    client,
+		parsedURL: parsedURL,
 		hostRegex: hostRegex,
 	}, nil
 }
 
+func parseURL(opts Options) (*regexp.Regexp, *url.URL, error) {
+
+	parsedURL, err := url.ParseRequestURI(opts.URL)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed parsing host: %s error=%s", opts.URL, err)
+	}
+
+	hostRegTemplate := fmt.Sprintf(hostRegTemplate, parsedURL.Host)
+	hostRegex, err := regexp.Compile(hostRegTemplate)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed parsing regex: %s for host: %s error=%s", hostRegTemplate, parsedURL.Host, err)
+	}
+
+	return hostRegex, parsedURL, nil
+}
+
 func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTag, error) {
-	url := fmt.Sprintf(lookupURL, c.Options.URL, repo, image)
-	urlManifest := fmt.Sprintf(manifestURL, c.Options.URL, repo, image)
+
+	tagURL := c.Options.URL + fmt.Sprintf(tagsPath, repo, image)
 	var tags []api.ImageTag
 	var time time.Time
 
-	response, err := c.doRequest(ctx, url)
+	response, err := c.doRequest(ctx, tagURL)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, tag := range response.Tags {
 
-		manifestResponse, err := c.doManifestRequest(ctx, urlManifest+tag)
+		manifestURL := c.Options.URL + fmt.Sprintf(manifestPath, repo, image, tag)
+		manifestResponse, err := c.doManifestRequest(ctx, manifestURL)
 		if err != nil {
 			return nil, err
 		}
@@ -229,7 +242,9 @@ func basicAuthSetup(client *http.Client, opts Options) (string, error) {
 		),
 	)
 
-	req, err := http.NewRequest(http.MethodPost, opts.LoginURL, upReader)
+	tokenURL := opts.URL + tokenPath
+
+	req, err := http.NewRequest(http.MethodPost, tokenURL, upReader)
 	if err != nil {
 		return "", err
 	}
