@@ -180,9 +180,6 @@ func (o *Options) addFlags(cmd *cobra.Command) {
 				"username/password (%s_%s).",
 			envPrefix, envSelfhostedBearer,
 		))
-	cmd.PersistentFlags().StringVar(&o.Client.Selfhosted.LoginURL,
-		"selfhosted-login-url", "",
-		"URL to login into selfhosted registry using username/password.")
 	cmd.PersistentFlags().StringVar(&o.Client.Selfhosted.URL,
 		"selfhosted-registry-url", "",
 		"URL of the selfhosted registry.")

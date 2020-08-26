@@ -1,12 +1,10 @@
 package selfhosted
 
 import (
-	"fmt"
 	"strings"
 )
 
 func (c *Client) IsHost(host string) bool {
-	fmt.Println(c.hostRegex)
 	return c.hostRegex.MatchString(host)
 }
 

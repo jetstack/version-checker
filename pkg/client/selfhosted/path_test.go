@@ -1,113 +1,121 @@
 package selfhosted
 
 import (
-	"fmt"
-	"regexp"
 	"testing"
 )
 
 const (
-	URL        = "https://docker.repositories.yourdomain.ext/artifactory/v2"
-	ParsedHost = "docker.repositories.yourdomain.ext"
+	URL = "https://docker.repositories.yourdomain.ext/"
 )
 
 func TestIsHost(t *testing.T) {
 	tests := map[string]struct {
-		host       string
-		expIs      bool
-		parsedHost string
+		host   string
+		expIs  bool
+		URL    string
+		expErr bool
 	}{
 		"an empty host should be false": {
-			host:       "",
-			expIs:      false,
-			parsedHost: ParsedHost,
+			host:   "",
+			expIs:  false,
+			URL:    URL,
+			expErr: false,
 		},
 		"random string should be false": {
-			host:       "foobar",
-			expIs:      false,
-			parsedHost: ParsedHost,
+			host:   "foobar",
+			expIs:  false,
+			URL:    URL,
+			expErr: false,
 		},
 		"random string with dots should be false": {
-			host:       "foobar.foo",
-			expIs:      false,
-			parsedHost: ParsedHost,
+			host:   "foobar.foo",
+			expIs:  false,
+			URL:    URL,
+			expErr: false,
 		},
 		"just docker.io should be false": {
-			host:       "docker.io",
-			expIs:      false,
-			parsedHost: ParsedHost,
+			host:   "docker.io",
+			expIs:  false,
+			URL:    URL,
+			expErr: false,
 		},
 		"just docker.com should be false": {
-			host:       "docker.com",
-			expIs:      false,
-			parsedHost: ParsedHost,
+			host:   "docker.com",
+			expIs:  false,
+			URL:    URL,
+			expErr: false,
 		},
 		"docker.com with random sub domains should be false": {
-			host:       "foo.bar.docker.com",
-			expIs:      false,
-			parsedHost: ParsedHost,
+			host:   "foo.bar.docker.com",
+			expIs:  false,
+			URL:    URL,
+			expErr: false,
 		},
 		"docker.io with random sub domains should be false": {
-			host:       "foo.bar.docker.io",
-			expIs:      false,
-			parsedHost: ParsedHost,
-		},
-		"docker.repositories.yourdomain.ext should be true": {
-			host:       "docker.repositories.yourdomain.ext",
-			expIs:      true,
-			parsedHost: ParsedHost,
-		},
-		"docker.repositories.yourdomain.ext should be false": {
-			host:       "docker.repositories.yourdomain.ext",
-			expIs:      false,
-			parsedHost: "docker.repositories.yourdomain.fail",
-		},
-		"docker.yourdomain.ext with only the root domain parsed should be true": {
-			host:       "docker.yourdomain.ext",
-			expIs:      true,
-			parsedHost: "yourdomain.ext",
-		},
-		"docker.yourdomain.ext should be true": {
-			host:       "docker.yourdomain.ext",
-			expIs:      true,
-			parsedHost: "docker.yourdomain.ext",
-		},
-		"docker.repositories.yourdomain.ext/testing should be false": {
-			host:       "docker.repositories.yourdomain.ext/testing",
-			expIs:      false,
-			parsedHost: ParsedHost,
-		},
-		"docker.repositories.yourdomain.ext/artifactory/v2 should be false": {
-			host:       "docker.repositories.yourdomain.ext/artifactory/v2",
-			expIs:      false,
-			parsedHost: ParsedHost,
+			host:   "foo.bar.docker.io",
+			expIs:  false,
+			URL:    URL,
+			expErr: false,
 		},
 		"docker.comfoo should be false": {
-			host:       "docker.iofoo",
-			expIs:      false,
-			parsedHost: ParsedHost,
+			host:   "docker.iofoo",
+			expIs:  false,
+			URL:    URL,
+			expErr: false,
 		},
 		"docker.iofoo should be false": {
-			host:       "ocker.iofoo",
-			expIs:      false,
-			parsedHost: ParsedHost,
+			host:   "ocker.iofoo",
+			expIs:  false,
+			URL:    URL,
+			expErr: false,
+		},
+		"docker.repositories.yourdomain.ext should be true": {
+			host:   "docker.repositories.yourdomain.ext",
+			expIs:  true,
+			URL:    URL,
+			expErr: false,
+		},
+		"docker.repositories.yourdomain.ext with a wrong URL should be false": {
+			host:   "docker.repositories.yourdomain.ext",
+			expIs:  false,
+			URL:    "http://something.wrong",
+			expErr: false,
+		},
+		"docker.repositories.yourdomain.ext with a URL and PATH should be true": {
+			host:   "docker.repositories.yourdomain.ext",
+			expIs:  true,
+			URL:    URL + "/artifactory",
+			expErr: false,
+		},
+		"docker.repositories.yourdomain.ext with a bad URL should be error": {
+			host:   "docker.repositories.yourdomain.ext",
+			expIs:  false,
+			URL:    "something.bad",
+			expErr: true,
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 
-			handler := new(Client)
-			handler.Options.URL = URL
-			hostRegex, err := regexp.Compile(fmt.Sprintf(regTemplate, test.parsedHost))
-			if err != nil {
-				t.Errorf("%s: unexpected error parsedHost=%s", test.host, test.parsedHost)
-			}
-			handler.hostRegex = hostRegex
+			options := &Options{URL: test.URL}
+			regex, parsedURL, err := parseURL(*options)
 
-			if isHost := handler.IsHost(test.host); isHost != test.expIs {
-				t.Errorf("%s: unexpected IsHost, exp=%t got=%t",
-					test.host, test.expIs, isHost)
+			if err != nil {
+				if !test.expErr {
+					t.Errorf("%s: unexpected parseErr got=%s exp=%t", test.host, err, test.expErr)
+				}
+			} else {
+				handler := &Client{
+					Options:   *options,
+					parsedURL: parsedURL,
+					hostRegex: regex,
+				}
+
+				if isHost := handler.IsHost(test.host); isHost != test.expIs {
+					t.Errorf("%s: unexpected IsHost, exp=%t got=%t",
+						test.host, test.expIs, isHost)
+				}
 			}
 		})
 	}
