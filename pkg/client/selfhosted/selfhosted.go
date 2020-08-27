@@ -87,7 +87,7 @@ func New(ctx context.Context, opts Options) (*Client, error) {
 				return nil, errors.New("cannot specify Bearer token as well as username/password")
 			}
 
-			token, err := client.setupBasicAuth(ctx)
+			token, err := client.setupBasicAuth(ctx, opts.URL)
 			if err != nil {
 				return nil, fmt.Errorf("failed to setup auth: %s", err)
 			}
@@ -191,14 +191,14 @@ func (c *Client) doRequest(ctx context.Context, url, header string, obj interfac
 	return resp.Header, nil
 }
 
-func (c *Client) setupBasicAuth(ctx context.Context) (string, error) {
+func (c *Client) setupBasicAuth(ctx context.Context, url string) (string, error) {
 	upReader := strings.NewReader(
 		fmt.Sprintf(`{"username": "%s", "password": "%s"}`,
 			c.Username, c.Password,
 		),
 	)
 
-	tokenURL := c.URL + tokenPath
+	tokenURL := url + tokenPath
 
 	req, err := http.NewRequest(http.MethodPost, tokenURL, upReader)
 	if err != nil {
