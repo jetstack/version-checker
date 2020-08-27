@@ -8,6 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/jetstack/version-checker/pkg/api"
+	"github.com/jetstack/version-checker/pkg/client/acr"
 	"github.com/jetstack/version-checker/pkg/client/docker"
 	"github.com/jetstack/version-checker/pkg/client/gcr"
 	"github.com/jetstack/version-checker/pkg/client/quay"
@@ -33,6 +34,7 @@ type ImageClient interface {
 // Client is a container image registry client to list tags of given image
 // URLs.
 type Client struct {
+	acr        *acr.Client
 	gcr        *gcr.Client
 	docker     *docker.Client
 	quay       *quay.Client
@@ -41,6 +43,7 @@ type Client struct {
 
 // Options used to configure client authentication.
 type Options struct {
+	ACR        acr.Options
 	GCR        gcr.Options
 	Docker     docker.Options
 	Quay       quay.Options
@@ -48,6 +51,10 @@ type Options struct {
 }
 
 func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) {
+	acrClient, err := acr.New(opts.ACR)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create acr client: %s", err)
+	}
 	dockerClient, err := docker.New(ctx, opts.Docker)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create docker client: %s", err)
@@ -59,9 +66,10 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 	}
 
 	return &Client{
-		quay:       quay.New(opts.Quay),
+		acr:        acrClient,
 		docker:     dockerClient,
 		gcr:        gcr.New(opts.GCR),
+		quay:       quay.New(opts.Quay),
 		selfhosted: selfhostedClient,
 	}, nil
 }
@@ -84,14 +92,16 @@ func (c *Client) fromImageURL(imageURL string) (ImageClient, string, string) {
 	host, path := split[0], split[1]
 
 	switch {
-	case c.selfhosted.URL != "" && c.selfhosted.IsHost(host):
-		return c.selfhosted, host, path
+	case c.acr.IsHost(host):
+		return c.acr, host, path
 	case c.docker.IsHost(host):
 		return c.docker, host, path
 	case c.gcr.IsHost(host):
 		return c.gcr, host, path
 	case c.quay.IsHost(host):
 		return c.quay, host, path
+	case c.selfhosted.URL != "" && c.selfhosted.IsHost(host):
+		return c.selfhosted, host, path
 	}
 
 	// fall back to docker with no path split

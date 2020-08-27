@@ -69,6 +69,19 @@ func TestFromImageURL(t *testing.T) {
 			expPath:   "registry/joshvanl/version-checker",
 		},
 
+		"versionchecker.azurecr.io should be acr": {
+			url:       "versionchecker.azurecr.io/jetstack-cre/version-checker",
+			expClient: handler.acr,
+			expHost:   "versionchecker.azurecr.io",
+			expPath:   "jetstack-cre/version-checker",
+		},
+		"versionchecker.azurecr.io with single path should be acr": {
+			url:       "versionchecker.azurecr.io/version-checker",
+			expClient: handler.acr,
+			expHost:   "versionchecker.azurecr.io",
+			expPath:   "version-checker",
+		},
+
 		"gcr.io should be gcr": {
 			url:       "gcr.io/jetstack-cre/version-checker",
 			expClient: handler.gcr,
