@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -16,14 +15,16 @@ import (
 )
 
 const (
-	// /v2/{repo}/{image}/tags/list?n=500
-	tagsPath = "/v2/%s/%s/tags/list?n=500"
-	// /v2/{repo}/{image}/manifests/{tag}
-	manifestPath = "/v2/%s/%s/manifests/%s"
+	// {host}/v2/{repo/image}/tags/list?n=500
+	tagsPath = "%s/v2/%s/tags/list?n=500"
+	// /v2/{repo/image}/manifests/{tag}
+	manifestPath = "%s/v2/%s/manifests/%s"
 	// Token endpoint
-	tokenPath = "/v2/token"
-	// Regex template to be used to check "isHost"
-	hostRegTemplate = `(^(.*\.)?%s$)`
+	tokenPath = "%s/v2/token"
+
+	// HTTP headers to request API version
+	dockerAPIv1Header = "application/vnd.docker.distribution.manifest.v1+json"
+	dockerAPIv2Header = "application/vnd.docker.distribution.manifest.v2+json"
 )
 
 type Options struct {
@@ -36,8 +37,9 @@ type Options struct {
 type Client struct {
 	*http.Client
 	Options
-	parsedURL *url.URL
-	hostRegex *regexp.Regexp
+
+	hostRegex  *regexp.Regexp
+	httpScheme string
 }
 
 type AuthResponse struct {
@@ -45,20 +47,7 @@ type AuthResponse struct {
 }
 
 type TagResponse struct {
-	Name string   `json:"name"`
 	Tags []string `json:"tags"`
-}
-
-type Result struct {
-	Name      string  `json:"name"`
-	Timestamp string  `json:"last_updated"`
-	Images    []Image `json:"images"`
-}
-
-type Image struct {
-	Digest       string `json:"digest"`
-	OS           string `json:"os"`
-	Architecture string `json:"Architecture"`
 }
 
 type ManifestResponse struct {
@@ -76,79 +65,66 @@ type V1Compatibility struct {
 }
 
 func New(ctx context.Context, opts Options) (*Client, error) {
-	client := &http.Client{
-		Timeout: time.Second * 5,
+	client := &Client{
+		Client: &http.Client{
+			Timeout: time.Second * 5,
+		},
+		Options: opts,
 	}
 
-	// Initialize base vars for when no URL for this client is set.
-	var hostRegex *regexp.Regexp = nil
-	var parsedURL *url.URL = nil
-	var err error = nil
-
-	// Ignore setting up the client further because no URL is set
+	// Set up client with host matching if set
 	if opts.URL != "" {
-		hostRegex, parsedURL, err = parseURL(opts)
+		hostRegex, scheme, err := parseURL(opts.URL)
 		if err != nil {
-			return nil, fmt.Errorf("failed parsing URL: %s", err)
+			return nil, fmt.Errorf("failed parsing url: %s", err)
 		}
+		client.hostRegex = hostRegex
+		client.httpScheme = scheme
 
 		// Setup Auth if username and password used.
 		if len(opts.Username) > 0 || len(opts.Password) > 0 {
 			if len(opts.Bearer) > 0 {
-				return nil, errors.New("cannot specify Bearer as well as username/password")
+				return nil, errors.New("cannot specify Bearer token as well as username/password")
 			}
 
-			token, err := basicAuthSetup(client, opts)
+			token, err := client.setupBasicAuth(ctx)
 			if err != nil {
 				return nil, fmt.Errorf("failed to setup auth: %s", err)
 			}
-			opts.Bearer = token
+			client.Bearer = token
 		}
 	}
 
-	return &Client{
-		Options:   opts,
-		Client:    client,
-		parsedURL: parsedURL,
-		hostRegex: hostRegex,
-	}, nil
-}
-
-func parseURL(opts Options) (*regexp.Regexp, *url.URL, error) {
-
-	parsedURL, err := url.ParseRequestURI(opts.URL)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed parsing host: %s error=%s", opts.URL, err)
+	// Default to https if no scheme set
+	if client.httpScheme == "" {
+		client.httpScheme = "https"
 	}
 
-	hostRegTemplate := fmt.Sprintf(hostRegTemplate, parsedURL.Host)
-	hostRegex, err := regexp.Compile(hostRegTemplate)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed parsing regex: %s for host: %s error=%s", hostRegTemplate, parsedURL.Host, err)
-	}
-
-	return hostRegex, parsedURL, nil
+	return client, nil
 }
 
-func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTag, error) {
+// Tags will fetch the image tags from a given image URL. It must first query
+// the tags that are available, then query the 2.1 and 2.2 API endpoints to
+// gather the image digest and created time.
+func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.ImageTag, error) {
+	path := joinRepoImage(repo, image)
+	tagURL := fmt.Sprintf(tagsPath, host, path)
 
-	tagURL := c.Options.URL + fmt.Sprintf(tagsPath, repo, image)
-	var tags []api.ImageTag
-	var time time.Time
-
-	response, err := c.doRequest(ctx, tagURL)
-	if err != nil {
+	var tagResponse TagResponse
+	if _, err := c.doRequest(ctx, tagURL, "", &tagResponse); err != nil {
 		return nil, err
 	}
 
-	for _, tag := range response.Tags {
+	var tags []api.ImageTag
+	for _, tag := range tagResponse.Tags {
+		manifestURL := fmt.Sprintf(manifestPath, host, path, tag)
 
-		manifestURL := c.Options.URL + fmt.Sprintf(manifestPath, repo, image, tag)
-		manifestResponse, err := c.doManifestRequest(ctx, manifestURL)
-		if err != nil {
+		var manifestResponse ManifestResponse
+		if _, err := c.doRequest(ctx, manifestURL, dockerAPIv1Header, &manifestResponse); err != nil {
 			return nil, err
 		}
 
+		var timestamp time.Time
 		for _, v1History := range manifestResponse.History {
 			data := V1Compatibility{}
 			if err := json.Unmarshal([]byte(v1History.V1Compatibility), &data); err != nil {
@@ -156,17 +132,22 @@ func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTa
 			}
 
 			if !data.Created.IsZero() {
-				time = data.Created
+				timestamp = data.Created
 				// Each layer has its own created timestamp. We just want a general reference.
 				// Take the first and step out the loop
 				break
 			}
 		}
 
+		header, err := c.doRequest(ctx, manifestURL, dockerAPIv2Header, new(ManifestResponse))
+		if err != nil {
+			return nil, err
+		}
+
 		tags = append(tags, api.ImageTag{
 			Tag:          tag,
-			SHA:          manifestResponse.Digest,
-			Timestamp:    time,
+			SHA:          header.Get("Docker-Content-Digest"),
+			Timestamp:    timestamp,
 			Architecture: manifestResponse.Architecture,
 		})
 	}
@@ -174,7 +155,8 @@ func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTa
 	return tags, nil
 }
 
-func (c *Client) doManifestRequest(ctx context.Context, url string) (*ManifestResponse, error) {
+func (c *Client) doRequest(ctx context.Context, url, header string, obj interface{}) (http.Header, error) {
+	url = fmt.Sprintf("%s://%s", c.httpScheme, url)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
@@ -184,42 +166,8 @@ func (c *Client) doManifestRequest(ctx context.Context, url string) (*ManifestRe
 	if len(c.Bearer) > 0 {
 		req.Header.Add("Authorization", "Bearer "+c.Bearer)
 	}
-
-	req.Header.Add("Accept", "application/vnd.docker.distribution.manifest.list.v1+json")
-
-	resp, err := c.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get docker image: %s", err)
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	response := new(ManifestResponse)
-	if err := json.Unmarshal(body, response); err != nil {
-		return nil, fmt.Errorf("unexpected image tags response: %s", body)
-	}
-
-	response.Digest = resp.Header.Get("Docker-Content-Digest")
-
-	if response.Digest == "" {
-		return nil, fmt.Errorf("Missing Docker-Content-Digest in response header: %s", resp.Header)
-	}
-
-	return response, nil
-}
-
-func (c *Client) doRequest(ctx context.Context, url string) (*TagResponse, error) {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	req = req.WithContext(ctx)
-	if len(c.Bearer) > 0 {
-		req.Header.Add("Authorization", "Bearer "+c.Bearer)
+	if len(header) > 0 {
+		req.Header.Set("Accept", header)
 	}
 
 	resp, err := c.Do(req)
@@ -232,22 +180,25 @@ func (c *Client) doRequest(ctx context.Context, url string) (*TagResponse, error
 		return nil, err
 	}
 
-	response := new(TagResponse)
-	if err := json.Unmarshal(body, response); err != nil {
-		return nil, fmt.Errorf("unexpected image tags response: %s", body)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%d: %s", resp.StatusCode, body)
 	}
 
-	return response, nil
+	if err := json.Unmarshal(body, obj); err != nil {
+		return nil, fmt.Errorf("unexpected %s response: %s", url, body)
+	}
+
+	return resp.Header, nil
 }
 
-func basicAuthSetup(client *http.Client, opts Options) (string, error) {
+func (c *Client) setupBasicAuth(ctx context.Context) (string, error) {
 	upReader := strings.NewReader(
 		fmt.Sprintf(`{"username": "%s", "password": "%s"}`,
-			opts.Username, opts.Password,
+			c.Username, c.Password,
 		),
 	)
 
-	tokenURL := opts.URL + tokenPath
+	tokenURL := c.URL + tokenPath
 
 	req, err := http.NewRequest(http.MethodPost, tokenURL, upReader)
 	if err != nil {
@@ -255,8 +206,9 @@ func basicAuthSetup(client *http.Client, opts Options) (string, error) {
 	}
 
 	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(ctx)
 
-	resp, err := client.Do(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		return "", err
 	}
