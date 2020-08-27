@@ -1,5 +1,5 @@
 {{- $secretEnabled := false }}
-{{- if or  .Values.docker.token .Values.docker.username .Values.docker.password .Values.gcr.token  .Values.quay.token }}
+{{- if or  .Values.docker.token .Values.docker.username .Values.docker.password .Values.gcr.token  .Values.quay.token .Values.acr.refreshToken .Values.acr.username .Values.acr.password  }}
 {{- $secretEnabled = true }}
 {{- end }}
 apiVersion: apps/v1
@@ -61,6 +61,27 @@ spec:
             secretKeyRef:
               name: {{ include "version-checker.name" . }}
               key: docker.password
+        {{- end }}
+        {{- if .Values.acr.refreshToken }}
+        - name: VERSION_CHECKER_ACR_REFRESH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "version-checker.name" . }}
+              key: acr.refreshToken
+        {{- end }}
+        {{- if .Values.acr.username }}
+        - name: VERSION_CHECKER_ACR_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "version-checker.name" . }}
+              key: acr.username
+        {{- end }}
+        {{- if .Values.acr.password }}
+        - name: VERSION_CHECKER_ACR_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "version-checker.name" . }}
+              key: acr.password
         {{- end }}
         {{- if .Values.gcr.token }}
         - name: VERSION_CHECKER_GCR_TOKEN
