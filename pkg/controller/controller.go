@@ -17,6 +17,7 @@ import (
 	"k8s.io/utils/clock"
 
 	"github.com/jetstack/version-checker/pkg/client"
+	"github.com/jetstack/version-checker/pkg/controller/checker"
 	"github.com/jetstack/version-checker/pkg/controller/scheduler"
 	"github.com/jetstack/version-checker/pkg/controller/search"
 	"github.com/jetstack/version-checker/pkg/metrics"
@@ -38,7 +39,7 @@ type Controller struct {
 	scheduledWorkQueue scheduler.ScheduledWorkQueue
 
 	metrics *metrics.Metrics
-	search  *search.Search
+	checker *checker.Checker
 
 	defaultTestAll bool
 }
@@ -56,13 +57,15 @@ func New(
 
 	log = log.WithField("module", "controller")
 	versionGetter := version.New(log, imageClient, cacheTimeout)
+	search := search.New(log, cacheTimeout, versionGetter)
+
 	c := &Controller{
 		log:                log,
 		kubeClient:         kubeClient,
 		workqueue:          workqueue,
 		scheduledWorkQueue: scheduledWorkQueue,
 		metrics:            metrics,
-		search:             search.New(log, cacheTimeout, versionGetter),
+		checker:            checker.New(search),
 		defaultTestAll:     defaultTestAll,
 	}
 
@@ -100,7 +103,7 @@ func (c *Controller) Run(ctx context.Context, cacheRefreshRate time.Duration) er
 	}
 
 	// Start image tag garbage collector
-	go c.search.Run(cacheRefreshRate)
+	go c.checker.Search().Run(cacheRefreshRate)
 
 	<-ctx.Done()
 

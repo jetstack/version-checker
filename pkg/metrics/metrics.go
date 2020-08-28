@@ -89,21 +89,21 @@ func (m *Metrics) Run(servingAddress string) error {
 	return nil
 }
 
-func (m *Metrics) AddImage(namespace, pod, container, imageURL string, currentVersion, latestVersion string) {
+func (m *Metrics) AddImage(namespace, pod, container, imageURL string, isLatest bool, currentVersion, latestVersion string) {
 	// Remove old image url/version if it exists
 	m.RemoveImage(namespace, pod, container)
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	isLatest := 0.0
-	if currentVersion == latestVersion {
-		isLatest = 1.0
+	isLatestF := 0.0
+	if isLatest {
+		isLatestF = 1.0
 	}
 
 	m.containerImageVersion.With(
 		m.buildLabels(namespace, pod, container, imageURL, currentVersion, latestVersion),
-	).Set(isLatest)
+	).Set(isLatestF)
 
 	index := m.latestImageIndex(namespace, pod, container)
 	m.containerCache[index] = cacheItem{
