@@ -119,6 +119,19 @@ func (b *Builder) Options(name string) (*api.Options, error) {
 	return &opts, nil
 }
 
+// IsEnabled will return whether the container has the enabled annotation set.
+// Will fall back to default, if not set true/false.
+func (b *Builder) IsEnabled(defaultEnabled bool, name string) bool {
+	switch b.ans[b.index(name, api.EnableAnnotationKey)] {
+	case "true":
+		return true
+	case "false":
+		return false
+	default:
+		return defaultEnabled
+	}
+}
+
 // index returns the annotation index give the API annotaion key
 func (b *Builder) index(containerName, annotationName string) string {
 	return annotationName + "/" + containerName

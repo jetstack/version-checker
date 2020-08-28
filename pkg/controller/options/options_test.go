@@ -143,6 +143,102 @@ func TestBuild(t *testing.T) {
 	}
 }
 
+func TestIsEnabled(t *testing.T) {
+	tests := map[string]struct {
+		containerName string
+		annotations   map[string]string
+		defaultAll    bool
+		expEnabled    bool
+	}{
+		"if no annotations set and default false, then false": {
+			containerName: "test-name",
+			defaultAll:    false,
+			annotations:   nil,
+			expEnabled:    false,
+		},
+		"if no annotations set and default true, then true": {
+			containerName: "test-name",
+			defaultAll:    true,
+			annotations:   nil,
+			expEnabled:    true,
+		},
+		"if annotations set but wrong name with default false, false": {
+			containerName: "test-name",
+			defaultAll:    false,
+			annotations: map[string]string{
+				api.EnableAnnotationKey + "/foo": "true",
+			},
+			expEnabled: false,
+		},
+		"if annotations set but wrong name with default true, true": {
+			containerName: "test-name",
+			defaultAll:    true,
+			annotations: map[string]string{
+				api.EnableAnnotationKey + "/foo": "true",
+			},
+			expEnabled: true,
+		},
+		"if annotations set but not true/false with default false, false": {
+			containerName: "test-name",
+			defaultAll:    false,
+			annotations: map[string]string{
+				api.EnableAnnotationKey + "/test-name": "foo",
+			},
+			expEnabled: false,
+		},
+		"if annotations set but not true/false with default true, true": {
+			containerName: "test-name",
+			defaultAll:    true,
+			annotations: map[string]string{
+				api.EnableAnnotationKey + "/test-name": "foo",
+			},
+			expEnabled: true,
+		},
+		"if annotations set true and default false, true": {
+			containerName: "test-name",
+			defaultAll:    false,
+			annotations: map[string]string{
+				api.EnableAnnotationKey + "/test-name": "true",
+			},
+			expEnabled: true,
+		},
+		"if annotations set true and default true, true": {
+			containerName: "test-name",
+			defaultAll:    true,
+			annotations: map[string]string{
+				api.EnableAnnotationKey + "/test-name": "true",
+			},
+			expEnabled: true,
+		},
+		"if annotations set false and default false, false": {
+			containerName: "test-name",
+			defaultAll:    false,
+			annotations: map[string]string{
+				api.EnableAnnotationKey + "/test-name": "false",
+			},
+			expEnabled: false,
+		},
+		"if annotations set false and default true, false": {
+			containerName: "test-name",
+			defaultAll:    true,
+			annotations: map[string]string{
+				api.EnableAnnotationKey + "/test-name": "false",
+			},
+			expEnabled: false,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			enabled := New(test.annotations).IsEnabled(test.defaultAll, test.containerName)
+			if !reflect.DeepEqual(enabled, test.expEnabled) {
+				t.Errorf("%s: unexpected enabled %v exp=%v got=%v",
+					test.containerName, test.annotations, test.expEnabled, enabled)
+			}
+		})
+	}
+}
+
 func int64p(i int64) *int64 {
 	return &i
 }
