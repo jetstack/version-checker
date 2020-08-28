@@ -6,6 +6,9 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	cliflag "k8s.io/component-base/cli/flag"
 
 	"github.com/jetstack/version-checker/pkg/client"
 )
@@ -41,44 +44,72 @@ type Options struct {
 	CacheTimeout          time.Duration
 	LogLevel              string
 
+	kubeConfigFlags *genericclioptions.ConfigFlags
+
 	Client client.Options
 }
 
 func (o *Options) addFlags(cmd *cobra.Command) {
-	/// App flags
-	cmd.PersistentFlags().StringVarP(&o.MetricsServingAddress,
+	var nfs cliflag.NamedFlagSets
+
+	o.addAppFlags(nfs.FlagSet("App"))
+	o.addAuthFlags(nfs.FlagSet("Auth"))
+	o.kubeConfigFlags = genericclioptions.NewConfigFlags(true)
+	o.kubeConfigFlags.AddFlags(nfs.FlagSet("Kubernetes"))
+
+	usageFmt := "Usage:\n  %s\n"
+	cmd.SetUsageFunc(func(cmd *cobra.Command) error {
+		fmt.Fprintf(cmd.OutOrStderr(), usageFmt, cmd.UseLine())
+		cliflag.PrintSections(cmd.OutOrStderr(), nfs, 0)
+		return nil
+	})
+
+	cmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
+		fmt.Fprintf(cmd.OutOrStdout(), "%s\n\n"+usageFmt, cmd.Long, cmd.UseLine())
+		cliflag.PrintSections(cmd.OutOrStdout(), nfs, 0)
+	})
+
+	fs := cmd.Flags()
+	for _, f := range nfs.FlagSets {
+		fs.AddFlagSet(f)
+	}
+}
+
+func (o *Options) addAppFlags(fs *pflag.FlagSet) {
+	fs.StringVarP(&o.MetricsServingAddress,
 		"metrics-serving-address", "m", "0.0.0.0:8080",
 		"Address to serve metrics on at the /metrics path.")
 
-	cmd.PersistentFlags().BoolVarP(&o.DefaultTestAll,
+	fs.BoolVarP(&o.DefaultTestAll,
 		"test-all-containers", "a", false,
-		`If enable, all containers will be tested, unless they have the annotation `+
-			`"enable.version-checker/${my-container}=false".`)
+		"If enabled, all containers will be tested, unless they have the "+
+			`annotation "enable.version-checker/${my-container}=false".`)
 
-	cmd.PersistentFlags().DurationVarP(&o.CacheTimeout,
+	fs.DurationVarP(&o.CacheTimeout,
 		"image-cache-timeout", "c", time.Minute*30,
-		"The time for an image in the cache to be considered fresh. Images will be "+
-			"checked at this interval.")
+		"The time for an image version in the cache to be considered fresh. Images "+
+			"will be rechecked after this interval.")
 
-	cmd.PersistentFlags().StringVarP(&o.LogLevel,
+	fs.StringVarP(&o.LogLevel,
 		"log-level", "v", "info",
 		"Log level (debug, info, warn, error, fatal, panic).")
-	///
+}
 
+func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 	/// ACR
-	cmd.PersistentFlags().StringVar(&o.Client.ACR.Username,
+	fs.StringVar(&o.Client.ACR.Username,
 		"acr-username", "",
 		fmt.Sprintf(
 			"Username to authenticate with azure container registry (%s_%s).",
 			envPrefix, envACRUsername,
 		))
-	cmd.PersistentFlags().StringVar(&o.Client.ACR.Password,
+	fs.StringVar(&o.Client.ACR.Password,
 		"acr-password", "",
 		fmt.Sprintf(
 			"Password to authenticate with azure container registry (%s_%s).",
 			envPrefix, envACRPassword,
 		))
-	cmd.PersistentFlags().StringVar(&o.Client.ACR.RefreshToken,
+	fs.StringVar(&o.Client.ACR.RefreshToken,
 		"acr-refresh-token", "",
 		fmt.Sprintf(
 			"Refresh token to authenticate with azure container registry. Cannot be used with "+
@@ -87,20 +118,42 @@ func (o *Options) addFlags(cmd *cobra.Command) {
 		))
 	///
 
+	// Docker
+	fs.StringVar(&o.Client.Docker.Username,
+		"docker-username", "",
+		fmt.Sprintf(
+			"Username to authenticate with docker registry (%s_%s).",
+			envPrefix, envDockerUsername,
+		))
+	fs.StringVar(&o.Client.Docker.Password,
+		"docker-password", "",
+		fmt.Sprintf(
+			"Password to authenticate with docker registry (%s_%s).",
+			envPrefix, envDockerPassword,
+		))
+	fs.StringVar(&o.Client.Docker.Token,
+		"docker-token", "",
+		fmt.Sprintf(
+			"Token to authenticate with docker registry. Cannot be used with "+
+				"username/password (%s_%s).",
+			envPrefix, envDockerJWT,
+		))
+	///
+
 	/// ECR
-	cmd.PersistentFlags().StringVar(&o.Client.GCR.Token,
+	fs.StringVar(&o.Client.GCR.Token,
 		"ecr-access-key-id", "",
 		fmt.Sprintf(
 			"ECR access key ID for read access to private registries (%s_%s).",
 			envPrefix, envECRAccessKeyID,
 		))
-	cmd.PersistentFlags().StringVar(&o.Client.GCR.Token,
+	fs.StringVar(&o.Client.GCR.Token,
 		"ecr-secret-access-key", "",
 		fmt.Sprintf(
 			"ECR secret access key for read access to private registries (%s_%s).",
 			envPrefix, envECRSecretAccessKey,
 		))
-	cmd.PersistentFlags().StringVar(&o.Client.GCR.Token,
+	fs.StringVar(&o.Client.GCR.Token,
 		"ecr-session-token", "",
 		fmt.Sprintf(
 			"ECR session token for read access to private registries (%s_%s).",
@@ -109,7 +162,7 @@ func (o *Options) addFlags(cmd *cobra.Command) {
 	///
 
 	/// GCR
-	cmd.PersistentFlags().StringVar(&o.Client.GCR.Token,
+	fs.StringVar(&o.Client.GCR.Token,
 		"gcr-token", "",
 		fmt.Sprintf(
 			"Access token for read access to private GCR registries (%s_%s).",
@@ -117,33 +170,8 @@ func (o *Options) addFlags(cmd *cobra.Command) {
 		))
 	///
 
-	/// Docker
-	cmd.PersistentFlags().StringVar(&o.Client.Docker.Username,
-		"docker-username", "",
-		fmt.Sprintf(
-			"Username is authenticate with docker registry (%s_%s).",
-			envPrefix, envDockerUsername,
-		))
-	cmd.PersistentFlags().StringVar(&o.Client.Docker.Password,
-		"docker-password", "",
-		fmt.Sprintf(
-			"Password is authenticate with docker registry (%s_%s).",
-			envPrefix, envDockerPassword,
-		))
-	cmd.PersistentFlags().StringVar(&o.Client.Docker.JWT,
-		"docker-token", "",
-		fmt.Sprintf(
-			"Token is authenticate with docker registry. Cannot be used with "+
-				"username/password (%s_%s).",
-			envPrefix, envDockerJWT,
-		))
-	cmd.PersistentFlags().StringVar(&o.Client.Docker.LoginURL,
-		"docker-login-url", "https://hub.docker.com/v2/users/login/",
-		"URL to login into docker using username/password.")
-	///
-
 	/// Quay
-	cmd.PersistentFlags().StringVar(&o.Client.Quay.Token,
+	fs.StringVar(&o.Client.Quay.Token,
 		"quay-token", "",
 		fmt.Sprintf(
 			"Access token for read access to private Quay registries (%s_%s).",
@@ -152,33 +180,32 @@ func (o *Options) addFlags(cmd *cobra.Command) {
 	///
 
 	/// Selfhosted
-	cmd.PersistentFlags().StringVar(&o.Client.Selfhosted.Username,
+	fs.StringVar(&o.Client.Selfhosted.Username,
 		"selfhosted-username", "",
 		fmt.Sprintf(
 			"Username is authenticate with a selfhosted registry (%s_%s).",
 			envPrefix, envSelfhostedUsername,
 		))
-	cmd.PersistentFlags().StringVar(&o.Client.Selfhosted.Password,
+	fs.StringVar(&o.Client.Selfhosted.Password,
 		"selfhosted-password", "",
 		fmt.Sprintf(
 			"Password is authenticate with a selfhosted registry (%s_%s).",
 			envPrefix, envSelfhostedPassword,
 		))
-	cmd.PersistentFlags().StringVar(&o.Client.Selfhosted.Bearer,
+	fs.StringVar(&o.Client.Selfhosted.Bearer,
 		"selfhosted-token", "",
 		fmt.Sprintf(
 			"Token to authenticate to a selfhosted registry. Cannot be used with "+
 				"username/password (%s_%s).",
 			envPrefix, envSelfhostedBearer,
 		))
-	cmd.PersistentFlags().StringVar(&o.Client.Selfhosted.URL,
+	fs.StringVar(&o.Client.Selfhosted.URL,
 		"selfhosted-registry-url", "",
 		"URL of the selfhosted registry.")
 	///
 }
 
-func (o *Options) checkEnv() {
-
+func (o *Options) complete() {
 	// ACR
 	if len(o.Client.ACR.Username) == 0 {
 		o.Client.ACR.Username = os.Getenv(envPrefix + "_" + envACRUsername)
@@ -188,6 +215,17 @@ func (o *Options) checkEnv() {
 	}
 	if len(o.Client.ACR.RefreshToken) == 0 {
 		o.Client.ACR.RefreshToken = os.Getenv(envPrefix + "_" + envACRRefreshToken)
+	}
+
+	// Docker
+	if len(o.Client.Docker.Username) == 0 {
+		o.Client.Docker.Username = os.Getenv(envPrefix + "_" + envDockerUsername)
+	}
+	if len(o.Client.Docker.Password) == 0 {
+		o.Client.Docker.Password = os.Getenv(envPrefix + "_" + envDockerPassword)
+	}
+	if len(o.Client.Docker.Token) == 0 {
+		o.Client.Docker.Token = os.Getenv(envPrefix + "_" + envDockerJWT)
 	}
 
 	// ECR
@@ -201,20 +239,14 @@ func (o *Options) checkEnv() {
 		o.Client.ECR.SessionToken = os.Getenv(envPrefix + "_" + envECRSessionToken)
 	}
 
-	// Docker
-	if len(o.Client.Docker.Username) == 0 {
-		o.Client.Docker.Username = os.Getenv(envPrefix + "_" + envDockerUsername)
-	}
-	if len(o.Client.Docker.Password) == 0 {
-		o.Client.Docker.Password = os.Getenv(envPrefix + "_" + envDockerPassword)
-	}
-	if len(o.Client.Docker.JWT) == 0 {
-		o.Client.Docker.JWT = os.Getenv(envPrefix + "_" + envDockerJWT)
-	}
-
 	// GCR
 	if len(o.Client.GCR.Token) == 0 {
 		o.Client.GCR.Token = os.Getenv(envPrefix + "_" + envGCRAccessToken)
+	}
+
+	// Quay
+	if len(o.Client.Quay.Token) == 0 {
+		o.Client.Quay.Token = os.Getenv(envPrefix + "_" + envQuayToken)
 	}
 
 	// Quay

@@ -14,14 +14,14 @@ import (
 )
 
 const (
+	loginURL  = "https://hub.docker.com/v2/users/login/"
 	lookupURL = "https://registry.hub.docker.com/v2/repositories/%s/%s/tags"
 )
 
 type Options struct {
-	LoginURL string
 	Username string
 	Password string
-	JWT      string
+	Token    string
 }
 
 type Client struct {
@@ -57,15 +57,15 @@ func New(ctx context.Context, opts Options) (*Client, error) {
 
 	// Setup Auth if username and password used.
 	if len(opts.Username) > 0 || len(opts.Password) > 0 {
-		if len(opts.JWT) > 0 {
-			return nil, errors.New("cannot specify JWT as well as username/password")
+		if len(opts.Token) > 0 {
+			return nil, errors.New("cannot specify Token as well as username/password")
 		}
 
 		token, err := basicAuthSetup(ctx, client, opts)
 		if err != nil {
 			return nil, fmt.Errorf("failed to setup auth: %s", err)
 		}
-		opts.JWT = token
+		opts.Token = token
 	}
 
 	return &Client{
@@ -125,8 +125,8 @@ func (c *Client) doRequest(ctx context.Context, url string) (*TagResponse, error
 
 	req.URL.Scheme = "https"
 	req = req.WithContext(ctx)
-	if len(c.JWT) > 0 {
-		req.Header.Add("Authorization", "JWT "+c.JWT)
+	if len(c.Token) > 0 {
+		req.Header.Add("Authorization", "Token "+c.Token)
 	}
 
 	resp, err := c.Do(req)
@@ -154,7 +154,7 @@ func basicAuthSetup(ctx context.Context, client *http.Client, opts Options) (str
 		),
 	)
 
-	req, err := http.NewRequest(http.MethodPost, opts.LoginURL, upReader)
+	req, err := http.NewRequest(http.MethodPost, loginURL, upReader)
 	if err != nil {
 		return "", err
 	}
