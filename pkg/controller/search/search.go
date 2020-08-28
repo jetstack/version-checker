@@ -14,6 +14,12 @@ import (
 	"github.com/jetstack/version-checker/pkg/version"
 )
 
+// Searcher is the interface for Search to facilitate testing
+type Searcher interface {
+	Run(time.Duration)
+	LatestImage(context.Context, string, *api.Options) (*api.ImageTag, error)
+}
+
 // Search is the implementation for the searching and caching of image URLs.
 type Search struct {
 	log *logrus.Entry
@@ -46,8 +52,7 @@ func (s *Search) Fetch(ctx context.Context, imageURL string, opts *api.Options) 
 // LatestImage will get the latestImage image given an image URL and
 // options. If not found in the cache, or is too old, then will do a fresh
 // lookup and commit to the cache.
-func (s *Search) LatestImage(ctx context.Context, log *logrus.Entry,
-	imageURL string, opts *api.Options) (*api.ImageTag, error) {
+func (s *Search) LatestImage(ctx context.Context, imageURL string, opts *api.Options) (*api.ImageTag, error) {
 	hashIndex, err := calculateHashIndex(imageURL, opts)
 	if err != nil {
 		return nil, err
