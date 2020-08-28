@@ -24,6 +24,11 @@ docker:
   password:
   token:
 
+acr:
+  username:
+  password:
+  refreshToken:
+
 gcr:
   token:
 

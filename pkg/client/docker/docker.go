@@ -61,7 +61,7 @@ func New(ctx context.Context, opts Options) (*Client, error) {
 			return nil, errors.New("cannot specify JWT as well as username/password")
 		}
 
-		token, err := basicAuthSetup(client, opts)
+		token, err := basicAuthSetup(ctx, client, opts)
 		if err != nil {
 			return nil, fmt.Errorf("failed to setup auth: %s", err)
 		}
@@ -147,7 +147,7 @@ func (c *Client) doRequest(ctx context.Context, url string) (*TagResponse, error
 	return response, nil
 }
 
-func basicAuthSetup(client *http.Client, opts Options) (string, error) {
+func basicAuthSetup(ctx context.Context, client *http.Client, opts Options) (string, error) {
 	upReader := strings.NewReader(
 		fmt.Sprintf(`{"username": "%s", "password": "%s"}`,
 			opts.Username, opts.Password,
@@ -160,6 +160,7 @@ func basicAuthSetup(client *http.Client, opts Options) (string, error) {
 	}
 
 	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(ctx)
 
 	resp, err := client.Do(req)
 	if err != nil {
