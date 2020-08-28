@@ -10,6 +10,7 @@ import (
 	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/jetstack/version-checker/pkg/client/acr"
 	"github.com/jetstack/version-checker/pkg/client/docker"
+	"github.com/jetstack/version-checker/pkg/client/ecr"
 	"github.com/jetstack/version-checker/pkg/client/gcr"
 	"github.com/jetstack/version-checker/pkg/client/quay"
 	"github.com/jetstack/version-checker/pkg/client/selfhosted"
@@ -35,6 +36,7 @@ type ImageClient interface {
 // URLs.
 type Client struct {
 	acr        *acr.Client
+	ecr        *ecr.Client
 	gcr        *gcr.Client
 	docker     *docker.Client
 	quay       *quay.Client
@@ -44,6 +46,7 @@ type Client struct {
 // Options used to configure client authentication.
 type Options struct {
 	ACR        acr.Options
+	ECR        ecr.Options
 	GCR        gcr.Options
 	Docker     docker.Options
 	Quay       quay.Options
@@ -67,6 +70,7 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 
 	return &Client{
 		acr:        acrClient,
+		ecr:        ecr.New(opts.ECR),
 		docker:     dockerClient,
 		gcr:        gcr.New(opts.GCR),
 		quay:       quay.New(opts.Quay),
@@ -96,6 +100,8 @@ func (c *Client) fromImageURL(imageURL string) (ImageClient, string, string) {
 		return c.acr, host, path
 	case c.docker.IsHost(host):
 		return c.docker, host, path
+	case c.ecr.IsHost(host):
+		return c.ecr, host, path
 	case c.gcr.IsHost(host):
 		return c.gcr, host, path
 	case c.quay.IsHost(host):
