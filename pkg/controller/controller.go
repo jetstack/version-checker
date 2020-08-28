@@ -3,7 +3,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -19,15 +18,16 @@ import (
 
 	"github.com/jetstack/version-checker/pkg/client"
 	"github.com/jetstack/version-checker/pkg/controller/scheduler"
+	"github.com/jetstack/version-checker/pkg/controller/search"
 	"github.com/jetstack/version-checker/pkg/metrics"
 	"github.com/jetstack/version-checker/pkg/version"
 )
 
 const (
-	numWorkers = 5
+	numWorkers = 10
 )
 
-// controller is the main controller that check and exposes metrics on
+// Controller is the main controller that check and exposes metrics on
 // versions.
 type Controller struct {
 	log *logrus.Entry
@@ -37,12 +37,8 @@ type Controller struct {
 	workqueue          workqueue.RateLimitingInterface
 	scheduledWorkQueue scheduler.ScheduledWorkQueue
 
-	versionGetter *version.VersionGetter
-	metrics       *metrics.Metrics
-
-	cacheMu      sync.RWMutex
-	cacheTimeout time.Duration
-	imageCache   map[string]imageCacheItem
+	metrics *metrics.Metrics
+	search  *search.Search
 
 	defaultTestAll bool
 }
@@ -58,23 +54,23 @@ func New(
 	workqueue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 	scheduledWorkQueue := scheduler.NewScheduledWorkQueue(clock.RealClock{}, workqueue.Add)
 
+	log = log.WithField("module", "controller")
+	versionGetter := version.New(log, imageClient, cacheTimeout)
 	c := &Controller{
-		log:                log.WithField("module", "controller"),
+		log:                log,
 		kubeClient:         kubeClient,
 		workqueue:          workqueue,
 		scheduledWorkQueue: scheduledWorkQueue,
-		versionGetter:      version.New(log, imageClient, cacheTimeout),
 		metrics:            metrics,
-		cacheTimeout:       cacheTimeout,
-		imageCache:         make(map[string]imageCacheItem),
+		search:             search.New(log, cacheTimeout, versionGetter),
 		defaultTestAll:     defaultTestAll,
 	}
 
 	return c
 }
 
-// Run is a blocking func that will create and run new controller.
-func (c *Controller) Run(ctx context.Context) error {
+// Run is a blocking func that will run the controller.
+func (c *Controller) Run(ctx context.Context, cacheRefreshRate time.Duration) error {
 	defer c.workqueue.ShutDown()
 
 	sharedInformerFactory := informers.NewSharedInformerFactoryWithOptions(c.kubeClient, time.Second*30)
@@ -98,13 +94,13 @@ func (c *Controller) Run(ctx context.Context) error {
 	}
 
 	c.log.Info("starting workers")
-	// Launch two workers to process Foo resources
+	// Launch 10 workers to process pod resources
 	for i := 0; i < numWorkers; i++ {
-		go wait.Until(func() { c.runWorker(ctx) }, time.Second, ctx.Done())
+		go wait.Until(func() { c.runWorker(ctx, cacheRefreshRate) }, time.Second, ctx.Done())
 	}
 
 	// Start image tag garbage collector
-	go c.versionGetter.StartGarbageCollector(c.cacheTimeout / 2)
+	go c.search.Run(cacheRefreshRate)
 
 	<-ctx.Done()
 
@@ -114,7 +110,7 @@ func (c *Controller) Run(ctx context.Context) error {
 // runWorker is a long-running function that will continually call the
 // processNextWorkItem function in order to read and process a message on the
 // workqueue.
-func (c *Controller) runWorker(ctx context.Context) {
+func (c *Controller) runWorker(ctx context.Context, searchReschedule time.Duration) {
 	for {
 		obj, shutdown := c.workqueue.Get()
 		if shutdown {
@@ -126,7 +122,7 @@ func (c *Controller) runWorker(ctx context.Context) {
 			return
 		}
 
-		if err := c.processNextWorkItem(ctx, key); err != nil {
+		if err := c.processNextWorkItem(ctx, key, searchReschedule); err != nil {
 			c.log.Error(err.Error())
 		}
 	}
@@ -155,7 +151,7 @@ func (c *Controller) deleteObject(obj interface{}) {
 
 // processNextWorkItem will read a single work item off the workqueue and
 // attempt to process it, by calling the syncHandler.
-func (c *Controller) processNextWorkItem(ctx context.Context, key string) error {
+func (c *Controller) processNextWorkItem(ctx context.Context, key string, searchReschedule time.Duration) error {
 	defer c.workqueue.Done(key)
 
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
@@ -179,7 +175,7 @@ func (c *Controller) processNextWorkItem(ctx context.Context, key string) error 
 	}
 
 	// Check the image tag again after the cache timeout.
-	c.scheduledWorkQueue.Add(key, c.cacheTimeout)
+	c.scheduledWorkQueue.Add(key, searchReschedule)
 
 	return nil
 }

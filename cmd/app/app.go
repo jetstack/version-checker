@@ -18,8 +18,6 @@ import (
 )
 
 const (
-	version = "v0.0.1-alpha.0"
-
 	helpOutput = "Kubernetes utility for exposing used image versions compared to the latest version, as metrics."
 
 	envPrefix         = "VERSION_CHECKER"
@@ -58,6 +56,7 @@ func NewCommand(ctx context.Context) *cobra.Command {
 			}
 
 			nlog := logrus.New()
+			nlog.SetOutput(os.Stdout)
 			nlog.SetLevel(logLevel)
 			log := logrus.NewEntry(nlog)
 
@@ -97,10 +96,7 @@ func NewCommand(ctx context.Context) *cobra.Command {
 			c := controller.New(opts.CacheTimeout, metrics,
 				client, kubeClient, log, opts.DefaultTestAll)
 
-			// Start garbage collector
-			go c.StartGabageCollector(opts.CacheTimeout / 2)
-
-			return c.Run(ctx)
+			return c.Run(ctx, opts.CacheTimeout/2)
 		},
 	}
 

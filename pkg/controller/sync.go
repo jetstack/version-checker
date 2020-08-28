@@ -101,7 +101,7 @@ func (c *Controller) testContainerImage(ctx context.Context, log *logrus.Entry,
 			currentTag, currentSHA)
 	}
 
-	latestImage, err := c.getLatestImage(ctx, log, imageURL, opts)
+	latestImage, err := c.search.LatestImage(ctx, log, imageURL, opts)
 	// Don't re-sync, if no version found meeting search criteria
 	if versionerrors.IsNoVersionFound(err) {
 		log.Error(err.Error())
