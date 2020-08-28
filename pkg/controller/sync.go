@@ -3,14 +3,13 @@ package controller
 import (
 	"context"
 	"fmt"
-	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/jetstack/version-checker/pkg/api"
+	"github.com/jetstack/version-checker/pkg/controller/options"
 	versionerrors "github.com/jetstack/version-checker/pkg/version/errors"
 	"github.com/jetstack/version-checker/pkg/version/semver"
 )
@@ -18,6 +17,8 @@ import (
 // sync will enqueue a given pod to run against the version checker.
 func (c *Controller) sync(ctx context.Context, pod *corev1.Pod) error {
 	log := c.log.WithField("name", pod.Name).WithField("namespace", pod.Namespace)
+
+	builder := options.New(pod.Annotations)
 
 	var errs []string
 	for _, container := range pod.Spec.Containers {
@@ -37,7 +38,7 @@ func (c *Controller) sync(ctx context.Context, pod *corev1.Pod) error {
 		log = log.WithField("container", container.Name)
 		log.Debug("processing conainer image")
 
-		opts, err := c.buildOptions(container.Name, pod.Annotations)
+		opts, err := builder.Options(container.Name)
 		if err != nil {
 			errs = append(errs, fmt.Sprintf("failed to build options from annotations for %q: %s",
 				container.Name, err))
@@ -160,103 +161,6 @@ func (c *Controller) testContainerImage(ctx context.Context, log *logrus.Entry,
 		container.Name, imageURL, currentMetricsVersion, latestVersion)
 
 	return nil
-}
-
-// buildOptions will build the tag options based on pod annotations.
-func (c *Controller) buildOptions(containerName string, annotations map[string]string) (*api.Options, error) {
-	var (
-		opts      api.Options
-		errs      []string
-		setNonSha bool
-	)
-
-	if useSHA, ok := annotations[api.UseSHAAnnotationKey+"/"+containerName]; ok && useSHA == "true" {
-		opts.UseSHA = true
-	}
-
-	if useMetaData, ok := annotations[api.UseMetaDataAnnotationKey+"/"+containerName]; ok && useMetaData == "true" {
-		setNonSha = true
-		opts.UseMetaData = true
-	}
-
-	if matchRegex, ok := annotations[api.MatchRegexAnnotationKey+"/"+containerName]; ok {
-		setNonSha = true
-		opts.MatchRegex = &matchRegex
-
-		regexMatcher, err := regexp.Compile(matchRegex)
-		if err != nil {
-			errs = append(errs, fmt.Sprintf("failed to compile regex at annotation %q: %s",
-				api.MatchRegexAnnotationKey, err))
-		} else {
-			opts.RegexMatcher = regexMatcher
-		}
-	}
-
-	if pinMajor, ok := annotations[api.PinMajorAnnotationKey+"/"+containerName]; ok {
-		setNonSha = true
-
-		ma, err := strconv.ParseInt(pinMajor, 10, 64)
-		if err != nil {
-			errs = append(errs, fmt.Sprintf("failed to parse %s: %s",
-				api.PinMajorAnnotationKey+"/"+containerName, err))
-		} else {
-			opts.PinMajor = &ma
-		}
-	}
-
-	if pinMinor, ok := annotations[api.PinMinorAnnotationKey+"/"+containerName]; ok {
-		setNonSha = true
-
-		if opts.PinMajor == nil {
-			errs = append(errs, fmt.Sprintf("unable to set %q without setting %q",
-				api.PinMinorAnnotationKey+"/"+containerName, api.PinMajorAnnotationKey+"/"+containerName))
-		} else {
-
-			mi, err := strconv.ParseInt(pinMinor, 10, 64)
-			if err != nil {
-				errs = append(errs, fmt.Sprintf("failed to parse %s: %s",
-					api.PinMinorAnnotationKey+"/"+containerName, err))
-			} else {
-				opts.PinMinor = &mi
-			}
-		}
-	}
-
-	if pinPatch, ok := annotations[api.PinPatchAnnotationKey+"/"+containerName]; ok {
-		setNonSha = true
-
-		if opts.PinMajor == nil && opts.PinMinor == nil {
-			errs = append(errs, fmt.Sprintf("unable to set %q without setting %q or %q",
-				api.PinPatchAnnotationKey+"/"+containerName,
-				api.PinMinorAnnotationKey+"/"+containerName,
-				api.PinMajorAnnotationKey+"/"+containerName))
-		} else {
-
-			pa, err := strconv.ParseInt(pinPatch, 10, 64)
-			if err != nil {
-				errs = append(errs, fmt.Sprintf("failed to parse %s: %s",
-					api.PinPatchAnnotationKey+"/"+containerName, err))
-			} else {
-				opts.PinPatch = &pa
-			}
-		}
-	}
-
-	if overrideURL, ok := annotations[api.OverrideURLAnnotationKey+"/"+containerName]; ok {
-		opts.OverrideURL = &overrideURL
-	}
-
-	if opts.UseSHA && setNonSha {
-		errs = append(errs, fmt.Sprintf("cannot define %q with any semver otions",
-			api.UseSHAAnnotationKey+"/"+containerName))
-	}
-
-	if len(errs) > 0 {
-		return nil, fmt.Errorf("failed to build version options: %s",
-			strings.Join(errs, ", "))
-	}
-
-	return &opts, nil
 }
 
 // urlTagSHAFromImage from will return the image URL, and the semver version
