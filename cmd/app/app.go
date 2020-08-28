@@ -78,7 +78,7 @@ func NewCommand(ctx context.Context) *cobra.Command {
 				return fmt.Errorf("failed to start metrics server: %s", err)
 			}
 
-			client, err := client.New(ctx, opts.Client)
+			client, err := client.New(ctx, log, opts.Client)
 			if err != nil {
 				return fmt.Errorf("failed to setup image registry clients: %s", err)
 			}

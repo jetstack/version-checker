@@ -11,7 +11,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/jetstack/version-checker/pkg/api"
+	selfhostederrors "github.com/jetstack/version-checker/pkg/client/selfhosted/errors"
 )
 
 const (
@@ -37,6 +40,8 @@ type Options struct {
 type Client struct {
 	*http.Client
 	Options
+
+	log *logrus.Entry
 
 	hostRegex  *regexp.Regexp
 	httpScheme string
@@ -64,12 +69,13 @@ type V1Compatibility struct {
 	Created time.Time `json:"created,omitempty"`
 }
 
-func New(ctx context.Context, opts Options) (*Client, error) {
+func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) {
 	client := &Client{
 		Client: &http.Client{
-			Timeout: time.Second * 5,
+			Timeout: time.Second * 10,
 		},
 		Options: opts,
+		log:     log.WithField("client", opts.URL),
 	}
 
 	// Set up client with host matching if set
@@ -120,7 +126,14 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 		manifestURL := fmt.Sprintf(manifestPath, host, path, tag)
 
 		var manifestResponse ManifestResponse
-		if _, err := c.doRequest(ctx, manifestURL, dockerAPIv1Header, &manifestResponse); err != nil {
+		_, err := c.doRequest(ctx, manifestURL, dockerAPIv1Header, &manifestResponse)
+
+		if httpErr, ok := selfhostederrors.IsHTTPError(err); ok {
+			c.log.Errorf("%s: failed to get manifest response for tag, skipping (%d): %s",
+				manifestURL, httpErr.StatusCode, httpErr.Body)
+			continue
+		}
+		if err != nil {
 			return nil, err
 		}
 
@@ -140,6 +153,11 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 		}
 
 		header, err := c.doRequest(ctx, manifestURL, dockerAPIv2Header, new(ManifestResponse))
+		if httpErr, ok := selfhostederrors.IsHTTPError(err); ok {
+			c.log.Errorf("%s: failed to get manifest sha response for tag, skipping (%d): %s",
+				manifestURL, httpErr.StatusCode, httpErr.Body)
+			continue
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -181,7 +199,7 @@ func (c *Client) doRequest(ctx context.Context, url, header string, obj interfac
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%d: %s", resp.StatusCode, body)
+		return nil, selfhostederrors.NewHTTPError(resp.StatusCode, body)
 	}
 
 	if err := json.Unmarshal(body, obj); err != nil {
@@ -219,7 +237,7 @@ func (c *Client) setupBasicAuth(ctx context.Context, url string) (string, error)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return "", errors.New(string(body))
+		return "", selfhostederrors.NewHTTPError(resp.StatusCode, body)
 	}
 
 	response := new(AuthResponse)

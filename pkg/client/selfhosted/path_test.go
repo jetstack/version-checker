@@ -3,6 +3,8 @@ package selfhosted
 import (
 	"context"
 	"testing"
+
+	"github.com/sirupsen/logrus"
 )
 
 func TestIsHost(t *testing.T) {
@@ -68,7 +70,7 @@ func TestIsHost(t *testing.T) {
 		URL: "https://docker.repositories.yourdomain.ext/hello-world",
 	}
 
-	handler, err := New(context.TODO(), options)
+	handler, err := New(context.TODO(), logrus.NewEntry(logrus.New()), options)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -4,10 +4,18 @@ import (
 	"context"
 	"reflect"
 	"testing"
+
+	"github.com/sirupsen/logrus"
+
+	"github.com/jetstack/version-checker/pkg/client/selfhosted"
 )
 
 func TestFromImageURL(t *testing.T) {
-	handler, err := New(context.TODO(), Options{})
+	handler, err := New(context.TODO(), logrus.NewEntry(logrus.New()), Options{
+		Selfhosted: selfhosted.Options{
+			URL: "https://docker.repositories.yourdomain.com/artifactory/v2",
+		},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +104,6 @@ func TestFromImageURL(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			handler.selfhosted.Options.URL = "https://docker.repositories.yourdomain.com/artifactory/v2"
 			client, host, path := handler.fromImageURL(test.url)
 
 			if client != test.expClient {

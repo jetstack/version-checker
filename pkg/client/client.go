@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/jetstack/version-checker/pkg/client/docker"
 	"github.com/jetstack/version-checker/pkg/client/gcr"
@@ -45,13 +47,13 @@ type Options struct {
 	Selfhosted selfhosted.Options
 }
 
-func New(ctx context.Context, opts Options) (*Client, error) {
+func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) {
 	dockerClient, err := docker.New(ctx, opts.Docker)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create docker client: %s", err)
 	}
 
-	selfhostedClient, err := selfhosted.New(ctx, opts.Selfhosted)
+	selfhostedClient, err := selfhosted.New(ctx, log, opts.Selfhosted)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create selfhosted client: %s", err)
 	}
