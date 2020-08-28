@@ -242,10 +242,6 @@ func (c *Controller) buildOptions(containerName string, annotations map[string]s
 		}
 	}
 
-	if overrideURL, ok := annotations[api.OverrideURLAnnotationKey+"/"+containerName]; ok {
-		opts.OverrideURL = &overrideURL
-	}
-
 	if opts.UseSHA && setNonSha {
 		errs = append(errs, fmt.Sprintf("cannot define %q with any semver otions",
 			api.UseSHAAnnotationKey+"/"+containerName))

@@ -86,11 +86,6 @@ enrich version checking on image tags:
     `use-metadata.version-checker.io` is not required when this is set. All
     other options are ignored when this is set.
 
-- `override-url.version-checker.io/my-container: docker.io/bitnami/etcd`: is
-    used to change the URL for where to lookup where the latest image version
-    is. In this example, the current version of `my-container` will be compared
-    against the image versions in the `docker.io/bitnami/etcd` registry.
-
 ## Metrics
 
 By default, version-checker will expose the version information as Prometheus
