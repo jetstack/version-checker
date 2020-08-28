@@ -1,4 +1,4 @@
-package acr
+package util
 
 import (
 	"testing"
@@ -38,7 +38,7 @@ func TestJoinRepoImage(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			if path := joinRepoImage(test.repo, test.image); path != test.expPath {
+			if path := JoinRepoImage(test.repo, test.image); path != test.expPath {
 				t.Errorf("%s,%s: unexpected path, exp=%s got=%s",
 					test.repo, test.repo, test.expPath, path)
 			}

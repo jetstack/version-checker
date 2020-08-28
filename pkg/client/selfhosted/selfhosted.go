@@ -15,6 +15,7 @@ import (
 
 	"github.com/jetstack/version-checker/pkg/api"
 	selfhostederrors "github.com/jetstack/version-checker/pkg/client/selfhosted/errors"
+	"github.com/jetstack/version-checker/pkg/client/util"
 )
 
 const (
@@ -113,7 +114,7 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 // the tags that are available, then query the 2.1 and 2.2 API endpoints to
 // gather the image digest and created time.
 func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.ImageTag, error) {
-	path := joinRepoImage(repo, image)
+	path := util.JoinRepoImage(repo, image)
 	tagURL := fmt.Sprintf(tagsPath, host, path)
 
 	var tagResponse TagResponse

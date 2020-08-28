@@ -15,6 +15,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 
 	"github.com/jetstack/version-checker/pkg/api"
+	"github.com/jetstack/version-checker/pkg/client/util"
 )
 
 const (
@@ -115,7 +116,7 @@ func (c *Client) getManifestsWithClient(ctx context.Context, client *acrClient, 
 	}
 
 	pathParameters := map[string]interface{}{
-		"name": autorest.Encode("path", joinRepoImage(repo, image)),
+		"name": autorest.Encode("path", util.JoinRepoImage(repo, image)),
 	}
 
 	preparer := autorest.CreatePreparer(
@@ -251,15 +252,4 @@ func getTokenExpiration(token string) (time.Time, error) {
 	}
 
 	return time.Time{}, fmt.Errorf("failed to find 'exp' claim in access token")
-}
-
-func joinRepoImage(repo, image string) string {
-	if len(repo) == 0 {
-		return image
-	}
-	if len(image) == 0 {
-		return repo
-	}
-
-	return repo + "/" + image
 }
