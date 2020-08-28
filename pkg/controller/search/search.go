@@ -40,7 +40,7 @@ func (s *Search) Fetch(ctx context.Context, imageURL string, opts *api.Options) 
 		return nil, err
 	}
 
-	return latestImage, err
+	return latestImage, nil
 }
 
 // LatestImage will get the latestImage image given an image URL and
