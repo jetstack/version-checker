@@ -4,10 +4,18 @@ import (
 	"context"
 	"reflect"
 	"testing"
+
+	"github.com/sirupsen/logrus"
+
+	"github.com/jetstack/version-checker/pkg/client/selfhosted"
 )
 
 func TestFromImageURL(t *testing.T) {
-	handler, err := New(context.TODO(), Options{})
+	handler, err := New(context.TODO(), logrus.NewEntry(logrus.New()), Options{
+		Selfhosted: selfhosted.Options{
+			URL: "https://docker.repositories.yourdomain.com/artifactory/v2",
+		},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,6 +93,12 @@ func TestFromImageURL(t *testing.T) {
 			expClient: handler.quay,
 			expHost:   "us.quay.io",
 			expPath:   "k8s-artifacts-prod/ingress-nginx/nginx",
+		},
+		"selfhosted should be selfhosted": {
+			url:       "docker.repositories.yourdomain.com/ingress-nginx/nginx",
+			expClient: handler.selfhosted,
+			expHost:   "docker.repositories.yourdomain.com",
+			expPath:   "ingress-nginx/nginx",
 		},
 	}
 
