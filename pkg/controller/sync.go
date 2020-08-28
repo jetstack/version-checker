@@ -11,7 +11,6 @@ import (
 	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/jetstack/version-checker/pkg/controller/options"
 	versionerrors "github.com/jetstack/version-checker/pkg/version/errors"
-	"github.com/jetstack/version-checker/pkg/version/semver"
 )
 
 // sync will enqueue a given pod to run against the version checker.
@@ -22,33 +21,8 @@ func (c *Controller) sync(ctx context.Context, pod *corev1.Pod) error {
 
 	var errs []string
 	for _, container := range pod.Spec.Containers {
-		enable, ok := pod.Annotations[api.EnableAnnotationKey+"/"+container.Name]
-		if c.defaultTestAll {
-			// If default all and we explicitly disable, ignore
-			if ok && enable == "false" {
-				continue
-			}
-		} else {
-			// If not default all and we don't enable, ignore
-			if !ok || enable != "true" {
-				continue
-			}
-		}
-
-		log = log.WithField("container", container.Name)
-		log.Debug("processing conainer image")
-
-		opts, err := builder.Options(container.Name)
-		if err != nil {
-			errs = append(errs, fmt.Sprintf("failed to build options from annotations for %q: %s",
-				container.Name, err))
-			continue
-		}
-
-		if err := c.testContainerImage(ctx, log, pod, &container, opts); err != nil {
-			errs = append(errs, fmt.Sprintf("failed to test container image %q: %s",
-				container.Name, err))
-			continue
+		if err := c.syncContainer(ctx, log, builder, pod, &container); err != nil {
+			errs = append(errs, err.Error())
 		}
 	}
 
@@ -60,149 +34,63 @@ func (c *Controller) sync(ctx context.Context, pod *corev1.Pod) error {
 	return nil
 }
 
-// testContainerImage will test a given image version to the latest image
-// available in the remote registry, given the options.
-func (c *Controller) testContainerImage(ctx context.Context, log *logrus.Entry,
-	pod *corev1.Pod, container *corev1.Container, opts *api.Options) error {
-
-	imageURL, currentTag, currentSHA := urlTagSHAFromImage(container.Image)
-	usingSHA := len(currentSHA) > 0
-
-	currentMetricsVersion := metricsLabel(currentTag, currentSHA)
-
-	if !usingSHA {
-		// Get the SHA of the current image
-		for _, status := range pod.Status.ContainerStatuses {
-			if status.Name == container.Name {
-				statusImage, _, statusSHA := urlTagSHAFromImage(status.ImageID)
-				currentSHA = statusImage
-
-				// If the image ID contains a URL, use the parsed SHA
-				if len(statusSHA) > 0 {
-					currentSHA = statusSHA
-				}
-
-				break
-			}
-		}
-	}
-
-	// if no image SHA set on container yet and none specified, wait for next
-	// sync
-	if currentSHA == "" {
+// syncContainer will enqueue a given container to check the version
+func (c *Controller) syncContainer(ctx context.Context, log *logrus.Entry, builder *options.Builder, pod *corev1.Pod,
+	container *corev1.Container) error {
+	// If not enabled, exit early
+	if !builder.IsEnabled(c.defaultTestAll, container.Name) {
+		c.metrics.RemoveImage(pod.Namespace, pod.Name, container.Name)
 		return nil
 	}
 
-	// if tag is set to latest or "", use latest SHA comparison
-	if currentTag == "" || currentTag == "latest" {
-		opts.UseSHA = true
-		currentTag = currentSHA
-
-		log.Debugf("image using %q tag, comparing image SHA %q",
-			currentTag, currentSHA)
+	opts, err := builder.Options(container.Name)
+	if err != nil {
+		return fmt.Errorf("failed to build options from annotations for %q: %s",
+			container.Name, err)
 	}
 
-	latestImage, err := c.search.LatestImage(ctx, log, imageURL, opts)
+	log = log.WithField("container", container.Name)
+	log.Debug("processing conainer image")
+
+	err = c.checkContainer(ctx, log, pod, container, opts)
 	// Don't re-sync, if no version found meeting search criteria
 	if versionerrors.IsNoVersionFound(err) {
 		log.Error(err.Error())
 		return nil
 	}
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to check container image %q: %s",
+			container.Name, err)
 	}
-
-	var (
-		latestVersion string
-		isLatest      bool
-	)
-
-	if opts.UseSHA {
-		currentTag = currentSHA
-		latestVersion = latestImage.SHA
-
-		// If we are using SHA, then we can do a string comparison of the latest
-		if currentTag == latestImage.SHA {
-			isLatest = true
-		}
-	} else {
-		// Test against normal semvar
-		currentImage := semver.Parse(currentTag)
-		latestImageV := semver.Parse(latestImage.Tag)
-
-		// If current image not less than latest, is latest
-		if !currentImage.LessThan(latestImageV) {
-			isLatest = true
-		}
-
-		// If using the same image version, but the SHA has been updated upstream,
-		// make not latest
-		if currentImage.Equal(latestImageV) && currentSHA != latestImage.SHA {
-			isLatest = false
-		}
-
-		latestVersion = latestImage.Tag
-
-		// If we are using SHA and tag, make latest version include both
-		if usingSHA {
-			latestVersion = fmt.Sprintf("%s@%s", latestVersion, latestImage.SHA)
-		}
-	}
-
-	if isLatest {
-		log.Debugf("image is latest %s:%s",
-			imageURL, currentMetricsVersion)
-	} else {
-		log.Debugf("image is not latest %s: %s -> %s",
-			imageURL, currentMetricsVersion, latestVersion)
-	}
-
-	c.metrics.AddImage(pod.Namespace, pod.Name,
-		container.Name, imageURL, currentMetricsVersion, latestVersion)
 
 	return nil
 }
 
-// urlTagSHAFromImage from will return the image URL, and the semver version
-// and or SHA tag.
-func urlTagSHAFromImage(image string) (url, version, sha string) {
-	// If using SHA tag
-	if split := strings.SplitN(image, "@", 2); len(split) > 1 {
-		url = split[0]
-		sha = split[1]
-
-		// Check is url contains version, but also handle ports
-		firstSlashIndex := strings.Index(split[0], "/")
-		if firstSlashIndex == -1 {
-			firstSlashIndex = 0
-		}
-
-		// url contains version
-		if strings.LastIndex(split[0][firstSlashIndex:], ":") > -1 {
-			lastColonIndex := strings.LastIndex(split[0], ":")
-			url = split[0][:lastColonIndex]
-			version = split[0][lastColonIndex+1:]
-		}
-
-		return
+// checkContainer will check the given container and options, and update
+// metrics according to the result.
+func (c *Controller) checkContainer(ctx context.Context, log *logrus.Entry, pod *corev1.Pod,
+	container *corev1.Container, opts *api.Options) error {
+	result, err := c.checker.Container(ctx, log, pod, container, opts)
+	if err != nil {
+		return err
 	}
 
-	if split := strings.Split(image, ":"); len(split) == 2 {
-		return split[0], split[1], ""
+	// If no result ready yet, exit early
+	if result == nil {
+		return nil
 	}
 
-	return image, "", ""
-}
-
-// metricsLabel will return a version string, containing the tag and/or sha
-func metricsLabel(tag, sha string) string {
-	if len(sha) > 0 {
-		if len(tag) == 0 {
-			tag = sha
-		} else {
-			tag = fmt.Sprintf("%s@%s", tag, sha)
-		}
+	if result.IsLatest {
+		log.Debugf("image is latest %s:%s",
+			result.ImageURL, result.CurrentVersion)
+	} else {
+		log.Debugf("image is not latest %s: %s -> %s",
+			result.ImageURL, result.CurrentVersion, result.LatestVersion)
 	}
 
-	return tag
+	c.metrics.AddImage(pod.Namespace, pod.Name,
+		container.Name, result.ImageURL, result.IsLatest,
+		result.CurrentVersion, result.LatestVersion)
+
+	return nil
 }
