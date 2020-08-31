@@ -34,6 +34,10 @@ func New(opts Options) *Client {
 	}
 }
 
+func (c *Client) Name() string {
+	return "ecr"
+}
+
 func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.ImageTag, error) {
 	matches := ecrPattern.FindStringSubmatch(host)
 	if len(matches) < 3 {

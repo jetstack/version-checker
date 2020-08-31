@@ -19,6 +19,9 @@ import (
 // ImageClient represents a image registry client that can list available tags
 // for image URLs.
 type ImageClient interface {
+	// Returns the name of the client
+	Name() string
+
 	// IsHost will return true if this client is appropriate for the given
 	// host.
 	IsHost(host string) bool
@@ -75,7 +78,7 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 		return nil, fmt.Errorf("failed to create fallback client: %s", err)
 	}
 
-	return &Client{
+	c := &Client{
 		clients: append(
 			selfhostedClients,
 			acrClient,
@@ -85,7 +88,13 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 			quay.New(opts.Quay),
 		),
 		fallbackClient: fallbackClient,
-	}, nil
+	}
+
+	for _, client := range append(c.clients, fallbackClient) {
+		log.Debugf("registered client %q", client.Name())
+	}
+
+	return c, nil
 }
 
 // Tags returns the full list of image tags available, for a given image URL.

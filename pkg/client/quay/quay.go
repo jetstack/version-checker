@@ -43,6 +43,10 @@ func New(opts Options) *Client {
 	}
 }
 
+func (c *Client) Name() string {
+	return "quay"
+}
+
 func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTag, error) {
 	url := fmt.Sprintf(lookupURL, repo, image)
 

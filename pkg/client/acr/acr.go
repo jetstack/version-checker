@@ -70,6 +70,10 @@ func New(opts Options) (*Client, error) {
 	}, nil
 }
 
+func (c *Client) Name() string {
+	return "acr"
+}
+
 func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.ImageTag, error) {
 	client, err := c.getACRClient(ctx, host)
 	if err != nil {
