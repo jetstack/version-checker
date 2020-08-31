@@ -32,7 +32,7 @@ const (
 )
 
 type Options struct {
-	URL      string
+	Host     string
 	Username string
 	Password string
 	Bearer   string
@@ -40,7 +40,7 @@ type Options struct {
 
 type Client struct {
 	*http.Client
-	Options
+	*Options
 
 	log *logrus.Entry
 
@@ -70,18 +70,18 @@ type V1Compatibility struct {
 	Created time.Time `json:"created,omitempty"`
 }
 
-func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) {
+func New(ctx context.Context, log *logrus.Entry, opts *Options) (*Client, error) {
 	client := &Client{
 		Client: &http.Client{
 			Timeout: time.Second * 10,
 		},
 		Options: opts,
-		log:     log.WithField("client", opts.URL),
+		log:     log.WithField("client", opts.Host),
 	}
 
 	// Set up client with host matching if set
-	if opts.URL != "" {
-		hostRegex, scheme, err := parseURL(opts.URL)
+	if opts.Host != "" {
+		hostRegex, scheme, err := parseURL(opts.Host)
 		if err != nil {
 			return nil, fmt.Errorf("failed parsing url: %s", err)
 		}
@@ -94,7 +94,7 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 				return nil, errors.New("cannot specify Bearer token as well as username/password")
 			}
 
-			token, err := client.setupBasicAuth(ctx, opts.URL)
+			token, err := client.setupBasicAuth(ctx, opts.Host)
 			if err != nil {
 				return nil, fmt.Errorf("failed to setup auth: %s", err)
 			}

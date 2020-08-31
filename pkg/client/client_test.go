@@ -17,8 +17,10 @@ import (
 
 func TestFromImageURL(t *testing.T) {
 	handler, err := New(context.TODO(), logrus.NewEntry(logrus.New()), Options{
-		Selfhosted: selfhosted.Options{
-			URL: "https://docker.repositories.yourdomain.com/artifactory/v2",
+		Selfhosted: map[string]*selfhosted.Options{
+			"yourdomain": {
+				Host: "https://docker.repositories.yourdomain.com",
+			},
 		},
 	})
 	if err != nil {

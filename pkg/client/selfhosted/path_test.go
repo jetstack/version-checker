@@ -66,8 +66,8 @@ func TestIsHost(t *testing.T) {
 		},
 	}
 
-	options := Options{
-		URL: "https://docker.repositories.yourdomain.ext/hello-world",
+	options := &Options{
+		Host: "https://docker.repositories.yourdomain.ext",
 	}
 
 	handler, err := New(context.TODO(), logrus.NewEntry(logrus.New()), options)

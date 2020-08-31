@@ -46,7 +46,7 @@ type Options struct {
 	GCR        gcr.Options
 	Docker     docker.Options
 	Quay       quay.Options
-	Selfhosted selfhosted.Options
+	Selfhosted map[string]*selfhosted.Options
 }
 
 func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) {
@@ -59,25 +59,31 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 		return nil, fmt.Errorf("failed to create docker client: %s", err)
 	}
 
-	selfhostedClient, err := selfhosted.New(ctx, log, opts.Selfhosted)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create selfhosted client: %s", err)
+	var selfhostedClients []ImageClient
+	for _, sOpts := range opts.Selfhosted {
+		sClient, err := selfhosted.New(ctx, log, sOpts)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create selfhosted client %q: %s",
+				sOpts.Host, err)
+		}
+
+		selfhostedClients = append(selfhostedClients, sClient)
 	}
 
-	fallbackClient, err := selfhosted.New(ctx, log, selfhosted.Options{})
+	fallbackClient, err := selfhosted.New(ctx, log, new(selfhosted.Options))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create fallback client: %s", err)
 	}
 
 	return &Client{
-		clients: []ImageClient{
+		clients: append(
+			selfhostedClients,
 			acrClient,
 			ecr.New(opts.ECR),
 			dockerClient,
 			gcr.New(opts.GCR),
 			quay.New(opts.Quay),
-			selfhostedClient,
-		},
+		),
 		fallbackClient: fallbackClient,
 	}, nil
 }
