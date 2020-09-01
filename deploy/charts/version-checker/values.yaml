@@ -24,7 +24,6 @@ acr:
   refreshToken:
 
 docker:
-  loginURL: https://hub.docker.com/v2/users/login/
   username:
   password:
   token:
@@ -40,11 +39,17 @@ gcr:
 quay:
   token:
 
-selfhosted:
-  URL:
-  username:
-  password:
-  token:
+selfhosted: {}
+  #- name: REGISTRY
+  #  host: http://registry:5000
+  #  username:
+  #  password:
+  #  token:
+  #- name: EXAMPLE
+  #  host: https://artifactory.example.com
+  #  username: foo
+  #  password: bar
+  #  token:
 
 resources: {}
   # limits:
