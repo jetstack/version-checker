@@ -3,6 +3,8 @@ package app
 import (
 	"fmt"
 	"os"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -11,6 +13,7 @@ import (
 	cliflag "k8s.io/component-base/cli/flag"
 
 	"github.com/jetstack/version-checker/pkg/client"
+	"github.com/jetstack/version-checker/pkg/client/selfhosted"
 )
 
 const (
@@ -20,21 +23,30 @@ const (
 	envACRPassword     = "ACR_PASSWORD"
 	envACRRefreshToken = "ACR_REFRESH_TOKEN"
 
+	envDockerUsername = "DOCKER_USERNAME"
+	envDockerPassword = "DOCKER_PASSWORD"
+	envDockerToken    = "DOCKER_TOKEN"
+
 	envECRAccessKeyID     = "ECR_ACCESS_KEY_ID"
 	envECRSecretAccessKey = "ECR_SECRET_ACCESS_KEY"
 	envECRSessionToken    = "ECR_SESSION_TOKEN"
-
-	envDockerUsername = "DOCKER_USERNAME"
-	envDockerPassword = "DOCKER_PASSWORD"
-	envDockerJWT      = "DOCKER_TOKEN"
 
 	envGCRAccessToken = "GCR_TOKEN"
 
 	envQuayToken = "QUAY_TOKEN"
 
-	envSelfhostedUsername = "SELFHOSTED_USERNAME"
-	envSelfhostedPassword = "SELFHOSTED_PASSWORD"
-	envSelfhostedBearer   = "SELFHOSTED_TOKEN"
+	envSelfhostedPrefix   = "SELFHOSTED"
+	envSelfhostedUsername = "USERNAME"
+	envSelfhostedPassword = "PASSWORD"
+	envSelfhostedBearer   = "TOKEN"
+	envSelfhostedHost     = "HOST"
+)
+
+var (
+	selfhostedHostReg     = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_HOST_(.*)")
+	selfhostedUsernameReg = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_USERNAME_(.*)")
+	selfhostedPasswordReg = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_PASSWORD_(.*)")
+	selfhostedTokenReg    = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_TOKEN_(.*)")
 )
 
 // Options is a struct to hold options for the version-checker
@@ -45,6 +57,7 @@ type Options struct {
 	LogLevel              string
 
 	kubeConfigFlags *genericclioptions.ConfigFlags
+	selfhosted      selfhosted.Options
 
 	Client client.Options
 }
@@ -136,7 +149,7 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 		fmt.Sprintf(
 			"Token to authenticate with docker registry. Cannot be used with "+
 				"username/password (%s_%s).",
-			envPrefix, envDockerJWT,
+			envPrefix, envDockerToken,
 		))
 	///
 
@@ -180,88 +193,125 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 	///
 
 	/// Selfhosted
-	fs.StringVar(&o.Client.Selfhosted.Username,
+	fs.StringVar(&o.selfhosted.Username,
 		"selfhosted-username", "",
 		fmt.Sprintf(
 			"Username is authenticate with a selfhosted registry (%s_%s).",
 			envPrefix, envSelfhostedUsername,
 		))
-	fs.StringVar(&o.Client.Selfhosted.Password,
+	fs.StringVar(&o.selfhosted.Password,
 		"selfhosted-password", "",
 		fmt.Sprintf(
 			"Password is authenticate with a selfhosted registry (%s_%s).",
 			envPrefix, envSelfhostedPassword,
 		))
-	fs.StringVar(&o.Client.Selfhosted.Bearer,
+	fs.StringVar(&o.selfhosted.Bearer,
 		"selfhosted-token", "",
 		fmt.Sprintf(
 			"Token to authenticate to a selfhosted registry. Cannot be used with "+
 				"username/password (%s_%s).",
 			envPrefix, envSelfhostedBearer,
 		))
-	fs.StringVar(&o.Client.Selfhosted.URL,
-		"selfhosted-registry-url", "",
-		"URL of the selfhosted registry.")
+	fs.StringVar(&o.selfhosted.Host,
+		"selfhosted-registry-host", "",
+		fmt.Sprintf(
+			"Full host of the selfhosted registry. Include http[s] scheme (%s_%s",
+			envPrefix, envSelfhostedHost,
+		))
 	///
 }
 
 func (o *Options) complete() {
-	// ACR
-	if len(o.Client.ACR.Username) == 0 {
-		o.Client.ACR.Username = os.Getenv(envPrefix + "_" + envACRUsername)
-	}
-	if len(o.Client.ACR.Password) == 0 {
-		o.Client.ACR.Password = os.Getenv(envPrefix + "_" + envACRPassword)
-	}
-	if len(o.Client.ACR.RefreshToken) == 0 {
-		o.Client.ACR.RefreshToken = os.Getenv(envPrefix + "_" + envACRRefreshToken)
+	o.Client.Selfhosted = make(map[string]*selfhosted.Options)
+
+	envs := os.Environ()
+	for _, opt := range []struct {
+		key    string
+		assign *string
+	}{
+		{envACRUsername, &o.Client.ACR.Username},
+		{envACRPassword, &o.Client.ACR.Password},
+		{envACRRefreshToken, &o.Client.ACR.RefreshToken},
+
+		{envDockerUsername, &o.Client.Docker.Username},
+		{envDockerPassword, &o.Client.Docker.Password},
+		{envDockerToken, &o.Client.Docker.Token},
+
+		{envECRAccessKeyID, &o.Client.ECR.AccessKeyID},
+		{envECRSessionToken, &o.Client.ECR.SessionToken},
+		{envECRSecretAccessKey, &o.Client.ECR.SecretAccessKey},
+
+		{envGCRAccessToken, &o.Client.GCR.Token},
+
+		{envQuayToken, &o.Client.Quay.Token},
+	} {
+		for _, env := range envs {
+			if o.assignEnv(env, opt.key, opt.assign) {
+				break
+			}
+		}
 	}
 
-	// Docker
-	if len(o.Client.Docker.Username) == 0 {
-		o.Client.Docker.Username = os.Getenv(envPrefix + "_" + envDockerUsername)
-	}
-	if len(o.Client.Docker.Password) == 0 {
-		o.Client.Docker.Password = os.Getenv(envPrefix + "_" + envDockerPassword)
-	}
-	if len(o.Client.Docker.Token) == 0 {
-		o.Client.Docker.Token = os.Getenv(envPrefix + "_" + envDockerJWT)
+	o.assignSelfhosted(envs)
+}
+
+func (o *Options) assignEnv(env, key string, assign *string) bool {
+	pair := strings.SplitN(env, "=", 2)
+	if len(pair) < 2 {
+		return false
 	}
 
-	// ECR
-	if len(o.Client.ECR.AccessKeyID) == 0 {
-		o.Client.ECR.AccessKeyID = os.Getenv(envPrefix + "_" + envECRAccessKeyID)
-	}
-	if len(o.Client.ECR.SecretAccessKey) == 0 {
-		o.Client.ECR.SecretAccessKey = os.Getenv(envPrefix + "_" + envECRSecretAccessKey)
-	}
-	if len(o.Client.ECR.SessionToken) == 0 {
-		o.Client.ECR.SessionToken = os.Getenv(envPrefix + "_" + envECRSessionToken)
+	if envPrefix+"_"+key == pair[0] && len(*assign) == 0 {
+		*assign = pair[1]
+		return true
 	}
 
-	// GCR
-	if len(o.Client.GCR.Token) == 0 {
-		o.Client.GCR.Token = os.Getenv(envPrefix + "_" + envGCRAccessToken)
+	return false
+}
+
+func (o *Options) assignSelfhosted(envs []string) {
+	if o.Client.Selfhosted == nil {
+		o.Client.Selfhosted = make(map[string]*selfhosted.Options)
 	}
 
-	// Quay
-	if len(o.Client.Quay.Token) == 0 {
-		o.Client.Quay.Token = os.Getenv(envPrefix + "_" + envQuayToken)
+	initOptions := func(name string) {
+		if o.Client.Selfhosted[name] == nil {
+			o.Client.Selfhosted[name] = new(selfhosted.Options)
+		}
 	}
 
-	// Quay
-	if len(o.Client.Quay.Token) == 0 {
-		o.Client.Quay.Token = os.Getenv(envPrefix + "_" + envQuayToken)
+	for _, env := range envs {
+		pair := strings.SplitN(env, "=", 2)
+		if len(pair) != 2 || len(pair[1]) == 0 {
+			continue
+		}
+
+		if matches := selfhostedHostReg.FindStringSubmatch(strings.ToUpper(pair[0])); len(matches) == 2 {
+			initOptions(matches[1])
+			o.Client.Selfhosted[matches[1]].Host = pair[1]
+			continue
+		}
+
+		if matches := selfhostedUsernameReg.FindStringSubmatch(strings.ToUpper(pair[0])); len(matches) == 2 {
+			initOptions(matches[1])
+			o.Client.Selfhosted[matches[1]].Username = pair[1]
+			continue
+		}
+
+		if matches := selfhostedPasswordReg.FindStringSubmatch(strings.ToUpper(pair[0])); len(matches) == 2 {
+			initOptions(matches[1])
+			o.Client.Selfhosted[matches[1]].Password = pair[1]
+			continue
+		}
+
+		if matches := selfhostedTokenReg.FindStringSubmatch(strings.ToUpper(pair[0])); len(matches) == 2 {
+			initOptions(matches[1])
+			o.Client.Selfhosted[matches[1]].Bearer = pair[1]
+			continue
+		}
 	}
 
-	// Selfhosted
-	if len(o.Client.Selfhosted.Username) == 0 {
-		o.Client.Selfhosted.Username = os.Getenv(envPrefix + "_" + envSelfhostedUsername)
-	}
-	if len(o.Client.Selfhosted.Password) == 0 {
-		o.Client.Selfhosted.Password = os.Getenv(envPrefix + "_" + envSelfhostedPassword)
-	}
-	if len(o.Client.Selfhosted.Bearer) == 0 {
-		o.Client.Selfhosted.Bearer = os.Getenv(envPrefix + "_" + envSelfhostedBearer)
+	if len(o.selfhosted.Host) > 0 {
+		o.Client.Selfhosted[o.selfhosted.Host] = &o.selfhosted
 	}
 }

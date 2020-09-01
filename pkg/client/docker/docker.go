@@ -74,6 +74,10 @@ func New(ctx context.Context, opts Options) (*Client, error) {
 	}, nil
 }
 
+func (c *Client) Name() string {
+	return "dockerhub"
+}
+
 func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTag, error) {
 	url := fmt.Sprintf(lookupURL, repo, image)
 

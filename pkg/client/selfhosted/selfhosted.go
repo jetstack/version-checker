@@ -15,6 +15,7 @@ import (
 
 	"github.com/jetstack/version-checker/pkg/api"
 	selfhostederrors "github.com/jetstack/version-checker/pkg/client/selfhosted/errors"
+	"github.com/jetstack/version-checker/pkg/client/util"
 )
 
 const (
@@ -23,7 +24,7 @@ const (
 	// /v2/{repo/image}/manifests/{tag}
 	manifestPath = "%s/v2/%s/manifests/%s"
 	// Token endpoint
-	tokenPath = "%s/v2/token"
+	tokenPath = "/v2/token"
 
 	// HTTP headers to request API version
 	dockerAPIv1Header = "application/vnd.docker.distribution.manifest.v1+json"
@@ -31,7 +32,7 @@ const (
 )
 
 type Options struct {
-	URL      string
+	Host     string
 	Username string
 	Password string
 	Bearer   string
@@ -39,7 +40,7 @@ type Options struct {
 
 type Client struct {
 	*http.Client
-	Options
+	*Options
 
 	log *logrus.Entry
 
@@ -69,18 +70,18 @@ type V1Compatibility struct {
 	Created time.Time `json:"created,omitempty"`
 }
 
-func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) {
+func New(ctx context.Context, log *logrus.Entry, opts *Options) (*Client, error) {
 	client := &Client{
 		Client: &http.Client{
 			Timeout: time.Second * 10,
 		},
 		Options: opts,
-		log:     log.WithField("client", opts.URL),
+		log:     log.WithField("client", opts.Host),
 	}
 
 	// Set up client with host matching if set
-	if opts.URL != "" {
-		hostRegex, scheme, err := parseURL(opts.URL)
+	if opts.Host != "" {
+		hostRegex, scheme, err := parseURL(opts.Host)
 		if err != nil {
 			return nil, fmt.Errorf("failed parsing url: %s", err)
 		}
@@ -93,9 +94,14 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 				return nil, errors.New("cannot specify Bearer token as well as username/password")
 			}
 
-			token, err := client.setupBasicAuth(ctx, opts.URL)
+			token, err := client.setupBasicAuth(ctx, opts.Host)
+			if httpErr, ok := selfhostederrors.IsHTTPError(err); ok {
+				return nil, fmt.Errorf("failed to setup token auth (%d): %s",
+					httpErr.StatusCode, httpErr.Body)
+			}
+
 			if err != nil {
-				return nil, fmt.Errorf("failed to setup auth: %s", err)
+				return nil, fmt.Errorf("failed to setup token auth: %s", err)
 			}
 			client.Bearer = token
 		}
@@ -109,11 +115,20 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 	return client, nil
 }
 
+// Name returns the name of the host URL for the selfhosted client
+func (c *Client) Name() string {
+	if len(c.Host) == 0 {
+		return "dockerapi"
+	}
+
+	return c.Host
+}
+
 // Tags will fetch the image tags from a given image URL. It must first query
 // the tags that are available, then query the 2.1 and 2.2 API endpoints to
 // gather the image digest and created time.
 func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.ImageTag, error) {
-	path := joinRepoImage(repo, image)
+	path := util.JoinRepoImage(repo, image)
 	tagURL := fmt.Sprintf(tagsPath, host, path)
 
 	var tagResponse TagResponse
@@ -220,7 +235,7 @@ func (c *Client) setupBasicAuth(ctx context.Context, url string) (string, error)
 
 	req, err := http.NewRequest(http.MethodPost, tokenURL, upReader)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to create basic auth request: %s", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -228,7 +243,8 @@ func (c *Client) setupBasicAuth(ctx context.Context, url string) (string, error)
 
 	resp, err := c.Do(req)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to send basic auth request %q: %s",
+			req.URL, err)
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)

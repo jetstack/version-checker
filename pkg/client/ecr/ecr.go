@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ecr"
 
 	"github.com/jetstack/version-checker/pkg/api"
+	"github.com/jetstack/version-checker/pkg/client/util"
 )
 
 type Client struct {
@@ -33,6 +34,10 @@ func New(opts Options) *Client {
 	}
 }
 
+func (c *Client) Name() string {
+	return "ecr"
+}
+
 func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.ImageTag, error) {
 	matches := ecrPattern.FindStringSubmatch(host)
 	if len(matches) < 3 {
@@ -48,8 +53,9 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 			host, err)
 	}
 
+	repoName := util.JoinRepoImage(repo, image)
 	images, err := client.DescribeImagesWithContext(ctx, &ecr.DescribeImagesInput{
-		RepositoryName: joinRepoImage(repo, image),
+		RepositoryName: &repoName,
 		RegistryId:     aws.String(id),
 	})
 	if err != nil {
@@ -110,15 +116,4 @@ func (c *Client) createRegionClient(region string) (*ecr.ECR, error) {
 	}
 
 	return ecr.New(sess, sess.Config), nil
-}
-
-func joinRepoImage(repo, image string) *string {
-	if len(repo) == 0 {
-		return &image
-	}
-	if len(image) == 0 {
-		return &repo
-	}
-
-	return aws.String(repo + "/" + image)
 }

@@ -19,6 +19,9 @@ import (
 // ImageClient represents a image registry client that can list available tags
 // for image URLs.
 type ImageClient interface {
+	// Returns the name of the client
+	Name() string
+
 	// IsHost will return true if this client is appropriate for the given
 	// host.
 	IsHost(host string) bool
@@ -35,12 +38,8 @@ type ImageClient interface {
 // Client is a container image registry client to list tags of given image
 // URLs.
 type Client struct {
-	acr        *acr.Client
-	ecr        *ecr.Client
-	gcr        *gcr.Client
-	docker     *docker.Client
-	quay       *quay.Client
-	selfhosted *selfhosted.Client
+	clients        []ImageClient
+	fallbackClient ImageClient
 }
 
 // Options used to configure client authentication.
@@ -50,7 +49,7 @@ type Options struct {
 	GCR        gcr.Options
 	Docker     docker.Options
 	Quay       quay.Options
-	Selfhosted selfhosted.Options
+	Selfhosted map[string]*selfhosted.Options
 }
 
 func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) {
@@ -63,19 +62,39 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 		return nil, fmt.Errorf("failed to create docker client: %s", err)
 	}
 
-	selfhostedClient, err := selfhosted.New(ctx, log, opts.Selfhosted)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create selfhosted client: %s", err)
+	var selfhostedClients []ImageClient
+	for _, sOpts := range opts.Selfhosted {
+		sClient, err := selfhosted.New(ctx, log, sOpts)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create selfhosted client %q: %s",
+				sOpts.Host, err)
+		}
+
+		selfhostedClients = append(selfhostedClients, sClient)
 	}
 
-	return &Client{
-		acr:        acrClient,
-		ecr:        ecr.New(opts.ECR),
-		docker:     dockerClient,
-		gcr:        gcr.New(opts.GCR),
-		quay:       quay.New(opts.Quay),
-		selfhosted: selfhostedClient,
-	}, nil
+	fallbackClient, err := selfhosted.New(ctx, log, new(selfhosted.Options))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create fallback client: %s", err)
+	}
+
+	c := &Client{
+		clients: append(
+			selfhostedClients,
+			acrClient,
+			ecr.New(opts.ECR),
+			dockerClient,
+			gcr.New(opts.GCR),
+			quay.New(opts.Quay),
+		),
+		fallbackClient: fallbackClient,
+	}
+
+	for _, client := range append(c.clients, fallbackClient) {
+		log.Debugf("registered client %q", client.Name())
+	}
+
+	return c, nil
 }
 
 // Tags returns the full list of image tags available, for a given image URL.
@@ -88,28 +107,25 @@ func (c *Client) Tags(ctx context.Context, imageURL string) ([]api.ImageTag, err
 // fromImageURL will return the appropriate registry client for a given
 // image URL, and the host + path to search
 func (c *Client) fromImageURL(imageURL string) (ImageClient, string, string) {
-	split := strings.SplitN(imageURL, "/", 2)
-	if len(split) < 2 {
-		return c.docker, "", imageURL
+	var host, path string
+
+	if strings.Contains(imageURL, ".") || strings.Contains(imageURL, ":") {
+		split := strings.SplitN(imageURL, "/", 2)
+		if len(split) < 2 {
+			path = imageURL
+		} else {
+			host, path = split[0], split[1]
+		}
+	} else {
+		path = imageURL
 	}
 
-	host, path := split[0], split[1]
-
-	switch {
-	case c.acr.IsHost(host):
-		return c.acr, host, path
-	case c.docker.IsHost(host):
-		return c.docker, host, path
-	case c.ecr.IsHost(host):
-		return c.ecr, host, path
-	case c.gcr.IsHost(host):
-		return c.gcr, host, path
-	case c.quay.IsHost(host):
-		return c.quay, host, path
-	case c.selfhosted.URL != "" && c.selfhosted.IsHost(host):
-		return c.selfhosted, host, path
+	for _, client := range c.clients {
+		if client.IsHost(host) {
+			return client, host, path
+		}
 	}
 
 	// fall back to docker with no path split
-	return c.docker, "", imageURL
+	return c.fallbackClient, "", imageURL
 }

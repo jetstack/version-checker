@@ -46,14 +46,3 @@ func parseURL(rawurl string) (*regexp.Regexp, string, error) {
 
 	return hostRegex, parsedURL.Scheme, nil
 }
-
-func joinRepoImage(repo, image string) string {
-	if len(repo) == 0 {
-		return image
-	}
-	if len(image) == 0 {
-		return repo
-	}
-
-	return repo + "/" + image
-}

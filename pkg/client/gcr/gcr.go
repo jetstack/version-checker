@@ -43,6 +43,10 @@ func New(opts Options) *Client {
 	}
 }
 
+func (c *Client) Name() string {
+	return "gcr"
+}
+
 func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.ImageTag, error) {
 	if repo == "google-containers" {
 		host = "gcr.io"

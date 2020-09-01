@@ -9,10 +9,18 @@ func TestIsHost(t *testing.T) {
 	}{
 		"an empty host should be false": {
 			host:  "",
-			expIs: false,
+			expIs: true,
 		},
 		"random string should be false": {
 			host:  "foobar",
+			expIs: false,
+		},
+		"path with two segments should be false": {
+			host:  "joshvanl/version-checker",
+			expIs: false,
+		},
+		"path with three segments should be false": {
+			host:  "jetstack/joshvanl/version-checker",
 			expIs: false,
 		},
 		"random string with dots should be false": {

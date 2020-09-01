@@ -6,11 +6,11 @@ import (
 )
 
 var (
-	reg = regexp.MustCompile(`(^(.*\.)?docker.com$)|(^(.*\.)?docker.io$)`)
+	dockerReg = regexp.MustCompile(`(^(.*\.)?docker.com$)|(^(.*\.)?docker.io$)`)
 )
 
 func (c *Client) IsHost(host string) bool {
-	return reg.MatchString(host)
+	return host == "" || dockerReg.MatchString(host)
 }
 
 func (c *Client) RepoImageFromPath(path string) (string, string) {
