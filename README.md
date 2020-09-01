@@ -1,7 +1,7 @@
 # version-checker
 
 version-checker is a Kubernetes utility for observing the current versions of
-images in use in the cluster, as well as the latest available upstream. These
+images running in the cluster, as well as the latest available upstream. These
 checks get exposed as Prometheus metrics to be viewed on a dashboard, or _soft_
 alert cluster operators.
 
@@ -9,11 +9,17 @@ alert cluster operators.
 
 ## Registries
 
-version-checker currently supports the following registries:
+version-checker supports the following registries:
 
-- docker (docker hub etc.)
-- gcr (inc gcr facades such as k8s.gcr.io)
-- quay
+- [ACR](https://azure.microsoft.com/en-us/services/container-registry/)
+- [Docker Hub](https://hub.docker.com/)
+- [ECR](https://aws.amazon.com/ecr/)
+- [GCR](https://cloud.google.com/container-registry/) (inc gcr facades such as k8s.gcr.io)
+- [Quay](https://quay.io/)
+- Self Hosted (Docker V2 API compliant registries, e.g.
+  [registry](https://hub.docker.com/_/registry),
+  [artifactory](https://jfrog.com/artifactory/) etc.). Multiple self hosted
+  registries can be configured at once.
 
 These registries support authentication.
 
@@ -52,7 +58,7 @@ available to view the image versions as a table.
 
 ## Options
 
-By default without the flag `-a, --test-all-containers`, version-checker will
+By default, without the flag `-a, --test-all-containers`, version-checker will
 only test containers where the pod has the annotation
 `enable.version-checker.io/*my-container*`, where `*my-container*` is the `name`
 of the container in the pod.
@@ -84,20 +90,15 @@ enrich version checking on image tags:
     example, the above annotation will only check against image tags which have
     the form of something like `v1.3.4-debian-r30`.
     `use-metadata.version-checker.io` is not required when this is set. All
-    other options are ignored when this is set.
+    other options, apart from URL overrides, are ignored when this is set.
 
 - `override-url.version-checker.io/my-container: docker.io/bitnami/etcd`: is
     used to change the URL for where to lookup where the latest image version
     is. In this example, the current version of `my-container` will be compared
     against the image versions in the `docker.io/bitnami/etcd` registry.
 
+
 ## Metrics
 
 By default, version-checker will expose the version information as Prometheus
 metrics on `0.0.0.0:8080/metrics`.
-
-## Future Development
-
-- Support self hosted repositories.
-- Image URL overwrites (to service registries which are mirroring images).
-- Support more registry APIs.
