@@ -1,31 +1,32 @@
 {{- $secretEnabled := false }}
-{{- if or .Values.acr.refreshToken .Values.acr.username .Values.acr.password .Values.docker.token .Values.docker.username .Values.docker.password .Values.ecr.accessKeyID .Values.ecr.secretAccessKey .Values.ecr.sessionToken .Values.gcr.token .Values.quay.token .Values.selfhosted.token .Values.selfhosted.username .Values.selfhosted.password }}
+{{- if or .Values.acr.refreshToken .Values.acr.username .Values.acr.password .Values.docker.token .Values.docker.username .Values.docker.password .Values.ecr.accessKeyID .Values.ecr.secretAccessKey .Values.ecr.sessionToken .Values.gcr.token .Values.quay.token (not (eq (len .Values.selfhosted) 0)) }}
 {{- $secretEnabled = true }}
 {{- end }}
+{{ $chartname := include "version-checker.name" . }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "version-checker.name" . }}
+  name: {{ $chartname }}
   labels:
 {{ include "version-checker.labels" . | indent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: {{ include "version-checker.name" . }}
+      app: {{ $chartname }}
   template:
     metadata:
       labels:
-        app: {{ include "version-checker.name" . }}
+        app: {{ $chartname }}
       annotations:
         prometheus.io/path: "/metrics"
         prometheus.io/scrape: "true"
         prometheus.io/port: "8080"
-        enable.version-checker.io/{{ include "version-checker.name" . }}: "true"
+        enable.version-checker.io/{{ $chartname }}: "true"
     spec:
-      serviceAccountName: {{ include "version-checker.name" . }}
+      serviceAccountName: {{ $chartname }}
       containers:
-      - name: {{ include "version-checker.name" . }}
+      - name: {{ $chartname }}
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         ports:
@@ -36,8 +37,6 @@ spec:
           - "--log-level={{.Values.versionChecker.logLevel}}"
           - "--metrics-serving-address={{.Values.versionChecker.metricsServingAddress}}"
           - "--test-all-containers={{.Values.versionChecker.testAllContainers}}"
-          - "--docker-login-url={{.Values.docker.loginURL}}"
-          - "--selfhosted-registry-url={{.Values.selfhosted.URL}}"
         resources:
           {{- toYaml .Values.resources | nindent 12 }}
         env:
@@ -47,21 +46,21 @@ spec:
         - name: VERSION_CHECKER_ACR_REFRESH_TOKEN
           valueFrom:
             secretKeyRef:
-              name: {{ include "version-checker.name" . }}
+              name: {{ $chartname }}
               key: acr.refreshToken
         {{- end }}
         {{- if .Values.acr.username }}
         - name: VERSION_CHECKER_ACR_USERNAME
           valueFrom:
             secretKeyRef:
-              name: {{ include "version-checker.name" . }}
+              name: {{ $chartname }}
               key: acr.username
         {{- end }}
         {{- if .Values.acr.password }}
         - name: VERSION_CHECKER_ACR_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: {{ include "version-checker.name" . }}
+              name: {{ $chartname }}
               key: acr.password
         {{- end }}
 
@@ -70,21 +69,21 @@ spec:
         - name: VERSION_CHECKER_ECR_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
-              name: {{ include "version-checker.name" . }}
+              name: {{ $chartname }}
               key: ecr.accessKeyID
         {{- end }}
         {{- if .Values.ecr.secretAccessKey }}
         - name: VERSION_CHECKER_ECR_SECRET_ACCESS_KEY
           valueFrom:
             secretKeyRef:
-              name: {{ include "version-checker.name" . }}
+              name: {{ $chartname }}
               key: ecr.secretAccessKey
         {{- end }}
         {{- if .Values.ecr.sessionToken }}
         - name: VERSION_CHECKER_ECR_SESSION_TOKEN
           valueFrom:
             secretKeyRef:
-              name: {{ include "version-checker.name" . }}
+              name: {{ $chartname }}
               key: ecr.sessionToken
         {{- end }}
 
@@ -93,21 +92,21 @@ spec:
         - name: VERSION_CHECKER_DOCKER_TOKEN
           valueFrom:
             secretKeyRef:
-              name: {{ include "version-checker.name" . }}
+              name: {{ $chartname }}
               key: docker.token
         {{- end }}
         {{- if .Values.docker.username }}
         - name: VERSION_CHECKER_DOCKER_USERNAME
           valueFrom:
             secretKeyRef:
-              name: {{ include "version-checker.name" . }}
+              name: {{ $chartname }}
               key: docker.username
         {{- end }}
         {{- if .Values.docker.password }}
         - name: VERSION_CHECKER_DOCKER_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: {{ include "version-checker.name" . }}
+              name: {{ $chartname }}
               key: docker.password
         {{- end }}
 
@@ -116,7 +115,7 @@ spec:
         - name: VERSION_CHECKER_GCR_TOKEN
           valueFrom:
             secretKeyRef:
-              name: {{ include "version-checker.name" . }}
+              name: {{ $chartname }}
               key: gcr.token
         {{- end }}
 
@@ -125,31 +124,40 @@ spec:
         - name: VERSION_CHECKER_QUAY_TOKEN
           valueFrom:
             secretKeyRef:
-              name: {{ include "version-checker.name" . }}
+              name: {{ $chartname }}
               key: quay.token
         {{- end }}
 
         # Selfhosted
-        {{- if .Values.selfhosted.username }}
-        - name: VERSION_CHECKER_SELFHOSTED_USERNAME
+        {{range $index, $element := .Values.selfhosted }}
+        {{- if $element.host }}
+        - name: VERSION_CHECKER_SELFHOSTED_HOST_{{ $element.name }}
           valueFrom:
             secretKeyRef:
-              name: {{ include "version-checker.name" . }}
-              key: selfhosted.username
+              name: {{ $chartname }}
+              key: selfhosted.{{ $element.name }}.host
         {{- end }}
-        {{- if .Values.selfhosted.password }}
-        - name: VERSION_CHECKER_SELFHOSTED_PASSWORD
+        {{- if $element.username }}
+        - name: VERSION_CHECKER_SELFHOSTED_USERNAME_{{ $element.name }}
           valueFrom:
             secretKeyRef:
-              name: {{ include "version-checker.name" . }}
-              key: selfhosted.password
+              name: {{ $chartname }}
+              key: selfhosted.{{ $element.name }}.username
         {{- end }}
-        {{- if .Values.selfhosted.token }}
-        - name: VERSION_CHECKER_SELFHOSTED_TOKEN
+        {{- if $element.password }}
+        - name: VERSION_CHECKER_SELFHOSTED_PASSWORD_{{ $element.name }}
           valueFrom:
             secretKeyRef:
-              name: {{ include "version-checker.name" . }}
-              key: selfhosted.token
+              name: {{ $chartname }}
+              key: selfhosted.{{ $element.name }}.password
+        {{- end }}
+        {{- if $element.token }}
+        - name: VERSION_CHECKER_SELFHOSTED_TOKEN_{{ $element.name }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ $chartname }}
+              key: selfhosted.{{ $element.name }}.token
+        {{- end }}
         {{- end }}
 
       volumes:
