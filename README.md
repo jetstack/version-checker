@@ -7,6 +7,10 @@ alert cluster operators.
 
 > This tool is currently experimental.
 
+If you're interested in this tool, version checking is a built-in feature
+in our [Preflight](https://preflight.jetstack.io/) product. You may want to 
+check it out if you would like multi-cluster component version checking.
+
 ## Registries
 
 version-checker supports the following registries:
