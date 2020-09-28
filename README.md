@@ -34,7 +34,7 @@ These registries support authentication.
 version-checker can be installed as either static manifests;
 
 ```sh
-$ cd ./deploy/yaml && kubectl apply -f .
+$ kubectl apply -k ./deploy/yaml
 ```
 
 Or through helm;
