@@ -139,6 +139,12 @@ func TestFromImageURL(t *testing.T) {
 			expHost:   "docker.repositories.yourdomain.com",
 			expPath:   "ingress-nginx/nginx",
 		},
+		"selfhosted with different domain should be fallback": {
+			url:       "registry.opensource.zalan.do/teapot/external-dns",
+			expClient: new(selfhosted.Client),
+			expHost:   "registry.opensource.zalan.do",
+			expPath:   "teapot/external-dns",
+		},
 	}
 
 	for name, test := range tests {
