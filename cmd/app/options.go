@@ -154,19 +154,19 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 	///
 
 	/// ECR
-	fs.StringVar(&o.Client.GCR.Token,
+	fs.StringVar(&o.Client.ECR.AccessKeyID,
 		"ecr-access-key-id", "",
 		fmt.Sprintf(
 			"ECR access key ID for read access to private registries (%s_%s).",
 			envPrefix, envECRAccessKeyID,
 		))
-	fs.StringVar(&o.Client.GCR.Token,
+	fs.StringVar(&o.Client.ECR.SecretAccessKey,
 		"ecr-secret-access-key", "",
 		fmt.Sprintf(
 			"ECR secret access key for read access to private registries (%s_%s).",
 			envPrefix, envECRSecretAccessKey,
 		))
-	fs.StringVar(&o.Client.GCR.Token,
+	fs.StringVar(&o.Client.ECR.SessionToken,
 		"ecr-session-token", "",
 		fmt.Sprintf(
 			"ECR session token for read access to private registries (%s_%s).",
