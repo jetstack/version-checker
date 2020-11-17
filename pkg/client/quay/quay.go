@@ -73,6 +73,7 @@ func (c *Client) Name() string {
 	return "quay"
 }
 
+// Fetch the image tags from an upstream repository and image
 func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTag, error) {
 	var (
 		tags []api.ImageTag
@@ -86,6 +87,7 @@ func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTa
 
 	// Need to set a fair page limit to handle some registries
 	for hasAdditional && page < 50 {
+		// Fetch all image tags in this page
 		tagsPage, hasAdditional, err = c.fetchTagsPaged(ctx, repo, image, page)
 		if err != nil {
 			return nil, err
@@ -98,6 +100,8 @@ func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTa
 	return tags, nil
 }
 
+// fetchTagsPaged will return the image tags from a given page number, as well
+// as if there are more pages
 func (c *Client) fetchTagsPaged(ctx context.Context, repo, image string, page int) ([]api.ImageTag, bool, error) {
 	url := fmt.Sprintf(tagURL, repo, image, page)
 	var resp responseTag
@@ -114,6 +118,7 @@ func (c *Client) fetchTagsPaged(ctx context.Context, repo, image string, page in
 
 	wg.Add(len(resp.Tags))
 
+	// Concurrently fetch all images from a given tag
 	for i := range resp.Tags {
 		go func(i int) {
 			defer wg.Done()
@@ -142,6 +147,7 @@ func (c *Client) fetchTagsPaged(ctx context.Context, repo, image string, page in
 	return tags, resp.HasAdditional, nil
 }
 
+// fetchImageTags will lookup all manifests for a tag, if it is a list
 func (c *Client) fetchImageTags(ctx context.Context, repo, image string, tag *responseTagItem) ([]api.ImageTag, error) {
 	timestamp, err := time.Parse(time.RFC1123Z, tag.LastModified)
 	if err != nil {
@@ -174,6 +180,7 @@ func (c *Client) fetchImageTags(ctx context.Context, repo, image string, tag *re
 	}, nil
 }
 
+// callManifests endpoint on the tags image manifest
 func (c *Client) callManifests(ctx context.Context, timestamp time.Time, tag, url string) ([]api.ImageTag, error) {
 	var manifestResp responseManifest
 	if err := c.makeRequest(ctx, url, &manifestResp); err != nil {
@@ -205,6 +212,8 @@ func (c *Client) callManifests(ctx context.Context, timestamp time.Time, tag, ur
 	return tags, nil
 }
 
+// makeRequest will make a call and write the response to the object.
+// Implements backoff.
 func (c *Client) makeRequest(ctx context.Context, url string, obj interface{}) error {
 	req, err := retryablehttp.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
