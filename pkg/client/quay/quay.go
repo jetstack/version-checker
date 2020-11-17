@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -75,80 +74,17 @@ func (c *Client) Name() string {
 
 // Fetch the image tags from an upstream repository and image
 func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTag, error) {
-	var (
-		tags []api.ImageTag
+	p := c.newPager(repo, image)
 
-		page          = 1
-		hasAdditional = true
-
-		tagsPage []api.ImageTag
-		err      error
-	)
-
-	// Need to set a fair page limit to handle some registries
-	for hasAdditional && page < 50 {
-		// Fetch all image tags in this page
-		tagsPage, hasAdditional, err = c.fetchTagsPaged(ctx, repo, image, page)
-		if err != nil {
-			return nil, err
-		}
-
-		tags = append(tags, tagsPage...)
-		page++
+	if err := p.fetchTags(ctx); err != nil {
+		return nil, err
 	}
 
-	return tags, nil
+	return p.tags, nil
 }
 
-// fetchTagsPaged will return the image tags from a given page number, as well
-// as if there are more pages
-func (c *Client) fetchTagsPaged(ctx context.Context, repo, image string, page int) ([]api.ImageTag, bool, error) {
-	url := fmt.Sprintf(tagURL, repo, image, page)
-	var resp responseTag
-	if err := c.makeRequest(ctx, url, &resp); err != nil {
-		return nil, false, err
-	}
-
-	var (
-		tags []api.ImageTag
-		mu   sync.Mutex
-		wg   sync.WaitGroup
-		errs []error
-	)
-
-	wg.Add(len(resp.Tags))
-
-	// Concurrently fetch all images from a given tag
-	for i := range resp.Tags {
-		go func(i int) {
-			defer wg.Done()
-
-			imageTags, err := c.fetchImageTags(ctx, repo, image, &resp.Tags[i])
-
-			mu.Lock()
-			defer mu.Unlock()
-
-			if err != nil {
-				errs = append(errs, err)
-				return
-			}
-
-			tags = append(tags, imageTags...)
-		}(i)
-	}
-
-	wg.Wait()
-
-	if len(errs) > 0 {
-		return nil, false, fmt.Errorf("failed to get image tags for %s/%s: %+v",
-			repo, image, errs)
-	}
-
-	return tags, resp.HasAdditional, nil
-}
-
-// fetchImageTags will lookup all manifests for a tag, if it is a list
-func (c *Client) fetchImageTags(ctx context.Context, repo, image string, tag *responseTagItem) ([]api.ImageTag, error) {
+// fetchImageManifest will lookup all manifests for a tag, if it is a list
+func (c *Client) fetchImageManifest(ctx context.Context, repo, image string, tag *responseTagItem) ([]api.ImageTag, error) {
 	timestamp, err := time.Parse(time.RFC1123Z, tag.LastModified)
 	if err != nil {
 		return nil, err
