@@ -45,9 +45,9 @@ type Result struct {
 }
 
 type Image struct {
-	Digest       string `json:"digest"`
-	OS           string `json:"os"`
-	Architecture string `json:"Architecture"`
+	Digest       string           `json:"digest"`
+	OS           api.OS           `json:"os"`
+	Architecture api.Architecture `json:"Architecture"`
 }
 
 func New(ctx context.Context, opts Options) (*Client, error) {
