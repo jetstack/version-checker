@@ -152,8 +152,17 @@ func (c *Checker) isLatestSHA(ctx context.Context, imageURL, currentSHA string, 
 
 	isLatest := latestImage.SHA == currentSHA
 	latestVersion := latestImage.SHA
+	if latestImage.CompositeHash != "" {
+		isLatest = latestImage.CompositeHash == currentSHA
+		latestVersion = latestImage.CompositeHash
+	}
 	if len(latestImage.Tag) > 0 {
-		latestVersion = fmt.Sprintf("%s@%s", latestImage.Tag, latestImage.SHA)
+		if latestImage.CompositeHash != "" {
+			latestVersion = fmt.Sprintf("%s@%s", latestImage.Tag, latestImage.CompositeHash)
+		} else {
+			latestVersion = fmt.Sprintf("%s@%s", latestImage.Tag, latestImage.SHA)
+		}
+
 	}
 
 	return &Result{

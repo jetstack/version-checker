@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jetstack/version-checker/pkg/api"
+	"github.com/jetstack/version-checker/pkg/client/generic"
 )
 
 const (
@@ -25,6 +26,7 @@ type Options struct {
 }
 
 type Client struct {
+	genericClient *generic.Client
 	*http.Client
 	Options
 }
