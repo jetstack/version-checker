@@ -39,6 +39,9 @@ gcr:
 quay:
   token:
 
+# Can be used to provide custom environment variables e.g. proxy settings
+env: {}
+
 selfhosted: {}
   #- name: REGISTRY
   #  host: http://registry:5000
