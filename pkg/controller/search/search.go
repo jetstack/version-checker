@@ -71,7 +71,7 @@ func (s *Search) ResolveSHAToTag(ctx context.Context, imageURL string, imageSHA 
 
 	tag, err := s.versionGetter.ResolveSHAToTag(ctx, imageURL, imageSHA)
 	if err != nil {
-		fmt.Println("failed to resolve the sha" + err.Error())
+		fmt.Println("failed to resolve the sha " + err.Error())
 		return "", fmt.Errorf("failed to resolve sha to tag")
 	}
 

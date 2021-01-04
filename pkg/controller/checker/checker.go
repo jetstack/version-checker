@@ -46,14 +46,17 @@ func (c *Checker) Container(ctx context.Context, log *logrus.Entry,
 	usingTag := len(currentTag) > 0
 
 	if opts.ResolveSHAToTags {
-		fmt.Println("Resolving SHA to Tags is required")
+
+		if len(*opts.OverrideURL) > 0 {
+			imageURL = *opts.OverrideURL
+		}
 		resolvedTag, err := c.search.ResolveSHAToTag(ctx, imageURL, currentSHA)
 
-		if len(resolvedTag) > 0 && err != nil {
-			fmt.Println("Successfully resolved tag")
+		if len(resolvedTag) > 0 && err == nil {
+			log.Infof("Successfully resolved tag for sha256: %s at url: %s", currentSHA, imageURL)
 			currentTag = resolvedTag
 			usingSHA = false
-			usingTag = true	
+			usingTag = true
 		}
 	}
 
