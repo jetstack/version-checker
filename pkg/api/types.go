@@ -19,7 +19,7 @@ const (
 	// as its tag.
 	UseSHAAnnotationKey = "use-sha.version-checker.io"
 
-	//ResolveSHAToTagsKey = "resolve-sha-to-tags.version-checker.io"
+	//ResolveSHAToTagsKey is used to resolve image sha256 to corresponding tags
 	ResolveSHAToTagsKey = "resolve-sha-to-tags.version-checker.io"
 
 	// MatchRegexAnnotationKey will enforce that tags that are looked up must
