@@ -84,6 +84,24 @@ func (v *Version) LatestTagFromImage(ctx context.Context, imageURL string, opts 
 	return tag, err
 }
 
+//ResolveSHAToTag Resolve a SHA to a tag if possible
+func (v *Version) ResolveSHAToTag(ctx context.Context, imageURL string, imageSHA string) (string, error) {
+
+	tagsI, err := v.imageCache.Get(ctx, imageURL, imageURL, nil)
+	if err != nil {
+		return "", err
+	}
+	tags := tagsI.([]api.ImageTag)
+
+	for i := range tags {
+		if tags[i].SHA == imageSHA {
+			return tags[i].Tag, nil
+		}
+	}
+
+	return "", nil
+}
+
 // Fetch returns the given image tags for a given image URL.
 func (v *Version) Fetch(ctx context.Context, imageURL string, _ *api.Options) (interface{}, error) {
 	// fetch tags from image URL

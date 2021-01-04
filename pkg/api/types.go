@@ -19,6 +19,9 @@ const (
 	// as its tag.
 	UseSHAAnnotationKey = "use-sha.version-checker.io"
 
+	//ResolveSHAToTagsKey = "resolve-sha-to-tags.version-checker.io"
+	ResolveSHAToTagsKey = "resolve-sha-to-tags.version-checker.io"
+
 	// MatchRegexAnnotationKey will enforce that tags that are looked up must
 	// match this regex. UseMetaDataAnnotationKey is not required when this is
 	// set. All other options are ignored when this is set.
@@ -47,7 +50,8 @@ type Options struct {
 	// UseSHA cannot be used with any other options
 	UseSHA bool `json:"use-sha,omitempty"`
 
-	MatchRegex *string `json:"match-regex,omitempty"`
+	ResolveSHAToTags bool    `json:"resolve-sha-to-tags,omitempty"`
+	MatchRegex       *string `json:"match-regex,omitempty"`
 
 	// UseMetaData defines whether tags with '-alpha', '-debian.0' etc. is
 	// permissible.

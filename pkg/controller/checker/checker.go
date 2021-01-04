@@ -45,6 +45,18 @@ func (c *Checker) Container(ctx context.Context, log *logrus.Entry,
 	usingSHA := len(currentSHA) > 0
 	usingTag := len(currentTag) > 0
 
+	if opts.ResolveSHAToTags {
+		fmt.Println("Resolving SHA to Tags is required")
+		resolvedTag, err := c.search.ResolveSHAToTag(ctx, imageURL, currentSHA)
+
+		if len(resolvedTag) > 0 && err != nil {
+			fmt.Println("Successfully resolved tag")
+			currentTag = resolvedTag
+			usingSHA = false
+			usingTag = true	
+		}
+	}
+
 	// If using latest or no tag, then compare on SHA
 	if c.isLatestOrEmptyTag(currentTag) {
 		// Override options to use SHA
@@ -166,6 +178,11 @@ func (c *Checker) isLatestSHA(ctx context.Context, imageURL, currentSHA string, 
 
 func (c *Checker) Search() search.Searcher {
 	return c.search
+}
+
+func (c *Checker) resolveTagFromSHA(url, sha string) (tag string) {
+
+	return "0.31.0"
 }
 
 // urlTagSHAFromImage from will return the image URL, and the semver version
