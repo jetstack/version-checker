@@ -183,11 +183,6 @@ func (c *Checker) Search() search.Searcher {
 	return c.search
 }
 
-func (c *Checker) resolveTagFromSHA(url, sha string) (tag string) {
-
-	return "0.31.0"
-}
-
 // urlTagSHAFromImage from will return the image URL, and the semver version
 // and or SHA tag.
 func urlTagSHAFromImage(image string) (url, version, sha string) {
