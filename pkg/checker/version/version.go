@@ -9,11 +9,10 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/jetstack/version-checker/pkg/api"
-	"github.com/jetstack/version-checker/pkg/client"
-
 	"github.com/jetstack/version-checker/pkg/cache"
-	versionerrors "github.com/jetstack/version-checker/pkg/version/errors"
-	"github.com/jetstack/version-checker/pkg/version/semver"
+	versionerrors "github.com/jetstack/version-checker/pkg/checker/version/errors"
+	"github.com/jetstack/version-checker/pkg/checker/version/semver"
+	"github.com/jetstack/version-checker/pkg/client"
 )
 
 type Version struct {
@@ -58,7 +57,7 @@ func (v *Version) LatestTagFromImage(ctx context.Context, imageURL string, opts 
 
 	// If UseSHA then return early
 	if opts.UseSHA {
-		tag, err = latestSHA(tags)
+		tag, err = latestSHA(tags, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -69,7 +68,7 @@ func (v *Version) LatestTagFromImage(ctx context.Context, imageURL string, opts 
 		}
 
 	} else {
-		tag, err = latestSemver(opts, tags)
+		tag, err = latestSemver(tags, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -106,13 +105,18 @@ func (v *Version) Fetch(ctx context.Context, imageURL string, _ *api.Options) (i
 // restriction, using semver. This should not be used is UseSHA has been
 // enabled.
 // TODO: add tests..
-func latestSemver(opts *api.Options, tags []api.ImageTag) (*api.ImageTag, error) {
+func latestSemver(tags []api.ImageTag, opts *api.Options) (*api.ImageTag, error) {
 	var (
 		latestImageTag *api.ImageTag
 		latestV        *semver.SemVer
 	)
 
 	for i := range tags {
+		// forcing it be the specific arch and os (defalts to true, if not set)
+		if !osArchMatch(tags[i], opts) {
+			continue
+		}
+
 		v := semver.Parse(tags[i].Tag)
 
 		// If regex enabled continue here.
@@ -157,14 +161,25 @@ func latestSemver(opts *api.Options, tags []api.ImageTag) (*api.ImageTag, error)
 }
 
 // latestSHA will return the latest ImageTag based on image timestamps.
-func latestSHA(tags []api.ImageTag) (*api.ImageTag, error) {
+func latestSHA(tags []api.ImageTag, opts *api.Options) (*api.ImageTag, error) {
 	var latestTag *api.ImageTag
 
 	for i := range tags {
+		// forcing it be the specific arch and os (defalts to true, if not set)
+		if !osArchMatch(tags[i], opts) {
+			continue
+		}
 		if latestTag == nil || tags[i].Timestamp.After(latestTag.Timestamp) {
 			latestTag = &tags[i]
 		}
 	}
 
 	return latestTag, nil
+}
+
+func osArchMatch(tag api.ImageTag, opts *api.Options) bool {
+	if opts.OS == nil || opts.Architecture == nil {
+		return true
+	}
+	return api.OS(tag.OS) == *opts.OS && api.Architecture(tag.Architecture) == *opts.Architecture
 }

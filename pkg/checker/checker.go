@@ -2,19 +2,22 @@ package checker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/jetstack/version-checker/pkg/api"
-	"github.com/jetstack/version-checker/pkg/controller/search"
-	"github.com/jetstack/version-checker/pkg/version/semver"
+	"github.com/jetstack/version-checker/pkg/checker/architecture"
+	"github.com/jetstack/version-checker/pkg/checker/search"
+	"github.com/jetstack/version-checker/pkg/checker/version/semver"
 	"github.com/sirupsen/logrus"
 )
 
 type Checker struct {
 	search search.Searcher
+	nodes  *architecture.NodeMap
 }
 
 type Result struct {
@@ -22,17 +25,37 @@ type Result struct {
 	LatestVersion  string
 	IsLatest       bool
 	ImageURL       string
+	OS             api.OS
+	Architecture   api.Architecture
 }
 
-func New(search search.Searcher) *Checker {
+const (
+	nodeMissingMetadata = "error fetching node architecture"
+)
+
+func New(search search.Searcher, nodesArchInfo *architecture.NodeMap) *Checker {
 	return &Checker{
 		search: search,
+		nodes:  nodesArchInfo,
 	}
 }
 
 // Container will return the result of the given container's current version, compared to the latest upstream
 func (c *Checker) Container(ctx context.Context, log *logrus.Entry,
 	pod *corev1.Pod, container *corev1.Container, opts *api.Options) (*Result, error) {
+
+	if opts == nil {
+		// create new options if nil
+		opts = new(api.Options)
+	}
+	// Get information about the pod node architecture
+	arch, ok := c.nodes.GetArchitecture(pod.Spec.NodeName)
+	if ok {
+		opts.OS = &arch.OS
+		opts.Architecture = &arch.Architecture
+	} else {
+		return nil, errors.New(nodeMissingMetadata)
+	}
 
 	// If the container image SHA status is not ready yet, exit early
 	statusSHA := containerStatusImageSHA(pod, container.Name)
@@ -90,6 +113,8 @@ func (c *Checker) Container(ctx context.Context, log *logrus.Entry,
 		LatestVersion:  latestVersion,
 		IsLatest:       isLatest,
 		ImageURL:       imageURL,
+		OS:             latestImage.OS,
+		Architecture:   latestImage.Architecture,
 	}, nil
 }
 
@@ -161,6 +186,8 @@ func (c *Checker) isLatestSHA(ctx context.Context, imageURL, currentSHA string, 
 		LatestVersion:  latestVersion,
 		IsLatest:       isLatest,
 		ImageURL:       imageURL,
+		OS:             latestImage.OS,
+		Architecture:   latestImage.Architecture,
 	}, nil
 }
 

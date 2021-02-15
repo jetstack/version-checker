@@ -2,15 +2,19 @@ package checker
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"testing"
 
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/jetstack/version-checker/pkg/api"
-	"github.com/jetstack/version-checker/pkg/controller/internal/fake/search"
-	"github.com/jetstack/version-checker/pkg/version/semver"
+	"github.com/jetstack/version-checker/pkg/checker/architecture"
+	"github.com/jetstack/version-checker/pkg/checker/internal/fake/search"
+	utils "github.com/jetstack/version-checker/pkg/checker/internal/test"
+	"github.com/jetstack/version-checker/pkg/checker/version/semver"
 )
 
 func TestContainer(t *testing.T) {
@@ -20,6 +24,9 @@ func TestContainer(t *testing.T) {
 		opts       *api.Options
 		searchResp *api.ImageTag
 		expResult  *Result
+		expError   error
+		nodes      []*corev1.Node
+		pod        *corev1.Pod
 	}{
 		"no status sha should return nil, nil": {
 			statusSHA:  "",
@@ -27,126 +34,204 @@ func TestContainer(t *testing.T) {
 			opts:       nil,
 			searchResp: nil,
 			expResult:  nil,
+			expError:   nil,
+			nodes:      []*corev1.Node{utils.CreateNode("node1", utils.ArchAMD64, utils.OSLinux)},
+			pod:        utils.CreatePodWithNode("pod1", "node1"),
 		},
 		"if v0.2.0 is latest version, but different sha, then not latest": {
 			statusSHA: "localhost:5000/version-checker@sha:123",
 			imageURL:  "localhost:5000/version-checker:v0.2.0",
 			opts:      new(api.Options),
 			searchResp: &api.ImageTag{
-				Tag: "v0.2.0",
-				SHA: "sha:456",
+				Tag:          "v0.2.0",
+				SHA:          "sha:456",
+				OS:           utils.OSLinux,
+				Architecture: utils.ArchAMD64,
 			},
 			expResult: &Result{
 				CurrentVersion: "v0.2.0@sha:123",
 				LatestVersion:  "v0.2.0@sha:456",
 				ImageURL:       "localhost:5000/version-checker",
 				IsLatest:       false,
+				OS:             utils.OSLinux,
+				Architecture:   utils.ArchAMD64,
 			},
+			expError: nil,
+			nodes:    []*corev1.Node{utils.CreateNode("node1", utils.ArchAMD64, utils.OSLinux)},
+			pod:      utils.CreatePodWithNode("pod1", "node1"),
 		},
 		"if v0.2.0 is latest version, but same sha, then latest": {
 			statusSHA: "localhost:5000/version-checker@sha:123",
 			imageURL:  "localhost:5000/version-checker:v0.2.0",
 			opts:      new(api.Options),
 			searchResp: &api.ImageTag{
-				Tag: "v0.2.0",
-				SHA: "sha:123",
+				Tag:          "v0.2.0",
+				SHA:          "sha:123",
+				OS:           utils.OSLinux,
+				Architecture: utils.ArchAMD64,
 			},
 			expResult: &Result{
 				CurrentVersion: "v0.2.0",
 				LatestVersion:  "v0.2.0",
 				ImageURL:       "localhost:5000/version-checker",
 				IsLatest:       true,
+				OS:             utils.OSLinux,
+				Architecture:   utils.ArchAMD64,
 			},
+			expError: nil,
+			nodes:    []*corev1.Node{utils.CreateNode("node1", utils.ArchAMD64, utils.OSLinux)},
+			pod:      utils.CreatePodWithNode("pod1", "node1"),
+		},
+		"if architecture/os information isn't present, error": {
+			statusSHA: "localhost:5000/version-checker@sha:123",
+			imageURL:  "localhost:5000/version-checker:v0.2.0",
+			opts:      new(api.Options),
+			searchResp: &api.ImageTag{
+				Tag:          "v0.2.0",
+				SHA:          "sha:123",
+				OS:           utils.OSLinux,
+				Architecture: utils.ArchAMD64,
+			},
+			expResult: nil,
+			expError:  errors.New(nodeMissingMetadata),
+			nodes:     []*corev1.Node{},
+			pod: utils.CreatePod(
+				&metav1.ObjectMeta{
+					Name: "pod1",
+				},
+			),
 		},
 		"if v0.2.0@sha:123 is wrong sha, then not latest": {
 			statusSHA: "localhost:5000/version-checker@sha:123",
 			imageURL:  "localhost:5000/version-checker:v0.2.0@sha:123",
 			opts:      new(api.Options),
 			searchResp: &api.ImageTag{
-				Tag: "v0.2.0",
-				SHA: "sha:456",
+				Tag:          "v0.2.0",
+				SHA:          "sha:456",
+				OS:           utils.OSLinux,
+				Architecture: utils.ArchAMD64,
 			},
 			expResult: &Result{
 				CurrentVersion: "v0.2.0@sha:123",
 				LatestVersion:  "v0.2.0@sha:456",
 				ImageURL:       "localhost:5000/version-checker",
 				IsLatest:       false,
+				OS:             utils.OSLinux,
+				Architecture:   utils.ArchAMD64,
 			},
+			expError: nil,
+			nodes:    []*corev1.Node{utils.CreateNode("node1", utils.ArchAMD64, utils.OSLinux)},
+			pod:      utils.CreatePodWithNode("pod1", "node1"),
 		},
 		"if v0.2.0@sha:123 is correct sha, then latest": {
 			statusSHA: "localhost:5000/version-checker@sha:123",
 			imageURL:  "localhost:5000/version-checker:v0.2.0@sha:123",
 			opts:      new(api.Options),
 			searchResp: &api.ImageTag{
-				Tag: "v0.2.0",
-				SHA: "sha:123",
+				Tag:          "v0.2.0",
+				SHA:          "sha:123",
+				OS:           utils.OSLinux,
+				Architecture: utils.ArchAMD64,
 			},
 			expResult: &Result{
 				CurrentVersion: "v0.2.0@sha:123",
 				LatestVersion:  "v0.2.0@sha:123",
 				ImageURL:       "localhost:5000/version-checker",
 				IsLatest:       true,
+				OS:             utils.OSLinux,
+				Architecture:   utils.ArchAMD64,
 			},
+			expError: nil,
+			nodes:    []*corev1.Node{utils.CreateNode("node1", utils.ArchAMD64, utils.OSLinux)},
+			pod:      utils.CreatePodWithNode("pod1", "node1"),
 		},
 		"if empty is not latest version, then return false": {
 			statusSHA: "localhost:5000/version-checker@sha:123",
 			imageURL:  "localhost:5000/version-checker",
 			opts:      new(api.Options),
 			searchResp: &api.ImageTag{
-				Tag: "v0.2.0",
-				SHA: "sha:456",
+				Tag:          "v0.2.0",
+				SHA:          "sha:456",
+				OS:           utils.OSLinux,
+				Architecture: utils.ArchAMD64,
 			},
 			expResult: &Result{
 				CurrentVersion: "sha:123",
 				LatestVersion:  "v0.2.0@sha:456",
 				ImageURL:       "localhost:5000/version-checker",
 				IsLatest:       false,
+				OS:             utils.OSLinux,
+				Architecture:   utils.ArchAMD64,
 			},
+			expError: nil,
+			nodes:    []*corev1.Node{utils.CreateNode("node1", utils.ArchAMD64, utils.OSLinux)},
+			pod:      utils.CreatePodWithNode("pod1", "node1"),
 		},
 		"if empty is latest version, then return true": {
 			statusSHA: "localhost:5000/version-checker@sha:123",
 			imageURL:  "localhost:5000/version-checker",
 			opts:      new(api.Options),
 			searchResp: &api.ImageTag{
-				Tag: "",
-				SHA: "sha:123",
+				Tag:          "",
+				SHA:          "sha:123",
+				OS:           utils.OSLinux,
+				Architecture: utils.ArchAMD64,
 			},
 			expResult: &Result{
 				CurrentVersion: "sha:123",
 				LatestVersion:  "sha:123",
 				ImageURL:       "localhost:5000/version-checker",
 				IsLatest:       true,
+				OS:             utils.OSLinux,
+				Architecture:   utils.ArchAMD64,
 			},
+			expError: nil,
+			nodes:    []*corev1.Node{utils.CreateNode("node1", utils.ArchAMD64, utils.OSLinux)},
+			pod:      utils.CreatePodWithNode("pod1", "node1"),
 		},
 		"if latest is not latest version, then return false": {
 			statusSHA: "localhost:5000/version-checker@sha:123",
 			imageURL:  "localhost:5000/version-checker:latest",
 			opts:      new(api.Options),
 			searchResp: &api.ImageTag{
-				Tag: "v0.2.0",
-				SHA: "sha:456",
+				Tag:          "v0.2.0",
+				SHA:          "sha:456",
+				OS:           utils.OSLinux,
+				Architecture: utils.ArchAMD64,
 			},
 			expResult: &Result{
 				CurrentVersion: "sha:123",
 				LatestVersion:  "v0.2.0@sha:456",
 				ImageURL:       "localhost:5000/version-checker",
 				IsLatest:       false,
+				OS:             utils.OSLinux,
+				Architecture:   utils.ArchAMD64,
 			},
+			expError: nil,
+			nodes:    []*corev1.Node{utils.CreateNode("node1", utils.ArchAMD64, utils.OSLinux)},
+			pod:      utils.CreatePodWithNode("pod1", "node1"),
 		},
 		"if latest is latest version, then return true": {
 			statusSHA: "localhost:5000/version-checker@sha:123",
 			imageURL:  "localhost:5000/version-checker:latest",
 			opts:      new(api.Options),
 			searchResp: &api.ImageTag{
-				Tag: "",
-				SHA: "sha:123",
+				Tag:          "",
+				SHA:          "sha:123",
+				OS:           utils.OSLinux,
+				Architecture: utils.ArchAMD64,
 			},
 			expResult: &Result{
 				CurrentVersion: "sha:123",
 				LatestVersion:  "sha:123",
 				ImageURL:       "localhost:5000/version-checker",
 				IsLatest:       true,
+				OS:             utils.OSLinux,
+				Architecture:   utils.ArchAMD64,
 			},
+			expError: nil,
+			nodes:    []*corev1.Node{utils.CreateNode("node1", utils.ArchAMD64, utils.OSLinux)},
+			pod:      utils.CreatePodWithNode("pod1", "node1"),
 		},
 		"if using v0.2.0 with use sha, but not latest, return false": {
 			statusSHA: "localhost:5000/version-checker@sha:123",
@@ -155,15 +240,22 @@ func TestContainer(t *testing.T) {
 				UseSHA: true,
 			},
 			searchResp: &api.ImageTag{
-				Tag: "v0.2.0",
-				SHA: "sha:456",
+				Tag:          "v0.2.0",
+				SHA:          "sha:456",
+				OS:           utils.OSLinux,
+				Architecture: utils.ArchAMD64,
 			},
 			expResult: &Result{
 				CurrentVersion: "v0.2.0@sha:123",
 				LatestVersion:  "v0.2.0@sha:456",
 				ImageURL:       "localhost:5000/version-checker",
 				IsLatest:       false,
+				OS:             utils.OSLinux,
+				Architecture:   utils.ArchAMD64,
 			},
+			expError: nil,
+			nodes:    []*corev1.Node{utils.CreateNode("node1", utils.ArchAMD64, utils.OSLinux)},
+			pod:      utils.CreatePodWithNode("pod1", "node1"),
 		},
 		"if using v0.2.0 with use sha, but latest, return true": {
 			statusSHA: "localhost:5000/version-checker@sha:123",
@@ -172,100 +264,141 @@ func TestContainer(t *testing.T) {
 				UseSHA: true,
 			},
 			searchResp: &api.ImageTag{
-				Tag: "v0.2.0",
-				SHA: "sha:123",
+				Tag:          "v0.2.0",
+				SHA:          "sha:123",
+				OS:           utils.OSLinux,
+				Architecture: utils.ArchAMD64,
 			},
 			expResult: &Result{
 				CurrentVersion: "v0.2.0@sha:123",
 				LatestVersion:  "v0.2.0@sha:123",
 				ImageURL:       "localhost:5000/version-checker",
 				IsLatest:       true,
+				OS:             utils.OSLinux,
+				Architecture:   utils.ArchAMD64,
 			},
+			expError: nil,
+			nodes:    []*corev1.Node{utils.CreateNode("node1", utils.ArchAMD64, utils.OSLinux)},
+			pod:      utils.CreatePodWithNode("pod1", "node1"),
 		},
 		"if using sha but not latest, return false": {
 			statusSHA: "localhost:5000/version-checker@sha:123",
 			imageURL:  "localhost:5000/joshvanl/version-checker@sha:123",
 			opts:      new(api.Options),
 			searchResp: &api.ImageTag{
-				Tag: "v0.2.0",
-				SHA: "sha:456",
+				Tag:          "v0.2.0",
+				SHA:          "sha:456",
+				OS:           utils.OSLinux,
+				Architecture: utils.ArchAMD64,
 			},
 			expResult: &Result{
 				CurrentVersion: "sha:123",
 				LatestVersion:  "v0.2.0@sha:456",
 				ImageURL:       "localhost:5000/joshvanl/version-checker",
 				IsLatest:       false,
+				OS:             utils.OSLinux,
+				Architecture:   utils.ArchAMD64,
 			},
+			expError: nil,
+			nodes:    []*corev1.Node{utils.CreateNode("node1", utils.ArchAMD64, utils.OSLinux)},
+			pod:      utils.CreatePodWithNode("pod1", "node1"),
 		},
 		"if using sha but sha not latest, return false and no tag if non exists": {
 			statusSHA: "localhost:5000/version-checker@sha:123",
 			imageURL:  "localhost:5000/joshvanl/version-checker@sha:123",
 			opts:      new(api.Options),
 			searchResp: &api.ImageTag{
-				Tag: "",
-				SHA: "sha:456",
+				Tag:          "",
+				SHA:          "sha:456",
+				OS:           utils.OSLinux,
+				Architecture: utils.ArchAMD64,
 			},
 			expResult: &Result{
 				CurrentVersion: "sha:123",
 				LatestVersion:  "sha:456",
 				ImageURL:       "localhost:5000/joshvanl/version-checker",
 				IsLatest:       false,
+				OS:             utils.OSLinux,
+				Architecture:   utils.ArchAMD64,
 			},
+			expError: nil,
+			nodes:    []*corev1.Node{utils.CreateNode("node1", utils.ArchAMD64, utils.OSLinux)},
+			pod:      utils.CreatePodWithNode("pod1", "node1"),
 		},
 		"if using sha and is latest, return true": {
 			statusSHA: "localhost:5000/version-checker@sha:123",
 			imageURL:  "localhost:5000/joshvanl/version-checker@sha:123",
 			opts:      new(api.Options),
 			searchResp: &api.ImageTag{
-				Tag: "v0.2.0",
-				SHA: "sha:123",
+				Tag:          "v0.2.0",
+				SHA:          "sha:123",
+				OS:           utils.OSLinux,
+				Architecture: utils.ArchAMD64,
 			},
 			expResult: &Result{
 				CurrentVersion: "sha:123",
 				LatestVersion:  "v0.2.0@sha:123",
 				ImageURL:       "localhost:5000/joshvanl/version-checker",
 				IsLatest:       true,
+				OS:             utils.OSLinux,
+				Architecture:   utils.ArchAMD64,
 			},
+			expError: nil,
+			nodes:    []*corev1.Node{utils.CreateNode("node1", utils.ArchAMD64, utils.OSLinux)},
+			pod:      utils.CreatePodWithNode("pod1", "node1"),
 		},
 		"if using sha and is latest, return true and no tag if non exists": {
 			statusSHA: "localhost:5000/version-checker@sha:123",
 			imageURL:  "localhost:5000/joshvanl/version-checker@sha:123",
 			opts:      new(api.Options),
 			searchResp: &api.ImageTag{
-				Tag: "",
-				SHA: "sha:123",
+				Tag:          "",
+				SHA:          "sha:123",
+				OS:           utils.OSLinux,
+				Architecture: utils.ArchAMD64,
 			},
 			expResult: &Result{
 				CurrentVersion: "sha:123",
 				LatestVersion:  "sha:123",
 				ImageURL:       "localhost:5000/joshvanl/version-checker",
 				IsLatest:       true,
+				OS:             utils.OSLinux,
+				Architecture:   utils.ArchAMD64,
 			},
+			expError: nil,
+			nodes:    []*corev1.Node{utils.CreateNode("node1", utils.ArchAMD64, utils.OSLinux)},
+			pod:      utils.CreatePodWithNode("pod1", "node1"),
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			nodes := architecture.New()
+			for _, node := range test.nodes {
+				nodes.Add(node)
+			}
+			checker := New(search.New().With(test.searchResp, nil), nodes)
 
-			checker := New(search.New().With(test.searchResp, nil))
-			pod := &corev1.Pod{
-				Status: corev1.PodStatus{
-					ContainerStatuses: []corev1.ContainerStatus{
-						{
-							Name:    "test-name",
-							ImageID: test.statusSHA,
-						},
+			// take first pod and update the status
+			pod := test.pod
+			pod.Status = corev1.PodStatus{
+				ContainerStatuses: []corev1.ContainerStatus{
+					{
+						Name:    "test-name",
+						ImageID: test.statusSHA,
 					},
 				},
 			}
+
 			container := &corev1.Container{
 				Name:  "test-name",
 				Image: test.imageURL,
 			}
 
 			result, err := checker.Container(context.TODO(), logrus.NewEntry(logrus.New()), pod, container, test.opts)
-			if err != nil {
-				t.Errorf("unexpected error: %s", err)
+			if !reflect.DeepEqual(err, test.expError) {
+				t.Errorf("got unexpected error, exp=%#+v got=%#+v",
+					test.expError, err)
 			}
 
 			if !reflect.DeepEqual(test.expResult, result) {
@@ -382,7 +515,7 @@ func TestIsLatestOrEmptyTag(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			checker := New(search.New())
+			checker := New(search.New(), architecture.New())
 			if is := checker.isLatestOrEmptyTag(test.tag); is != test.expIs {
 				t.Errorf("unexpected isLatestOrEmptyTag exp=%t got=%t",
 					test.expIs, is)
@@ -459,7 +592,7 @@ func TestIsLatestSemver(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			checker := New(search.New().With(test.searchResp, nil))
+			checker := New(search.New().With(test.searchResp, nil), architecture.New())
 			latestImage, isLatest, err := checker.isLatestSemver(context.TODO(), test.imageURL, test.currentSHA, test.currentImage, nil)
 			if err != nil {
 				t.Fatal(err)
@@ -514,7 +647,7 @@ func TestIsLatestSHA(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			checker := New(search.New().With(test.searchResp, nil))
+			checker := New(search.New().With(test.searchResp, nil), architecture.New())
 			result, err := checker.isLatestSHA(context.TODO(), test.imageURL, test.currentSHA, nil)
 			if err != nil {
 				t.Fatal(err)
