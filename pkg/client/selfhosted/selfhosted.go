@@ -58,8 +58,8 @@ type TagResponse struct {
 
 type ManifestResponse struct {
 	Digest       string
-	Architecture string    `json:"architecture"`
-	History      []History `json:"history"`
+	Architecture api.Architecture `json:"architecture"`
+	History      []History        `json:"history"`
 }
 
 type History struct {
