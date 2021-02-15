@@ -35,6 +35,10 @@ func (b *Builder) Options(name string) (*api.Options, error) {
 		opts.UseSHA = true
 	}
 
+	if ResolveSHAToTags, ok := b.ans[b.index(name, api.ResolveSHAToTagsKey)]; ok && ResolveSHAToTags == "true" {
+		opts.ResolveSHAToTags = true
+	}
+
 	if useMetaData, ok := b.ans[b.index(name, api.UseMetaDataAnnotationKey)]; ok && useMetaData == "true" {
 		setNonSha = true
 		opts.UseMetaData = true
@@ -108,7 +112,7 @@ func (b *Builder) Options(name string) (*api.Options, error) {
 	}
 
 	if opts.UseSHA && setNonSha {
-		errs = append(errs, fmt.Sprintf("cannot define %q with any semver otions",
+		errs = append(errs, fmt.Sprintf("cannot define %q with any semver options",
 			b.index(name, api.UseSHAAnnotationKey)))
 	}
 
