@@ -4,7 +4,7 @@ ARCH   ?= amd64
 help:  ## display this help
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n\nTargets:\n"} /^[a-zA-Z0-9_-]+:.*?##/ { printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 
-.PHONY: help build docker all clean
+.PHONY: help build image all clean
 
 test: ## test version-checker
 	go test ./...
@@ -23,4 +23,4 @@ clean: ## clean up created files
 	rm -rf \
 		$(BINDIR)
 
-all: test build docker ## runs test, build and docker
+all: test build image ## runs test, build and image
