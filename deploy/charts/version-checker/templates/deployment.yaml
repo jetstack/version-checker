@@ -159,6 +159,9 @@ spec:
               key: selfhosted.{{ $element.name }}.token
         {{- end }}
         {{- end }}
+        {{- if .Values.env }}
+        {{- toYaml .Values.env | nindent 8 }}
+        {{- end }}
 
       volumes:
         {{- if $secretEnabled }}
