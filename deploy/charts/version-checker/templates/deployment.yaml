@@ -1,5 +1,5 @@
 {{- $secretEnabled := false }}
-{{- if or .Values.acr.refreshToken .Values.acr.username .Values.acr.password .Values.docker.token .Values.docker.username .Values.docker.password .Values.ecr.accessKeyID .Values.ecr.secretAccessKey .Values.ecr.sessionToken .Values.gcr.token .Values.quay.token (not (eq (len .Values.selfhosted) 0)) }}
+{{- if or .Values.acr.refreshToken .Values.acr.username .Values.acr.password .Values.docker.token .Values.docker.username .Values.docker.password .Values.gcr.token .Values.quay.token (not (eq (len .Values.selfhosted) 0)) }}
 {{- $secretEnabled = true }}
 {{- end }}
 {{ $chartname := include "version-checker.name" . }}
@@ -62,29 +62,6 @@ spec:
             secretKeyRef:
               name: {{ $chartname }}
               key: acr.password
-        {{- end }}
-
-        # ECR
-        {{- if .Values.ecr.accessKeyID }}
-        - name: VERSION_CHECKER_ECR_ACCESS_KEY_ID
-          valueFrom:
-            secretKeyRef:
-              name: {{ $chartname }}
-              key: ecr.accessKeyID
-        {{- end }}
-        {{- if .Values.ecr.secretAccessKey }}
-        - name: VERSION_CHECKER_ECR_SECRET_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              name: {{ $chartname }}
-              key: ecr.secretAccessKey
-        {{- end }}
-        {{- if .Values.ecr.sessionToken }}
-        - name: VERSION_CHECKER_ECR_SESSION_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: {{ $chartname }}
-              key: ecr.sessionToken
         {{- end }}
 
         # Docker
