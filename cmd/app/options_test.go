@@ -8,7 +8,6 @@ import (
 	"github.com/jetstack/version-checker/pkg/client"
 	"github.com/jetstack/version-checker/pkg/client/acr"
 	"github.com/jetstack/version-checker/pkg/client/docker"
-	"github.com/jetstack/version-checker/pkg/client/ecr"
 	"github.com/jetstack/version-checker/pkg/client/gcr"
 	"github.com/jetstack/version-checker/pkg/client/quay"
 	"github.com/jetstack/version-checker/pkg/client/selfhosted"
@@ -33,9 +32,6 @@ func TestComplete(t *testing.T) {
 				{"VERSION_CHECKER_DOCKER_USERNAME", "docker-username"},
 				{"VERSION_CHECKER_DOCKER_PASSWORD", "docker-password"},
 				{"VERSION_CHECKER_DOCKER_TOKEN", "docker-token"},
-				{"VERSION_CHECKER_ECR_ACCESS_KEY_ID", "ecr-access-token"},
-				{"VERSION_CHECKER_ECR_SECRET_ACCESS_KEY", "ecr-secret-access-token"},
-				{"VERSION_CHECKER_ECR_SESSION_TOKEN", "ecr-session-token"},
 				{"VERSION_CHECKER_GCR_TOKEN", "gcr-token"},
 				{"VERSION_CHECKER_QUAY_TOKEN", "quay-token"},
 				{"VERSION_CHECKER_SELFHOSTED_HOST_FOO", "docker.joshvanl.com"},
@@ -53,11 +49,6 @@ func TestComplete(t *testing.T) {
 					Username: "docker-username",
 					Password: "docker-password",
 					Token:    "docker-token",
-				},
-				ECR: ecr.Options{
-					AccessKeyID:     "ecr-access-token",
-					SecretAccessKey: "ecr-secret-access-token",
-					SessionToken:    "ecr-session-token",
 				},
 				GCR: gcr.Options{
 					Token: "gcr-token",
@@ -87,9 +78,6 @@ func TestComplete(t *testing.T) {
 				{"VERSION_CHECKER_DOCKER_USERNAME", "docker-username"},
 				{"VERSION_CHECKER_DOCKER_PASSWORD", "docker-password"},
 				{"VERSION_CHECKER_DOCKER_TOKEN", "docker-token"},
-				{"VERSION_CHECKER_ECR_ACCESS_KEY_ID", "ecr-access-token"},
-				{"VERSION_CHECKER_ECR_SECRET_ACCESS_KEY", "ecr-secret-access-token"},
-				{"VERSION_CHECKER_ECR_SESSION_TOKEN", "ecr-session-token"},
 				{"VERSION_CHECKER_GCR_TOKEN", "gcr-token"},
 				{"VERSION_CHECKER_QUAY_TOKEN", "quay-token"},
 				{"VERSION_CHECKER_SELFHOSTED_HOST_FOO", "docker.joshvanl.com"},
@@ -107,11 +95,6 @@ func TestComplete(t *testing.T) {
 					Username: "docker-username",
 					Password: "docker-password",
 					Token:    "docker-token",
-				},
-				ECR: ecr.Options{
-					AccessKeyID:     "ecr-access-token",
-					SecretAccessKey: "ecr-secret-access-token",
-					SessionToken:    "ecr-session-token",
 				},
 				GCR: gcr.Options{
 					Token: "gcr-token",
