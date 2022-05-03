@@ -10,6 +10,7 @@ import (
 	"github.com/jetstack/version-checker/pkg/client/docker"
 	"github.com/jetstack/version-checker/pkg/client/ecr"
 	"github.com/jetstack/version-checker/pkg/client/gcr"
+	"github.com/jetstack/version-checker/pkg/client/ghcr"
 	"github.com/jetstack/version-checker/pkg/client/quay"
 	"github.com/jetstack/version-checker/pkg/client/selfhosted"
 )
@@ -37,6 +38,7 @@ func TestComplete(t *testing.T) {
 				{"VERSION_CHECKER_ECR_SECRET_ACCESS_KEY", "ecr-secret-access-token"},
 				{"VERSION_CHECKER_ECR_SESSION_TOKEN", "ecr-session-token"},
 				{"VERSION_CHECKER_GCR_TOKEN", "gcr-token"},
+				{"VERSION_CHECKER_GHCR_TOKEN", "ghcr-token"},
 				{"VERSION_CHECKER_QUAY_TOKEN", "quay-token"},
 				{"VERSION_CHECKER_SELFHOSTED_HOST_FOO", "docker.joshvanl.com"},
 				{"VERSION_CHECKER_SELFHOSTED_USERNAME_FOO", "joshvanl"},
@@ -61,6 +63,9 @@ func TestComplete(t *testing.T) {
 				},
 				GCR: gcr.Options{
 					Token: "gcr-token",
+				},
+				GHCR: ghcr.Options{
+					Token: "ghcr-token",
 				},
 				Quay: quay.Options{
 					Token: "quay-token",
@@ -91,6 +96,7 @@ func TestComplete(t *testing.T) {
 				{"VERSION_CHECKER_ECR_SECRET_ACCESS_KEY", "ecr-secret-access-token"},
 				{"VERSION_CHECKER_ECR_SESSION_TOKEN", "ecr-session-token"},
 				{"VERSION_CHECKER_GCR_TOKEN", "gcr-token"},
+				{"VERSION_CHECKER_GHCR_TOKEN", "ghcr-token"},
 				{"VERSION_CHECKER_QUAY_TOKEN", "quay-token"},
 				{"VERSION_CHECKER_SELFHOSTED_HOST_FOO", "docker.joshvanl.com"},
 				{"VERSION_CHECKER_SELFHOSTED_USERNAME_FOO", "joshvanl"},
@@ -115,6 +121,9 @@ func TestComplete(t *testing.T) {
 				},
 				GCR: gcr.Options{
 					Token: "gcr-token",
+				},
+				GHCR: ghcr.Options{
+					Token: "ghcr-token",
 				},
 				Quay: quay.Options{
 					Token: "quay-token",

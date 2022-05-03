@@ -11,6 +11,7 @@ import (
 	"github.com/jetstack/version-checker/pkg/client/docker"
 	"github.com/jetstack/version-checker/pkg/client/ecr"
 	"github.com/jetstack/version-checker/pkg/client/gcr"
+	"github.com/jetstack/version-checker/pkg/client/ghcr"
 	"github.com/jetstack/version-checker/pkg/client/quay"
 	"github.com/jetstack/version-checker/pkg/client/selfhosted"
 )
@@ -118,6 +119,19 @@ func TestFromImageURL(t *testing.T) {
 			url:       "us.gcr.io/k8s-artifacts-prod/ingress-nginx/nginx",
 			expClient: new(gcr.Client),
 			expHost:   "us.gcr.io",
+			expPath:   "k8s-artifacts-prod/ingress-nginx/nginx",
+		},
+
+		"ghcr.io should be ghcr": {
+			url:       "ghcr.io/jetstack/version-checker",
+			expClient: new(ghcr.Client),
+			expHost:   "ghcr.io",
+			expPath:   "jetstack/version-checker",
+		},
+		"gcr.io with subdomain should be ghcr": {
+			url:       "ghcr.io/k8s-artifacts-prod/ingress-nginx/nginx",
+			expClient: new(ghcr.Client),
+			expHost:   "ghcr.io",
 			expPath:   "k8s-artifacts-prod/ingress-nginx/nginx",
 		},
 

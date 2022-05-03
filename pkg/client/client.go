@@ -12,6 +12,7 @@ import (
 	"github.com/jetstack/version-checker/pkg/client/docker"
 	"github.com/jetstack/version-checker/pkg/client/ecr"
 	"github.com/jetstack/version-checker/pkg/client/gcr"
+	"github.com/jetstack/version-checker/pkg/client/ghcr"
 	"github.com/jetstack/version-checker/pkg/client/quay"
 	"github.com/jetstack/version-checker/pkg/client/selfhosted"
 )
@@ -47,6 +48,7 @@ type Options struct {
 	ACR        acr.Options
 	ECR        ecr.Options
 	GCR        gcr.Options
+	GHCR       ghcr.Options
 	Docker     docker.Options
 	Quay       quay.Options
 	Selfhosted map[string]*selfhosted.Options
@@ -85,6 +87,7 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 			ecr.New(opts.ECR),
 			dockerClient,
 			gcr.New(opts.GCR),
+			ghcr.New(opts.GHCR),
 			quay.New(opts.Quay),
 		),
 		fallbackClient: fallbackClient,
