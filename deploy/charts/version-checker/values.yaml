@@ -29,6 +29,11 @@ docker:
   token:
 
 ecr:
+  # in AWS EKS use the following
+  # https://docs.aws.amazon.com/eks/latest/userguide/specify-service-account-role.html
+  iamRoleArn:
+
+  # else use the AWS credentials
   accessKeyID:
   secretAccessKey:
   sessionToken:

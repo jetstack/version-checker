@@ -65,6 +65,10 @@ spec:
         {{- end }}
 
         # ECR
+        {{- if .Values.ecr.iamRoleArn }}
+        - name: VERSION_CHECKER_ECR_IAM_ROLE_ARN
+          value: {{ .Values.ecr.iamRoleArn }}
+        {{- end }}
         {{- if .Values.ecr.accessKeyID }}
         - name: VERSION_CHECKER_ECR_ACCESS_KEY_ID
           valueFrom:

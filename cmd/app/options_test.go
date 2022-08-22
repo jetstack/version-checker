@@ -34,6 +34,7 @@ func TestComplete(t *testing.T) {
 				{"VERSION_CHECKER_DOCKER_USERNAME", "docker-username"},
 				{"VERSION_CHECKER_DOCKER_PASSWORD", "docker-password"},
 				{"VERSION_CHECKER_DOCKER_TOKEN", "docker-token"},
+				{"VERSION_CHECKER_ECR_IAM_ROLE_ARN", "iam-role-arn"},
 				{"VERSION_CHECKER_ECR_ACCESS_KEY_ID", "ecr-access-token"},
 				{"VERSION_CHECKER_ECR_SECRET_ACCESS_KEY", "ecr-secret-access-token"},
 				{"VERSION_CHECKER_ECR_SESSION_TOKEN", "ecr-session-token"},
@@ -57,6 +58,7 @@ func TestComplete(t *testing.T) {
 					Token:    "docker-token",
 				},
 				ECR: ecr.Options{
+					IamRoleArn:      "iam-role-arn",
 					AccessKeyID:     "ecr-access-token",
 					SecretAccessKey: "ecr-secret-access-token",
 					SessionToken:    "ecr-session-token",
@@ -92,6 +94,7 @@ func TestComplete(t *testing.T) {
 				{"VERSION_CHECKER_DOCKER_USERNAME", "docker-username"},
 				{"VERSION_CHECKER_DOCKER_PASSWORD", "docker-password"},
 				{"VERSION_CHECKER_DOCKER_TOKEN", "docker-token"},
+				{"VERSION_CHECKER_ECR_IAM_ROLE_ARN", "iam-role-arn"},
 				{"VERSION_CHECKER_ECR_ACCESS_KEY_ID", "ecr-access-token"},
 				{"VERSION_CHECKER_ECR_SECRET_ACCESS_KEY", "ecr-secret-access-token"},
 				{"VERSION_CHECKER_ECR_SESSION_TOKEN", "ecr-session-token"},
@@ -115,6 +118,7 @@ func TestComplete(t *testing.T) {
 					Token:    "docker-token",
 				},
 				ECR: ecr.Options{
+					IamRoleArn:      "iam-role-arn",
 					AccessKeyID:     "ecr-access-token",
 					SecretAccessKey: "ecr-secret-access-token",
 					SessionToken:    "ecr-session-token",
