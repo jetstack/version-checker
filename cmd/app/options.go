@@ -33,6 +33,8 @@ const (
 
 	envGCRAccessToken = "GCR_TOKEN"
 
+	envGHCRAccessToken = "GHCR_TOKEN"
+
 	envQuayToken = "QUAY_TOKEN"
 
 	envSelfhostedPrefix   = "SELFHOSTED"
@@ -183,6 +185,15 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 		))
 	///
 
+	/// GHCR
+	fs.StringVar(&o.Client.GHCR.Token,
+		"gchr-token", "",
+		fmt.Sprintf(
+			"Personal Access token for read access to GHCR releases (%s_%s).",
+			envPrefix, envGHCRAccessToken,
+		))
+	///
+
 	/// Quay
 	fs.StringVar(&o.Client.Quay.Token,
 		"quay-token", "",
@@ -242,6 +253,8 @@ func (o *Options) complete() {
 		{envECRSecretAccessKey, &o.Client.ECR.SecretAccessKey},
 
 		{envGCRAccessToken, &o.Client.GCR.Token},
+
+		{envGHCRAccessToken, &o.Client.GHCR.Token},
 
 		{envQuayToken, &o.Client.Quay.Token},
 	} {
