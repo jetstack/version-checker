@@ -62,7 +62,7 @@ metadata:
   name: version-checker
 rules:
 - apiGroups: [""]
-  resources: ["pods"]
+  resources: ["pods","nodes"]
   verbs: ["get", "watch", "list"]
 ---
 kind: ClusterRoleBinding

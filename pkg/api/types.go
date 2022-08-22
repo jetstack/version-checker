@@ -58,13 +58,20 @@ type Options struct {
 	PinPatch *int64 `json:"pin-patch,omitempty"`
 
 	RegexMatcher *regexp.Regexp `json:"-"`
+
+	// Architecture and OS to search for
+	Architecture *Architecture `json:"pin-architecture,omitempty"`
+	OS           *OS           `json:"pin-os,omitempty"`
 }
 
 // ImageTag describes a container image tag.
 type ImageTag struct {
-	Tag          string    `json:"tag"`
-	SHA          string    `json:"sha"`
-	Timestamp    time.Time `json:"timestamp"`
-	Architecture string    `json:"architecture,omitempty"`
-	OS           string    `json:"os,omitempty"`
+	Tag          string       `json:"tag"`
+	SHA          string       `json:"sha"`
+	Timestamp    time.Time    `json:"timestamp"`
+	Architecture Architecture `json:"architecture,omitempty"`
+	OS           OS           `json:"os,omitempty"`
 }
+
+type Architecture string
+type OS string

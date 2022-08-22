@@ -9,8 +9,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/jetstack/version-checker/pkg/api"
+	versionerrors "github.com/jetstack/version-checker/pkg/checker/version/errors"
 	"github.com/jetstack/version-checker/pkg/controller/options"
-	versionerrors "github.com/jetstack/version-checker/pkg/version/errors"
+	"github.com/jetstack/version-checker/pkg/metrics"
 )
 
 // sync will enqueue a given pod to run against the version checker.
@@ -88,9 +89,17 @@ func (c *Controller) checkContainer(ctx context.Context, log *logrus.Entry, pod 
 			result.ImageURL, result.CurrentVersion, result.LatestVersion)
 	}
 
-	c.metrics.AddImage(pod.Namespace, pod.Name,
-		container.Name, result.ImageURL, result.IsLatest,
-		result.CurrentVersion, result.LatestVersion)
+	c.metrics.AddImage(&metrics.Entry{
+		Namespace:      pod.Namespace,
+		Pod:            pod.Name,
+		Container:      container.Name,
+		ImageURL:       result.ImageURL,
+		IsLatest:       result.IsLatest,
+		CurrentVersion: result.CurrentVersion,
+		LatestVersion:  result.LatestVersion,
+		OS:             string(result.OS),
+		Arch:           string(result.Architecture),
+	})
 
 	return nil
 }

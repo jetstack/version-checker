@@ -11,7 +11,7 @@ import (
 
 	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/jetstack/version-checker/pkg/cache"
-	"github.com/jetstack/version-checker/pkg/version"
+	"github.com/jetstack/version-checker/pkg/checker/version"
 )
 
 // Searcher is the interface for Search to facilitate testing
