@@ -62,9 +62,12 @@ type Options struct {
 
 // ImageTag describes a container image tag.
 type ImageTag struct {
-	Tag          string    `json:"tag"`
-	SHA          string    `json:"sha"`
-	Timestamp    time.Time `json:"timestamp"`
-	Architecture string    `json:"architecture,omitempty"`
-	OS           string    `json:"os,omitempty"`
+	Tag          string       `json:"tag"`
+	SHA          string       `json:"sha"`
+	Timestamp    time.Time    `json:"timestamp"`
+	OS           OS           `json:"os,omitempty"`
+	Architecture Architecture `json:"architecture,omitempty"`
 }
+
+type OS string
+type Architecture string
