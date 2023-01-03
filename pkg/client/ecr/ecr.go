@@ -22,6 +22,7 @@ type Client struct {
 }
 
 type Options struct {
+	IamRoleArn      string
 	AccessKeyID     string
 	SecretAccessKey string
 	SessionToken    string
@@ -107,10 +108,16 @@ func (c *Client) getClient(region string) (*ecr.ECR, error) {
 }
 
 func (c *Client) createRegionClient(region string) (*ecr.ECR, error) {
-	sess, err := session.NewSession(&aws.Config{
-		Credentials: credentials.NewStaticCredentials(c.AccessKeyID, c.SecretAccessKey, c.SessionToken),
-		Region:      &region,
-	})
+	var sess *session.Session
+	var err error
+	if c.IamRoleArn != "" {
+		sess, err = session.NewSession()
+	} else {
+		sess, err = session.NewSession(&aws.Config{
+			Credentials: credentials.NewStaticCredentials(c.AccessKeyID, c.SecretAccessKey, c.SessionToken),
+			Region:      &region,
+		})
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct aws credentials: %s", err)
 	}

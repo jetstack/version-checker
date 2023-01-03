@@ -1,4 +1,4 @@
-package gcr
+package ghcr
 
 import "testing"
 
@@ -19,33 +19,21 @@ func TestIsHost(t *testing.T) {
 			host:  "foobar.foo",
 			expIs: false,
 		},
-		"just gcr.io should be true": {
-			host:  "gcr.io",
+		"just ghcr.io should be true": {
+			host:  "ghcr.io",
 			expIs: true,
 		},
-		"gcr.io with random sub domains should be true": {
-			host:  "k8s.gcr.io",
-			expIs: true,
-		},
-		"foodgcr.io should be false": {
-			host:  "foogcr.io",
+		"gcr.io with random sub domains should be false": {
+			host:  "ghcr.gcr.io",
 			expIs: false,
 		},
-		"gcr.iofoo should be false": {
-			host:  "gcr.iofoo",
+		"foodghcr.io should be false": {
+			host:  "foodghcr.io",
 			expIs: false,
 		},
-		"just pkg.dev should be false": {
-			host:  "pkg.dev",
+		"ghcr.iofoo should be false": {
+			host:  "ghcr.iofoo",
 			expIs: false,
-		},
-		"docker.pkg.dev with random sub domains should be false": {
-			host:  "docker.pkg.dev",
-			expIs: false,
-		},
-		"eu-docker.pkg.dev with random sub domains should be true": {
-			host:  "eu-docker.pkg.dev",
-			expIs: true,
 		},
 	}
 
@@ -65,11 +53,6 @@ func TestRepoImage(t *testing.T) {
 		path              string
 		expRepo, expImage string
 	}{
-		"single image should return google-containers": {
-			path:     "kube-scheduler",
-			expRepo:  "google-containers",
-			expImage: "kube-scheduler",
-		},
 		"two segments to path should return both": {
 			path:     "jetstack-cre/version-checker",
 			expRepo:  "jetstack-cre",

@@ -27,11 +27,14 @@ const (
 	envDockerPassword = "DOCKER_PASSWORD"
 	envDockerToken    = "DOCKER_TOKEN"
 
+	envECRIamRoleArn      = "ECR_IAM_ROLE_ARN"
 	envECRAccessKeyID     = "ECR_ACCESS_KEY_ID"
 	envECRSecretAccessKey = "ECR_SECRET_ACCESS_KEY"
 	envECRSessionToken    = "ECR_SESSION_TOKEN"
 
 	envGCRAccessToken = "GCR_TOKEN"
+
+	envGHCRAccessToken = "GHCR_TOKEN"
 
 	envQuayToken = "QUAY_TOKEN"
 
@@ -154,6 +157,12 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 	///
 
 	/// ECR
+	fs.StringVar(&o.Client.ECR.IamRoleArn,
+		"ecr-iam-role-arn", "",
+		fmt.Sprintf(
+			"IAM role ARN for read access to private registries, can not be used with access-key/secret-key/session-token (%s_%s).",
+			envPrefix, envECRIamRoleArn,
+		))
 	fs.StringVar(&o.Client.ECR.AccessKeyID,
 		"ecr-access-key-id", "",
 		fmt.Sprintf(
@@ -180,6 +189,15 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 		fmt.Sprintf(
 			"Access token for read access to private GCR registries (%s_%s).",
 			envPrefix, envGCRAccessToken,
+		))
+	///
+
+	/// GHCR
+	fs.StringVar(&o.Client.GHCR.Token,
+		"gchr-token", "",
+		fmt.Sprintf(
+			"Personal Access token for read access to GHCR releases (%s_%s).",
+			envPrefix, envGHCRAccessToken,
 		))
 	///
 
@@ -237,11 +255,14 @@ func (o *Options) complete() {
 		{envDockerPassword, &o.Client.Docker.Password},
 		{envDockerToken, &o.Client.Docker.Token},
 
+		{envECRIamRoleArn, &o.Client.ECR.IamRoleArn},
 		{envECRAccessKeyID, &o.Client.ECR.AccessKeyID},
 		{envECRSessionToken, &o.Client.ECR.SessionToken},
 		{envECRSecretAccessKey, &o.Client.ECR.SecretAccessKey},
 
 		{envGCRAccessToken, &o.Client.GCR.Token},
+
+		{envGHCRAccessToken, &o.Client.GHCR.Token},
 
 		{envQuayToken, &o.Client.Quay.Token},
 	} {
