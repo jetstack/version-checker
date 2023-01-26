@@ -130,7 +130,7 @@ func (c *Client) doRequest(ctx context.Context, url string) (*TagResponse, error
 	req.URL.Scheme = "https"
 	req = req.WithContext(ctx)
 	if len(c.Token) > 0 {
-		req.Header.Add("Authorization", "Token "+c.Token)
+		req.Header.Add("Authorization", "Bearer "+c.Token)
 	}
 
 	resp, err := c.Do(req)
