@@ -1,4 +1,4 @@
-FROM alpine:3.12
+FROM alpine:3.17.3
 LABEL description="Kubernetes utility for exposing used image versions compared to the latest version, as metrics."
 
 RUN apk --no-cache add ca-certificates
