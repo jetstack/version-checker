@@ -140,15 +140,21 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 	for _, tag := range tagResponse.Tags {
 		manifestURL := fmt.Sprintf(manifestPath, host, path, tag)
 
+		// Try APIv1 header
 		var manifestResponse ManifestResponse
 		_, err := c.doRequest(ctx, manifestURL, dockerAPIv1Header, &manifestResponse)
 
 		if httpErr, ok := selfhostederrors.IsHTTPError(err); ok {
-			c.log.Errorf("%s: failed to get manifest response for tag, skipping (%d): %s",
-				manifestURL, httpErr.StatusCode, httpErr.Body)
-			continue
-		}
-		if err != nil {
+			// Re-try with APIv2 header if v1 is not supported
+			if httpErr.StatusCode == http.StatusNotFound {
+				_, err = c.doRequest(ctx, manifestURL, dockerAPIv2Header, &manifestResponse)
+			}
+			if httpErr, ok := selfhostederrors.IsHTTPError(err); ok {
+			    c.log.Errorf("%s: failed to get manifest response for tag, skipping (%d): %s",
+				    manifestURL, httpErr.StatusCode, httpErr.Body)
+			    continue
+			}
+		} else if err != nil {
 			return nil, err
 		}
 
@@ -167,13 +173,19 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 			}
 		}
 
-		header, err := c.doRequest(ctx, manifestURL, dockerAPIv2Header, new(ManifestResponse))
+		// Try APIv1 header
+		header, err := c.doRequest(ctx, manifestURL, dockerAPIv1Header, new(ManifestResponse))
 		if httpErr, ok := selfhostederrors.IsHTTPError(err); ok {
-			c.log.Errorf("%s: failed to get manifest sha response for tag, skipping (%d): %s",
-				manifestURL, httpErr.StatusCode, httpErr.Body)
-			continue
-		}
-		if err != nil {
+			// Re-try with APIv2 header if v1 is not supported
+			if httpErr.StatusCode == http.StatusNotFound {
+				_, err = c.doRequest(ctx, manifestURL, dockerAPIv2Header, new(ManifestResponse))
+			}
+			if httpErr, ok := selfhostederrors.IsHTTPError(err); ok {
+			    c.log.Errorf("%s: failed to get manifest response for tag, skipping (%d): %s",
+				    manifestURL, httpErr.StatusCode, httpErr.Body)
+			    continue
+			}
+		} else if err != nil {
 			return nil, err
 		}
 

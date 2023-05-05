@@ -17,7 +17,7 @@ verify: test build ## tests and builds version-checker
 
 docker: ## build docker image
 	GOARCH=$(ARCH) GOOS=linux CGO_ENABLED=0 go build -o ./bin/version-checker-linux ./cmd/.
-	docker build -t exciter86/version-checker:v0.2.3 .
+	docker build -t exciter86/version-checker:v0.2.2 .
 
 clean: ## clean up created files
 	rm -rf \
