@@ -12,7 +12,7 @@ import (
 
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/adal"
-	"github.com/dgrijalva/jwt-go"
+	jwt "github.com/golang-jwt/jwt/v5"
 
 	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/jetstack/version-checker/pkg/client/util"
@@ -241,13 +241,16 @@ func (c *Client) getAccessTokenClient(ctx context.Context, host string) (*acrCli
 	}, nil
 }
 
-func getTokenExpiration(token string) (time.Time, error) {
-	parser := jwt.Parser{SkipClaimsValidation: true}
+func getTokenExpiration(tokenString string) (time.Time, error) {
 
-	claims := make(jwt.MapClaims)
-	_, _, err := parser.ParseUnverified(token, claims)
+	token, err := jwt.Parse(tokenString, nil, jwt.WithoutClaimsValidation())
 	if err != nil {
 		return time.Time{}, err
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return time.Time{}, fmt.Errorf("failed to process claims in access token")
 	}
 
 	if exp, ok := claims["exp"].(float64); ok {
