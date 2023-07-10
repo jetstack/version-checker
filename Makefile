@@ -6,10 +6,15 @@ help:  ## display this help
 
 .PHONY: help build docker all clean
 
-test: ## test version-checker
-	go test ./...
+deps:
+	go mod download
 
-build: ## build version-checker
+
+test: deps ## test version-checker
+	go test ./... -coverprofile=coverage.out
+
+
+build: deps ## build version-checker
 	mkdir -p $(BINDIR)
 	CGO_ENABLED=0 go build -o ./bin/version-checker ./cmd/.
 
