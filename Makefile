@@ -6,9 +6,8 @@ help:  ## display this help
 
 .PHONY: help build docker all clean
 
-deps:
+deps: ## Download all Dependencies
 	go mod download
-
 
 test: deps ## test version-checker
 	go test ./... -coverprofile=coverage.out
@@ -28,4 +27,4 @@ clean: ## clean up created files
 	rm -rf \
 		$(BINDIR)
 
-all: test build docker ## runs test, build and docker
+all: test build image ## runs test, build and docker
