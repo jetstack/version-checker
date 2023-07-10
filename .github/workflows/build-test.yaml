@@ -60,6 +60,9 @@ jobs:
         path: coverage.out
 
   build:
+    needs:
+      - test
+      - lint
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
