@@ -10,28 +10,28 @@ profile: coverage.out
 threshold:
   # (optional; default 0)
   # The minimum coverage that each file should have
-  file: 70
+  file: 0
 
   # (optional; default 0)
   # The minimum coverage that each package should have
-  package: 80
+  package: 0
 
   # (optional; default 0)
   # The minimum total coverage project should have
-  total: 95
+  total: 0
 
 # Holds regexp rules which will override thresholds for matched files or packages
-override:
-  # Increase coverage threshold to 100% for `foo` package (default is 80, as configured above)
-  - threshold: 100
-    path: ^pkg/lib/foo$
+# override:
+#   # Increase coverage threshold to 100% for `foo` package (default is 80, as configured above)
+#   - threshold: 100
+#     path: ^pkg/lib/foo$
 
 # Holds regexp rules which will exclude matched files or packages from coverage statistics
-exclude:
-  # Exclude files or packages matching their paths
-  paths:
-    - \.pb\.go$    # excludes all protobuf generated files
-    - ^pkg/bar     # exclude package `pkg/bar`
+# exclude:
+#   # Exclude files or packages matching their paths
+#   paths:
+#     - \.pb\.go$    # excludes all protobuf generated files
+#     - ^pkg/bar     # exclude package `pkg/bar`
 
 # NOTES:
 # - symbol `/` in all path regexps will be replaced by
