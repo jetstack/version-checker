@@ -2,6 +2,7 @@ package selfhosted
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -36,6 +37,7 @@ type Options struct {
 	Username string
 	Password string
 	Bearer   string
+	Insecure bool
 }
 
 type Client struct {
@@ -110,6 +112,11 @@ func New(ctx context.Context, log *logrus.Entry, opts *Options) (*Client, error)
 	// Default to https if no scheme set
 	if client.httpScheme == "" {
 		client.httpScheme = "https"
+	}
+	if client.httpScheme == "HTTPS" && opts.Insecure {
+		client.Client.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
 	}
 
 	return client, nil

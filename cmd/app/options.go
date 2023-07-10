@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -43,6 +44,7 @@ const (
 	envSelfhostedPassword = "PASSWORD"
 	envSelfhostedBearer   = "TOKEN"
 	envSelfhostedHost     = "HOST"
+	envSelfhostedInsecure = "INSECURE"
 )
 
 var (
@@ -50,6 +52,7 @@ var (
 	selfhostedUsernameReg = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_USERNAME_(.*)")
 	selfhostedPasswordReg = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_PASSWORD_(.*)")
 	selfhostedTokenReg    = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_TOKEN_(.*)")
+	selfhostedInsecureReg = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_INSECURE_(.*)")
 )
 
 // Options is a struct to hold options for the version-checker
@@ -230,10 +233,17 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 				"username/password (%s_%s).",
 			envPrefix, envSelfhostedBearer,
 		))
+	fs.BoolVarP(&o.selfhosted.Insecure,
+		"selfhosted-insecure", "", false,
+		fmt.Sprintf(
+			"Enable/Disable SSL Certificate Validation. WARNING: "+
+				"THIS IS NOT RECOMMENDED AND IS INTENDED FOR DEBUGGING (%s_%s)",
+			envPrefix, envSelfhostedInsecure,
+		))
 	fs.StringVar(&o.selfhosted.Host,
 		"selfhosted-registry-host", "",
 		fmt.Sprintf(
-			"Full host of the selfhosted registry. Include http[s] scheme (%s_%s",
+			"Full host of the selfhosted registry. Include http[s] scheme (%s_%s)",
 			envPrefix, envSelfhostedHost,
 		))
 	///
@@ -328,6 +338,15 @@ func (o *Options) assignSelfhosted(envs []string) {
 		if matches := selfhostedTokenReg.FindStringSubmatch(strings.ToUpper(pair[0])); len(matches) == 2 {
 			initOptions(matches[1])
 			o.Client.Selfhosted[matches[1]].Bearer = pair[1]
+			continue
+		}
+
+		if matches := selfhostedInsecureReg.FindStringSubmatch(strings.ToUpper(pair[0])); len(matches) == 2 {
+			initOptions(matches[1])
+			val, err := strconv.ParseBool(pair[1])
+			if err == nil {
+				o.Client.Selfhosted[matches[1]].Insecure = val
+			}
 			continue
 		}
 	}
