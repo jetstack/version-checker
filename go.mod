@@ -1,6 +1,6 @@
 module github.com/jetstack/version-checker
 
-go 1.18
+go 1.20
 
 require (
 	github.com/Azure/go-autorest/autorest v0.10.2
