@@ -20,6 +20,11 @@ func (c *Controller) sync(ctx context.Context, pod *corev1.Pod) error {
 	builder := options.New(pod.Annotations)
 
 	var errs []string
+	for _, container := range pod.Spec.InitContainers {
+		if err := c.syncContainer(ctx, log, builder, pod, &container); err != nil {
+			errs = append(errs, err.Error())
+		}
+	}
 	for _, container := range pod.Spec.Containers {
 		if err := c.syncContainer(ctx, log, builder, pod, &container); err != nil {
 			errs = append(errs, err.Error())
