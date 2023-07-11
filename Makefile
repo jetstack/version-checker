@@ -17,7 +17,7 @@ verify: test build ## tests and builds version-checker
 
 image: ## build docker image
 	GOARCH=$(ARCH) GOOS=linux CGO_ENABLED=0 go build -o ./bin/version-checker-linux ./cmd/.
-	docker build -t quay.io/jetstack/version-checker:v0.2.1 .
+	docker build -t quay.io/jetstack/version-checker:v0.2.2 .
 
 clean: ## clean up created files
 	rm -rf \
