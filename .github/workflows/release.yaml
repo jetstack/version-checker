@@ -1,0 +1,96 @@
+name: Helm Chart Validate/Test
+
+on:
+  push:
+    branches:
+      - 'github-actions' # REMOVE: ONLY HERE FOR TESTING PURPOSES
+      - 'release-.*'
+    tags:
+        - '*'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  helm-release:
+    # PUT THESE BACK IN AFTER TESTING
+    # if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout our Repo
+      - uses: actions/checkout@v3
+        with:
+          path: version-checker
+
+      - name: checkout jetstack-charts
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.JETSTACK_CHARTS_PAT }}
+          repository: jetstack/jetstack-charts
+          ref: main
+          path: jetstack-charts
+
+      - uses: azure/setup-helm@v3
+
+      - name: package helm chart
+        run: |
+          helm package version-checker/deploy/charts/version-checker -d jetstack-charts/charts/
+
+      - name: Creating PR
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.JETSTACK_CHARTS_PAT }}
+          title: "Release version-checker ${{github.ref_name }}"
+          commit-message: "Release version-checker ${{github.ref_name }}"
+          branch: version-checker/${{github.ref_name}}
+          path: jetstack-charts
+          add-paths: charts/*.tgz
+          delete-branch: true
+          signoff: true
+          base: main
+          draft: ${{ contains('-rc', github.ref_name) || !startsWith(github.ref, 'refs/tags/') }}
+
+  docker-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        with:
+          platforms: linux/amd64,linux/arm64
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_ROBOT_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: ${{ !startsWith(github.ref, 'refs/tags/') }}
+          tags: jetstack/version-checker:${{github.ref_name}}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+
+  github-release:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Create Release / Change Logs
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: ${{ !startsWith(github.ref, 'refs/tags/') }}
+          prerelease: ${{ contains('-rc', github.ref_name) || !startsWith(github.ref, 'refs/tags/') }}
+          generate_release_notes: true
+          # body: ${{steps.github_release.outputs.changelog}}
