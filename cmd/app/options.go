@@ -39,17 +39,19 @@ const (
 
 	envQuayToken = "QUAY_TOKEN"
 
-	envSelfhostedPrefix   = "SELFHOSTED"
-	envSelfhostedUsername = "USERNAME"
-	envSelfhostedPassword = "PASSWORD"
-	envSelfhostedBearer   = "TOKEN"
-	envSelfhostedHost     = "HOST"
+	envSelfhostedPrefix    = "SELFHOSTED"
+	envSelfhostedUsername  = "USERNAME"
+	envSelfhostedPassword  = "PASSWORD"
+	envSelfhostedBearer    = "TOKEN"
+	envSelfhostedHost      = "HOST"
+	envSelfhostedTokenPath = "TOKEN_PATH"
 )
 
 var (
 	selfhostedHostReg     = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_HOST_(.*)")
 	selfhostedUsernameReg = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_USERNAME_(.*)")
 	selfhostedPasswordReg = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_PASSWORD_(.*)")
+	selfhostedTokenPath    = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_TOKEN_PATH_(.*)")
 	selfhostedTokenReg    = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_TOKEN_(.*)")
 )
 
@@ -231,13 +233,20 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 				"username/password (%s_%s).",
 			envPrefix, envSelfhostedBearer,
 		))
+	fs.StringVar(&o.selfhosted.TokenPath,
+		"selfhosted-token", "",
+		fmt.Sprintf(
+			"Override the default selfhosted registry's token auth path. "+
+				"(%s_%s).",
+			envPrefix, envSelfhostedTokenPath,
+		))
 	fs.StringVar(&o.selfhosted.Host,
 		"selfhosted-registry-host", "",
 		fmt.Sprintf(
-			"Full host of the selfhosted registry. Include http[s] scheme (%s_%s",
+			"Full host of the selfhosted registry. Include http[s] scheme (%s_%s)",
 			envPrefix, envSelfhostedHost,
 		))
-	///
+
 }
 
 func (o *Options) complete() {
@@ -323,6 +332,12 @@ func (o *Options) assignSelfhosted(envs []string) {
 		if matches := selfhostedPasswordReg.FindStringSubmatch(strings.ToUpper(pair[0])); len(matches) == 2 {
 			initOptions(matches[1])
 			o.Client.Selfhosted[matches[1]].Password = pair[1]
+			continue
+		}
+
+		if matches := selfhostedTokenPath.FindStringSubmatch(strings.ToUpper(pair[0])); len(matches) == 2 {
+			initOptions(matches[1])
+			o.Client.Selfhosted[matches[1]].TokenPath = pair[1]
 			continue
 		}
 
