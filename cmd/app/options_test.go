@@ -83,13 +83,12 @@ func TestComplete(t *testing.T) {
 				},
 			},
 		},
-		"multiple host for all options should be included, Skip verify one host": {
+		"multiple host for all options should be included": {
 			envs: [][2]string{
 				{"VERSION_CHECKER_SELFHOSTED_HOST_BAR", "bar.docker.joshvanl.com"},
 				{"VERSION_CHECKER_SELFHOSTED_USERNAME_BAR", "bar.joshvanl"},
 				{"VERSION_CHECKER_SELFHOSTED_PASSWORD_BAR", "bar-password"},
 				{"VERSION_CHECKER_SELFHOSTED_TOKEN_BAR", "my-bar-token"},
-				{"VERSION_CHECKER_SELFHOSTED_INSECURE_FOO", "false"},
 				{"VERSION_CHECKER_ACR_USERNAME", "acr-username"},
 				{"VERSION_CHECKER_ACR_PASSWORD", "acr-password"},
 				{"VERSION_CHECKER_ACR_REFRESH_TOKEN", "acr-token"},
@@ -108,6 +107,12 @@ func TestComplete(t *testing.T) {
 				{"VERSION_CHECKER_SELFHOSTED_PASSWORD_FOO", "password"},
 				{"VERSION_CHECKER_SELFHOSTED_TOKEN_FOO", "my-token"},
 				{"VERSION_CHECKER_SELFHOSTED_INSECURE_FOO", "true"},
+				{"VERSION_CHECKER_SELFHOSTED_HOST_BUZZ", "buzz.docker.jetstack.io"},
+				{"VERSION_CHECKER_SELFHOSTED_USERNAME_BUZZ", "buzz.davidcollom"},
+				{"VERSION_CHECKER_SELFHOSTED_PASSWORD_BUZZ", "buzz-password"},
+				{"VERSION_CHECKER_SELFHOSTED_TOKEN_BUZZ", "my-buzz-token"},
+				{"VERSION_CHECKER_SELFHOSTED_INSECURE_BUZZ", "false"},
+				{"VERSION_CHECKER_SELFHOSTED_CA_PATH_BUZZ", "/var/run/secrets/buzz/ca.crt"},
 			},
 			expOptions: client.Options{
 				ACR: acr.Options{
@@ -150,71 +155,13 @@ func TestComplete(t *testing.T) {
 						Bearer:   "my-bar-token",
 						Insecure: false,
 					},
-				},
-			},
-		},
-		"multiple host for all options should be included": {
-			envs: [][2]string{
-				{"VERSION_CHECKER_SELFHOSTED_HOST_BAR", "bar.docker.joshvanl.com"},
-				{"VERSION_CHECKER_SELFHOSTED_USERNAME_BAR", "bar.joshvanl"},
-				{"VERSION_CHECKER_SELFHOSTED_PASSWORD_BAR", "bar-password"},
-				{"VERSION_CHECKER_SELFHOSTED_TOKEN_BAR", "my-bar-token"},
-				{"VERSION_CHECKER_ACR_USERNAME", "acr-username"},
-				{"VERSION_CHECKER_ACR_PASSWORD", "acr-password"},
-				{"VERSION_CHECKER_ACR_REFRESH_TOKEN", "acr-token"},
-				{"VERSION_CHECKER_DOCKER_USERNAME", "docker-username"},
-				{"VERSION_CHECKER_DOCKER_PASSWORD", "docker-password"},
-				{"VERSION_CHECKER_DOCKER_TOKEN", "docker-token"},
-				{"VERSION_CHECKER_ECR_IAM_ROLE_ARN", "iam-role-arn"},
-				{"VERSION_CHECKER_ECR_ACCESS_KEY_ID", "ecr-access-token"},
-				{"VERSION_CHECKER_ECR_SECRET_ACCESS_KEY", "ecr-secret-access-token"},
-				{"VERSION_CHECKER_ECR_SESSION_TOKEN", "ecr-session-token"},
-				{"VERSION_CHECKER_GCR_TOKEN", "gcr-token"},
-				{"VERSION_CHECKER_GHCR_TOKEN", "ghcr-token"},
-				{"VERSION_CHECKER_QUAY_TOKEN", "quay-token"},
-				{"VERSION_CHECKER_SELFHOSTED_HOST_FOO", "docker.joshvanl.com"},
-				{"VERSION_CHECKER_SELFHOSTED_USERNAME_FOO", "joshvanl"},
-				{"VERSION_CHECKER_SELFHOSTED_PASSWORD_FOO", "password"},
-				{"VERSION_CHECKER_SELFHOSTED_TOKEN_FOO", "my-token"},
-			},
-			expOptions: client.Options{
-				ACR: acr.Options{
-					Username:     "acr-username",
-					Password:     "acr-password",
-					RefreshToken: "acr-token",
-				},
-				Docker: docker.Options{
-					Username: "docker-username",
-					Password: "docker-password",
-					Token:    "docker-token",
-				},
-				ECR: ecr.Options{
-					IamRoleArn:      "iam-role-arn",
-					AccessKeyID:     "ecr-access-token",
-					SecretAccessKey: "ecr-secret-access-token",
-					SessionToken:    "ecr-session-token",
-				},
-				GCR: gcr.Options{
-					Token: "gcr-token",
-				},
-				GHCR: ghcr.Options{
-					Token: "ghcr-token",
-				},
-				Quay: quay.Options{
-					Token: "quay-token",
-				},
-				Selfhosted: map[string]*selfhosted.Options{
-					"FOO": &selfhosted.Options{
-						Host:     "docker.joshvanl.com",
-						Username: "joshvanl",
-						Password: "password",
-						Bearer:   "my-token",
-					},
-					"BAR": &selfhosted.Options{
-						Host:     "bar.docker.joshvanl.com",
-						Username: "bar.joshvanl",
-						Password: "bar-password",
-						Bearer:   "my-bar-token",
+					"BUZZ": &selfhosted.Options{
+						Host:     "buzz.docker.jetstack.io",
+						Username: "buzz.davidcollom",
+						Password: "buzz-password",
+						Bearer:   "my-buzz-token",
+						Insecure: false,
+						CAPath:   "/var/run/secrets/buzz/ca.crt",
 					},
 				},
 			},

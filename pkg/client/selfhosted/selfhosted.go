@@ -3,6 +3,7 @@ package selfhosted
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -38,6 +39,7 @@ type Options struct {
 	Password string
 	Bearer   string
 	Insecure bool
+	CAPath   string
 }
 
 type Client struct {
@@ -113,9 +115,14 @@ func New(ctx context.Context, log *logrus.Entry, opts *Options) (*Client, error)
 	if client.httpScheme == "" {
 		client.httpScheme = "https"
 	}
-	if client.httpScheme == "HTTPS" && opts.Insecure {
+	if client.httpScheme == "https" {
+		tlsConfig, err := newTLSConfig(opts.Insecure, opts.CAPath)
+		if err != nil {
+			return nil, err
+		}
+
 		client.Client.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			TLSClientConfig: tlsConfig,
 		}
 	}
 
@@ -269,4 +276,25 @@ func (c *Client) setupBasicAuth(ctx context.Context, url string) (string, error)
 	}
 
 	return response.Token, nil
+}
+
+func newTLSConfig(insecure bool, CAPath string) (*tls.Config, error) {
+	// Load system CA Certs and/or create a new CertPool
+	rootCAs, _ := x509.SystemCertPool()
+	if rootCAs == nil {
+		rootCAs = x509.NewCertPool()
+	}
+
+	if CAPath != "" {
+		certs, err := ioutil.ReadFile(CAPath)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to append %q to RootCAs: %v", CAPath, err)
+		}
+		rootCAs.AppendCertsFromPEM(certs)
+	}
+
+	return &tls.Config{
+		InsecureSkipVerify: insecure,
+		RootCAs:            rootCAs,
+	}, nil
 }

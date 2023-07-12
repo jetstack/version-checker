@@ -45,6 +45,7 @@ const (
 	envSelfhostedBearer   = "TOKEN"
 	envSelfhostedHost     = "HOST"
 	envSelfhostedInsecure = "INSECURE"
+	envSelfhostedCAPath   = "CA_PATH"
 )
 
 var (
@@ -52,6 +53,7 @@ var (
 	selfhostedUsernameReg = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_USERNAME_(.*)")
 	selfhostedPasswordReg = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_PASSWORD_(.*)")
 	selfhostedTokenReg    = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_TOKEN_(.*)")
+	selfhostedCAPath      = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_CA_PATH_(.*)")
 	selfhostedInsecureReg = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_INSECURE_(.*)")
 )
 
@@ -233,18 +235,24 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 				"username/password (%s_%s).",
 			envPrefix, envSelfhostedBearer,
 		))
+	fs.StringVar(&o.selfhosted.Host,
+		"selfhosted-registry-host", "",
+		fmt.Sprintf(
+			"Full host of the selfhosted registry. Include http[s] scheme (%s_%s)",
+			envPrefix, envSelfhostedHost,
+		))
+	fs.StringVar(&o.selfhosted.Host,
+		"selfhosted-registry-ca-path", "",
+		fmt.Sprintf(
+			"Absolute path to a PEM encoded x509 certificate chain. (%s_%s)",
+			envPrefix, envSelfhostedCAPath,
+		))
 	fs.BoolVarP(&o.selfhosted.Insecure,
 		"selfhosted-insecure", "", false,
 		fmt.Sprintf(
 			"Enable/Disable SSL Certificate Validation. WARNING: "+
 				"THIS IS NOT RECOMMENDED AND IS INTENDED FOR DEBUGGING (%s_%s)",
 			envPrefix, envSelfhostedInsecure,
-		))
-	fs.StringVar(&o.selfhosted.Host,
-		"selfhosted-registry-host", "",
-		fmt.Sprintf(
-			"Full host of the selfhosted registry. Include http[s] scheme (%s_%s)",
-			envPrefix, envSelfhostedHost,
 		))
 	///
 }
@@ -347,6 +355,12 @@ func (o *Options) assignSelfhosted(envs []string) {
 			if err == nil {
 				o.Client.Selfhosted[matches[1]].Insecure = val
 			}
+			continue
+		}
+
+		if matches := selfhostedCAPath.FindStringSubmatch(strings.ToUpper(pair[0])); len(matches) == 2 {
+			initOptions(matches[1])
+			o.Client.Selfhosted[matches[1]].CAPath = pair[1]
 			continue
 		}
 	}

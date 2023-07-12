@@ -112,7 +112,7 @@ func containerStatusImageSHA(pod *corev1.Pod, containerName string) string {
 	return ""
 }
 
-// isLatestOrEmptyTag will return true if the given tag is '' or 'latest'
+// isLatestOrEmptyTag will return true if the given tag is ” or 'latest'
 func (c *Checker) isLatestOrEmptyTag(tag string) bool {
 	return tag == "" || tag == "latest"
 }
