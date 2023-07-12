@@ -47,6 +47,14 @@ func TestIsHost(t *testing.T) {
 			host:  "eu-docker.pkg.dev",
 			expIs: true,
 		},
+		"k8s.io should be true": {
+			host:  "k8s.io",
+			expIs: true,
+		},
+		"registry.k8s.io should be true": {
+			host:  "registry.k8s.io",
+			expIs: true,
+		},
 	}
 
 	handler := new(Client)
