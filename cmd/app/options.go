@@ -13,6 +13,7 @@ import (
 	cliflag "k8s.io/component-base/cli/flag"
 
 	"github.com/jetstack/version-checker/pkg/client"
+	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/jetstack/version-checker/pkg/client/selfhosted"
 )
 
@@ -99,7 +100,7 @@ func (o *Options) addAppFlags(fs *pflag.FlagSet) {
 	fs.BoolVarP(&o.DefaultTestAll,
 		"test-all-containers", "a", false,
 		"If enabled, all containers will be tested, unless they have the "+
-			`annotation "enable.version-checker/${my-container}=false".`)
+			fmt.Sprintf(`annotation "%s/${my-container}=false".`, api.EnableAnnotationKey) )
 
 	fs.DurationVarP(&o.CacheTimeout,
 		"image-cache-timeout", "c", time.Minute*30,
