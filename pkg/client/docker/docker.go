@@ -15,7 +15,7 @@ import (
 
 const (
 	loginURL  = "https://hub.docker.com/v2/users/login/"
-	lookupURL = "https://registry.hub.docker.com/v2/repositories/%s/%s/tags"
+	lookupURL = "https://registry.hub.docker.com/v2/repositories/%s/%s/tags?page_size=100"
 )
 
 type Options struct {
@@ -52,7 +52,7 @@ type Image struct {
 
 func New(ctx context.Context, opts Options) (*Client, error) {
 	client := &http.Client{
-		Timeout: time.Second * 5,
+		Timeout: time.Second * 10,
 	}
 
 	// Setup Auth if username and password used.
