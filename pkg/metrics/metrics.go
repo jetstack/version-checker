@@ -22,7 +22,6 @@ type Metrics struct {
 
 	registry              *prometheus.Registry
 	containerImageVersion *prometheus.GaugeVec
-	containerImageErrors  *prometheus.CounterVec
 	log                   *logrus.Entry
 
 	// container cache stores a cache of a container's current image, version,
@@ -48,26 +47,14 @@ func New(log *logrus.Entry) *Metrics {
 			"namespace", "pod", "container", "image", "current_version", "latest_version",
 		},
 	)
-	containerImageErrors := prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: "version_checker",
-			Name:      "image_failures",
-			Help:      "Where the version-checker was unable to get the latest upstream registry version",
-		},
-		[]string{
-			"namespace", "pod", "container", "image",
-		},
-	)
 
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(containerImageVersion)
-	registry.MustRegister(containerImageErrors)
 
 	return &Metrics{
 		log:                   log.WithField("module", "metrics"),
 		registry:              registry,
 		containerImageVersion: containerImageVersion,
-		containerImageErrors:  containerImageErrors,
 		containerCache:        make(map[string]cacheItem),
 	}
 }
