@@ -78,6 +78,7 @@ func TestComplete(t *testing.T) {
 						Username: "joshvanl",
 						Password: "password",
 						Bearer:   "my-token",
+						Insecure: false,
 					},
 				},
 			},
@@ -105,6 +106,13 @@ func TestComplete(t *testing.T) {
 				{"VERSION_CHECKER_SELFHOSTED_USERNAME_FOO", "joshvanl"},
 				{"VERSION_CHECKER_SELFHOSTED_PASSWORD_FOO", "password"},
 				{"VERSION_CHECKER_SELFHOSTED_TOKEN_FOO", "my-token"},
+				{"VERSION_CHECKER_SELFHOSTED_INSECURE_FOO", "true"},
+				{"VERSION_CHECKER_SELFHOSTED_HOST_BUZZ", "buzz.docker.jetstack.io"},
+				{"VERSION_CHECKER_SELFHOSTED_USERNAME_BUZZ", "buzz.davidcollom"},
+				{"VERSION_CHECKER_SELFHOSTED_PASSWORD_BUZZ", "buzz-password"},
+				{"VERSION_CHECKER_SELFHOSTED_TOKEN_BUZZ", "my-buzz-token"},
+				{"VERSION_CHECKER_SELFHOSTED_INSECURE_BUZZ", "false"},
+				{"VERSION_CHECKER_SELFHOSTED_CA_PATH_BUZZ", "/var/run/secrets/buzz/ca.crt"},
 			},
 			expOptions: client.Options{
 				ACR: acr.Options{
@@ -138,12 +146,22 @@ func TestComplete(t *testing.T) {
 						Username: "joshvanl",
 						Password: "password",
 						Bearer:   "my-token",
+						Insecure: true,
 					},
 					"BAR": &selfhosted.Options{
 						Host:     "bar.docker.joshvanl.com",
 						Username: "bar.joshvanl",
 						Password: "bar-password",
 						Bearer:   "my-bar-token",
+						Insecure: false,
+					},
+					"BUZZ": &selfhosted.Options{
+						Host:     "buzz.docker.jetstack.io",
+						Username: "buzz.davidcollom",
+						Password: "buzz-password",
+						Bearer:   "my-buzz-token",
+						Insecure: false,
+						CAPath:   "/var/run/secrets/buzz/ca.crt",
 					},
 				},
 			},
@@ -223,7 +241,7 @@ func TestAssignSelfhosted(t *testing.T) {
 				},
 			},
 		},
-		"allow token path override":{
+		"allow token path override": {
 			envs: []string{
 				"VERSION_CHECKER_SELFHOSTED_HOST_FOO=docker.joshvanl.com",
 				"VERSION_CHECKER_SELFHOSTED_HOST_BAR=hello.world.com",
@@ -236,10 +254,10 @@ func TestAssignSelfhosted(t *testing.T) {
 			expOptions: client.Options{
 				Selfhosted: map[string]*selfhosted.Options{
 					"FOO": &selfhosted.Options{
-						Host:     "docker.joshvanl.com",
-						Username: "joshvanl",
-						Password: "password",
-						Bearer:   "my-token",
+						Host:      "docker.joshvanl.com",
+						Username:  "joshvanl",
+						Password:  "password",
+						Bearer:    "my-token",
 						TokenPath: "/artifactory/api/security/token",
 					},
 					"BAR": &selfhosted.Options{
