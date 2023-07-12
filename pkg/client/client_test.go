@@ -121,6 +121,18 @@ func TestFromImageURL(t *testing.T) {
 			expHost:   "us.gcr.io",
 			expPath:   "k8s-artifacts-prod/ingress-nginx/nginx",
 		},
+		"k8s.io should be gcr": {
+			url:       "k8s.io/sig-storage/csi-node-driver-registrar",
+			expClient: new(gcr.Client),
+			expHost:   "k8s.io",
+			expPath:   "sig-storage/csi-node-driver-registrar",
+		},
+		"k8s.io with subdomain should be gcr": {
+			url:       "registry.k8s.io/sig-storage/csi-node-driver-registrar",
+			expClient: new(gcr.Client),
+			expHost:   "registry.k8s.io",
+			expPath:   "sig-storage/csi-node-driver-registrar",
+		},
 
 		"ghcr.io should be ghcr": {
 			url:       "ghcr.io/jetstack/version-checker",

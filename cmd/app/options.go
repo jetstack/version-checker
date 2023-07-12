@@ -13,6 +13,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	cliflag "k8s.io/component-base/cli/flag"
 
+	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/jetstack/version-checker/pkg/client"
 	"github.com/jetstack/version-checker/pkg/client/selfhosted"
 )
@@ -39,19 +40,21 @@ const (
 
 	envQuayToken = "QUAY_TOKEN"
 
-	envSelfhostedPrefix   = "SELFHOSTED"
-	envSelfhostedUsername = "USERNAME"
-	envSelfhostedPassword = "PASSWORD"
-	envSelfhostedBearer   = "TOKEN"
-	envSelfhostedHost     = "HOST"
-	envSelfhostedInsecure = "INSECURE"
-	envSelfhostedCAPath   = "CA_PATH"
+	envSelfhostedPrefix    = "SELFHOSTED"
+	envSelfhostedUsername  = "USERNAME"
+	envSelfhostedPassword  = "PASSWORD"
+	envSelfhostedHost      = "HOST"
+	envSelfhostedBearer    = "TOKEN"
+	envSelfhostedTokenPath = "TOKEN_PATH"
+	envSelfhostedInsecure  = "INSECURE"
+	envSelfhostedCAPath    = "CA_PATH"
 )
 
 var (
 	selfhostedHostReg     = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_HOST_(.*)")
 	selfhostedUsernameReg = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_USERNAME_(.*)")
 	selfhostedPasswordReg = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_PASSWORD_(.*)")
+	selfhostedTokenPath   = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_TOKEN_PATH_(.*)")
 	selfhostedTokenReg    = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_TOKEN_(.*)")
 	selfhostedCAPath      = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_CA_PATH_(.*)")
 	selfhostedInsecureReg = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_INSECURE_(.*)")
@@ -104,7 +107,7 @@ func (o *Options) addAppFlags(fs *pflag.FlagSet) {
 	fs.BoolVarP(&o.DefaultTestAll,
 		"test-all-containers", "a", false,
 		"If enabled, all containers will be tested, unless they have the "+
-			`annotation "enable.version-checker/${my-container}=false".`)
+			fmt.Sprintf(`annotation "%s/${my-container}=false".`, api.EnableAnnotationKey))
 
 	fs.DurationVarP(&o.CacheTimeout,
 		"image-cache-timeout", "c", time.Minute*30,
@@ -235,6 +238,13 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 				"username/password (%s_%s).",
 			envPrefix, envSelfhostedBearer,
 		))
+	fs.StringVar(&o.selfhosted.TokenPath,
+		"selfhosted-token", "",
+		fmt.Sprintf(
+			"Override the default selfhosted registry's token auth path. "+
+				"(%s_%s).",
+			envPrefix, envSelfhostedTokenPath,
+		))
 	fs.StringVar(&o.selfhosted.Host,
 		"selfhosted-registry-host", "",
 		fmt.Sprintf(
@@ -340,6 +350,12 @@ func (o *Options) assignSelfhosted(envs []string) {
 		if matches := selfhostedPasswordReg.FindStringSubmatch(strings.ToUpper(pair[0])); len(matches) == 2 {
 			initOptions(matches[1])
 			o.Client.Selfhosted[matches[1]].Password = pair[1]
+			continue
+		}
+
+		if matches := selfhostedTokenPath.FindStringSubmatch(strings.ToUpper(pair[0])); len(matches) == 2 {
+			initOptions(matches[1])
+			o.Client.Selfhosted[matches[1]].TokenPath = pair[1]
 			continue
 		}
 

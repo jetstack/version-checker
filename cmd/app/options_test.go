@@ -241,6 +241,32 @@ func TestAssignSelfhosted(t *testing.T) {
 				},
 			},
 		},
+		"allow token path override": {
+			envs: []string{
+				"VERSION_CHECKER_SELFHOSTED_HOST_FOO=docker.joshvanl.com",
+				"VERSION_CHECKER_SELFHOSTED_HOST_BAR=hello.world.com",
+				"VERSION_CHECKER_SELFHOSTED_USERNAME_FOO=joshvanl",
+				"VERSION_CHECKER_SELFHOSTED_PASSWORD_FOO=password",
+				"VERSION_CHECKER_SELFHOSTED_TOKEN_FOO=my-token",
+				"VERSION_CHECKER_SELFHOSTED_TOKEN_BAR=my-bar-token",
+				"VERSION_CHECKER_SELFHOSTED_TOKEN_PATH_FOO=/artifactory/api/security/token",
+			},
+			expOptions: client.Options{
+				Selfhosted: map[string]*selfhosted.Options{
+					"FOO": &selfhosted.Options{
+						Host:      "docker.joshvanl.com",
+						Username:  "joshvanl",
+						Password:  "password",
+						Bearer:    "my-token",
+						TokenPath: "/artifactory/api/security/token",
+					},
+					"BAR": &selfhosted.Options{
+						Host:   "hello.world.com",
+						Bearer: "my-bar-token",
+					},
+				},
+			},
+		},
 		"ignore keys with no values": {
 			envs: []string{
 				"VERSION_CHECKER_SELFHOSTED_HOST_FOO=docker.joshvanl.com",

@@ -26,7 +26,7 @@ const (
 	// /v2/{repo/image}/manifests/{tag}
 	manifestPath = "%s/v2/%s/manifests/%s"
 	// Token endpoint
-	tokenPath = "/v2/token"
+	defaultTokenPath = "/v2/token"
 
 	// HTTP headers to request API version
 	dockerAPIv1Header = "application/vnd.docker.distribution.manifest.v1+json"
@@ -34,12 +34,13 @@ const (
 )
 
 type Options struct {
-	Host     string
-	Username string
-	Password string
-	Bearer   string
-	Insecure bool
-	CAPath   string
+	Host      string
+	Username  string
+	Password  string
+	Bearer    string
+	TokenPath string
+	Insecure  bool
+	CAPath    string
 }
 
 type Client struct {
@@ -98,7 +99,12 @@ func New(ctx context.Context, log *logrus.Entry, opts *Options) (*Client, error)
 				return nil, errors.New("cannot specify Bearer token as well as username/password")
 			}
 
-			token, err := client.setupBasicAuth(ctx, opts.Host)
+			tokenPath := opts.TokenPath
+			if tokenPath == "" {
+				tokenPath = defaultTokenPath
+			}
+
+			token, err := client.setupBasicAuth(ctx, opts.Host, tokenPath)
 			if httpErr, ok := selfhostederrors.IsHTTPError(err); ok {
 				return nil, fmt.Errorf("failed to setup token auth (%d): %s",
 					httpErr.StatusCode, httpErr.Body)
@@ -238,7 +244,7 @@ func (c *Client) doRequest(ctx context.Context, url, header string, obj interfac
 	return resp.Header, nil
 }
 
-func (c *Client) setupBasicAuth(ctx context.Context, url string) (string, error) {
+func (c *Client) setupBasicAuth(ctx context.Context, url, tokenPath string) (string, error) {
 	upReader := strings.NewReader(
 		fmt.Sprintf(`{"username": "%s", "password": "%s"}`,
 			c.Username, c.Password,
