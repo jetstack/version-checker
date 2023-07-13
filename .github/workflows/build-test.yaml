@@ -91,6 +91,6 @@ jobs:
         context: .
         platforms: ${{ matrix.platform }}
         push: false
-        tags: quay.io/jetstack/version-checker:${{github.ref_name}}
+        tags: quay.io/jetstack/version-checker:${{github.sha}}
         cache-from: type=gha
         cache-to: type=gha,mode=max
