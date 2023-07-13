@@ -83,7 +83,7 @@ jobs:
           context: .
           platforms: ${{ matrix.platform }}
           push: ${{ !startsWith(github.ref, 'refs/tags/') }}
-          tags: jetstack/version-checker:${{github.ref_name}}
+          tags: quay.io/jetstack/version-checker:${{github.ref_name}}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
