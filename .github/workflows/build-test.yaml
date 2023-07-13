@@ -1,17 +1,12 @@
 name: Test & Build
 on:
-  push:
-    branches:
-      - 'master'
   pull_request:
     branches:
       - 'master'
 
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
 
 jobs:
   lint:
@@ -50,7 +45,6 @@ jobs:
     - name: check test coverage
       uses: vladopajic/go-test-coverage@v2
       with:
-        # Configure action using config file (option 1)
         config: ./.testcoverage.yml
 
     - name: Generate code coverage artifacts
@@ -67,17 +61,35 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch:
-          - amd64
-          - arm64
-    env:
-      ARCH: ${{matrix.arch}}
+        platform:
+          - linux/amd64
+          - linux/arm64
+          - linux/arm/v7
     name: Build Images
     steps:
     - name: Checkout code
       uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
-    - name: Setup Go
-      uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.0
-    - name: Build
-      run: |
-        make image
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v2
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+      with:
+        platforms: ${{ matrix.platform }}
+
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        registry: quay.io
+        username: ${{ secrets.QUAY_USERNAME }}
+        password: ${{ secrets.QUAY_ROBOT_TOKEN }}
+
+    - name: Build and push
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        platforms: ${{ matrix.platform }}
+        push: false
+        tags: jetstack/version-checker:${{github.ref_name}}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
