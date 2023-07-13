@@ -2,7 +2,7 @@ name: Test & Build
 on:
   pull_request:
     branches:
-      - 'master'
+      - 'main'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -32,13 +32,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      uses: actions/checkout@v3 # v3.5.3
     - name: Setup Go
-      uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.0
+      uses: actions/setup-go@v4
 
     - name: Download and required packages
       run: |
         make deps
+
     - name: Run all unit tests
       run: make test
 
