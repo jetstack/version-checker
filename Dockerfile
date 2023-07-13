@@ -13,6 +13,6 @@ LABEL description="Kubernetes utility for exposing used image versions compared 
 
 RUN apk --no-cache add ca-certificates
 
-COPY --from=builder /app/bin/version-checker-linux /usr/bin/version-checker
+COPY --from=builder /app/bin/version-checker /usr/bin/version-checker
 
 ENTRYPOINT ["/usr/bin/version-checker"]
