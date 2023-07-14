@@ -170,5 +170,8 @@ func (m *Metrics) Shutdown() error {
 func (m *Metrics) healthzAndReadyzHandler(w http.ResponseWriter, r *http.Request) {
 	// Its not great, but does help ensure that we're alive and ready over
 	// calling the /metrics endpoint which can be expensive on large payloads
-	w.Write([]byte("OK"))
+	_, err := w.Write([]byte("OK"))
+	if err != nil {
+		m.log.Errorf("Failed to send Healthz/Readyz response: %s", err)
+	}
 }
