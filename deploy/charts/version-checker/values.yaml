@@ -69,6 +69,23 @@ resources: {}
   #   memory: 128Mi
   #
 
+readinessProbe:
+  enabled: true
+  httpGet:
+    path: /readyz
+    port: 8080
+  initialDelaySeconds: 3
+  periodSeconds: 3
+
+livenessProbe:
+  enabled: true
+  httpGet:
+    path: /readyz
+    port: 8080
+  initialDelaySeconds: 3
+  periodSeconds: 3
+
+
 # Prometheus Operator
 prometheus:
   enabled: false
