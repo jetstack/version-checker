@@ -27,7 +27,7 @@ spec:
       serviceAccountName: {{ $chartname }}
       containers:
       - name: {{ $chartname }}
-        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         ports:
         - containerPort: 8080
@@ -173,4 +173,3 @@ spec:
           secret:
             secretName: {{ include "version-checker.name" . }}
         {{ end }}
-

@@ -6,7 +6,8 @@ replicaCount: 1
 
 image:
   repository: quay.io/jetstack/version-checker
-  tag: v0.2.2
+  # Override the chart version
+  tag:
   pullPolicy: IfNotPresent
 
 service:
