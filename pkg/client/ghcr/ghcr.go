@@ -40,21 +40,26 @@ func (c *Client) Tags(ctx context.Context, host, owner, repo string) ([]api.Imag
 	tc := oauth2.NewClient(ctx, ts)
 	client := github.NewClient(tc)
 
-	opt := &github.ListOptions{PerPage: 10}
-	releases, _, err := client.Repositories.ListReleases(ctx, owner, repo, opt)
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to get github Releases: %s", err)
-	}
-
 	var tags []api.ImageTag
-	for _, rel := range releases {
-		tags = append(tags, api.ImageTag{
-			Tag:       *rel.TagName,
-			SHA:       "",
-			Timestamp: rel.PublishedAt.Time,
-		})
-	}
+	opt := &github.ListOptions{PerPage: 50}
+	for {
+		releases, resp, err := client.Repositories.ListReleases(ctx, owner, repo, opt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get github Releases: %s", err)
+		}
 
+		for _, rel := range releases {
+			tags = append(tags, api.ImageTag{
+				Tag:       *rel.TagName,
+				SHA:       "",
+				Timestamp: rel.PublishedAt.Time,
+			})
+		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+		opt.Page = resp.NextPage
+	}
 	return tags, nil
 }
