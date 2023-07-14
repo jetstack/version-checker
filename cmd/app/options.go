@@ -239,7 +239,7 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 			envPrefix, envSelfhostedBearer,
 		))
 	fs.StringVar(&o.selfhosted.TokenPath,
-		"selfhosted-token", "",
+		"selfhosted-token-path", "",
 		fmt.Sprintf(
 			"Override the default selfhosted registry's token auth path. "+
 				"(%s_%s).",
