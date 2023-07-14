@@ -6,11 +6,16 @@ help:  ## display this help
 
 .PHONY: help build image all clean
 
-test: ## test version-checker
-	go test ./...
+deps: ## Download all Dependencies
+	go mod download
 
-build: ## build version-checker
+test: deps ## test version-checker
+	go test ./... -coverprofile=coverage.out
+
+$(BINDIR):
 	mkdir -p $(BINDIR)
+
+build: deps $(BINDIR) ## build version-checker
 	CGO_ENABLED=0 go build -o ./bin/version-checker ./cmd/.
 
 verify: test build ## tests and builds version-checker
