@@ -20,8 +20,13 @@ func (c *Controller) sync(ctx context.Context, pod *corev1.Pod) error {
 	builder := options.New(pod.Annotations)
 
 	var errs []string
+	for _, container := range pod.Spec.InitContainers {
+		if err := c.syncContainer(ctx, log, builder, pod, &container, "init"); err != nil {
+			errs = append(errs, err.Error())
+		}
+	}
 	for _, container := range pod.Spec.Containers {
-		if err := c.syncContainer(ctx, log, builder, pod, &container); err != nil {
+		if err := c.syncContainer(ctx, log, builder, pod, &container, "container"); err != nil {
 			errs = append(errs, err.Error())
 		}
 	}
@@ -36,10 +41,10 @@ func (c *Controller) sync(ctx context.Context, pod *corev1.Pod) error {
 
 // syncContainer will enqueue a given container to check the version
 func (c *Controller) syncContainer(ctx context.Context, log *logrus.Entry, builder *options.Builder, pod *corev1.Pod,
-	container *corev1.Container) error {
+	container *corev1.Container, containerType string) error {
 	// If not enabled, exit early
 	if !builder.IsEnabled(c.defaultTestAll, container.Name) {
-		c.metrics.RemoveImage(pod.Namespace, pod.Name, container.Name)
+		c.metrics.RemoveImage(pod.Namespace, pod.Name, container.Name, containerType)
 		return nil
 	}
 
@@ -50,9 +55,9 @@ func (c *Controller) syncContainer(ctx context.Context, log *logrus.Entry, build
 	}
 
 	log = log.WithField("container", container.Name)
-	log.Debug("processing conainer image")
+	log.Debug("processing container image")
 
-	err = c.checkContainer(ctx, log, pod, container, opts)
+	err = c.checkContainer(ctx, log, pod, container, containerType, opts)
 	// Don't re-sync, if no version found meeting search criteria
 	if versionerrors.IsNoVersionFound(err) {
 		log.Error(err.Error())
@@ -69,7 +74,7 @@ func (c *Controller) syncContainer(ctx context.Context, log *logrus.Entry, build
 // checkContainer will check the given container and options, and update
 // metrics according to the result.
 func (c *Controller) checkContainer(ctx context.Context, log *logrus.Entry, pod *corev1.Pod,
-	container *corev1.Container, opts *api.Options) error {
+	container *corev1.Container, containerType string,  opts *api.Options) error {
 	result, err := c.checker.Container(ctx, log, pod, container, opts)
 	if err != nil {
 		return err
@@ -89,8 +94,8 @@ func (c *Controller) checkContainer(ctx context.Context, log *logrus.Entry, pod 
 	}
 
 	c.metrics.AddImage(pod.Namespace, pod.Name,
-		container.Name, result.ImageURL, result.IsLatest,
-		result.CurrentVersion, result.LatestVersion)
+		container.Name, containerType, result.ImageURL, result.IsLatest,
+		result.CurrentVersion, result.LatestVersion,)
 
 	return nil
 }

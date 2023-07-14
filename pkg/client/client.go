@@ -129,6 +129,6 @@ func (c *Client) fromImageURL(imageURL string) (ImageClient, string, string) {
 		}
 	}
 
-	// fall back to docker with no path split
+	// fall back to selfhosted with no path split
 	return c.fallbackClient, host, path
 }
