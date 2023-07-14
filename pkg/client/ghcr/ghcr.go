@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/google/go-github/v44/github"
+	"github.com/google/go-github/v53/github"
 	"github.com/jetstack/version-checker/pkg/api"
 	"golang.org/x/oauth2"
 )
