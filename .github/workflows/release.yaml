@@ -3,15 +3,64 @@ name: Version-Checker Release
 on:
   push:
     branches:
-      - 'release-*'
+      - "release-v*"
     tags:
-        - '*'
+      - "*"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  update-version-files:
+    # Don't push back to a tag!
+    if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+    name: Update Version Numbers
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v2
+      - uses: bhowell2/github-substring-action@1.0.2
+        id: release_number
+        with:
+          value: ${{github.ref_name}}
+          index_of_str: "release-"
+
+      - name: Find and Replace Helm Chart Version
+        uses: jacobtomlinson/gha-find-replace@v3
+        with:
+          find: 'v(\d+)\.(\d+)\.(\d+)(-rc(\d)+)?'
+          replace: "${{steps.release_number.outputs.substring}}"
+          include: "deploy/charts/version-checker/Chart.yaml"
+          regex: true
+      - name: Find and Replace Kubernetes Manifests
+        uses: jacobtomlinson/gha-find-replace@v3
+        with:
+          find: 'v(\d+)\.(\d+)\.(\d+)(-rc(\d)+)?'
+          replace: "${{steps.release_number.outputs.substring}}"
+          include: "deploy/yaml/deploy.yaml"
+          regex: true
+      - name: Fid and Replace Makefile versions
+        uses: jacobtomlinson/gha-find-replace@v3
+        with:
+          find: 'v(\d+)\.(\d+)\.(\d+)(-rc(\d)+)?'
+          replace: "${{steps.release_number.outputs.substring}}"
+          include: "Makefile"
+          regex: true
+
+      - name: Commit files
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git status
+          git commit -a -m "Bump versions to ${{steps.release_number.outputs.substring}} "
+      - name: Push changes
+        uses: ad-m/github-push-action@v0.6.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref_name }}
+
   helm-release:
     runs-on: ubuntu-latest
     steps:
@@ -87,8 +136,8 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-
   github-release:
+    name: Create/Update GitHub Release
     permissions:
       contents: write
     runs-on: ubuntu-latest
