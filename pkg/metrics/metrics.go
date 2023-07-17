@@ -63,6 +63,8 @@ func New(log *logrus.Entry) *Metrics {
 func (m *Metrics) Run(servingAddress string) error {
 	router := http.NewServeMux()
 	router.Handle("/metrics", promhttp.HandlerFor(m.registry, promhttp.HandlerOpts{}))
+	router.Handle("/healthz", http.HandlerFunc(m.healthzAndReadyzHandler))
+	router.Handle("/readyz", http.HandlerFunc(m.healthzAndReadyzHandler))
 
 	ln, err := net.Listen("tcp", servingAddress)
 	if err != nil {
@@ -163,4 +165,13 @@ func (m *Metrics) Shutdown() error {
 	m.log.Info("prometheus metrics server gracefully stopped")
 
 	return nil
+}
+
+func (m *Metrics) healthzAndReadyzHandler(w http.ResponseWriter, r *http.Request) {
+	// Its not great, but does help ensure that we're alive and ready over
+	// calling the /metrics endpoint which can be expensive on large payloads
+	_, err := w.Write([]byte("OK"))
+	if err != nil {
+		m.log.Errorf("Failed to send Healthz/Readyz response: %s", err)
+	}
 }
