@@ -74,7 +74,7 @@ func (c *Controller) syncContainer(ctx context.Context, log *logrus.Entry, build
 // checkContainer will check the given container and options, and update
 // metrics according to the result.
 func (c *Controller) checkContainer(ctx context.Context, log *logrus.Entry, pod *corev1.Pod,
-	container *corev1.Container, containerType string,  opts *api.Options) error {
+	container *corev1.Container, containerType string, opts *api.Options) error {
 	result, err := c.checker.Container(ctx, log, pod, container, opts)
 	if err != nil {
 		return err
@@ -95,7 +95,7 @@ func (c *Controller) checkContainer(ctx context.Context, log *logrus.Entry, pod 
 
 	c.metrics.AddImage(pod.Namespace, pod.Name,
 		container.Name, containerType, result.ImageURL, result.IsLatest,
-		result.CurrentVersion, result.LatestVersion,)
+		result.CurrentVersion, result.LatestVersion)
 
 	return nil
 }
