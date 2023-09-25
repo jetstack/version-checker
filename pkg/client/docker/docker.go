@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -138,7 +138,7 @@ func (c *Client) doRequest(ctx context.Context, url string) (*TagResponse, error
 		return nil, fmt.Errorf("failed to get docker image: %s", err)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +171,7 @@ func basicAuthSetup(ctx context.Context, client *http.Client, opts Options) (str
 		return "", err
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}

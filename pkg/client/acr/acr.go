@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"sync"
 	"time"
@@ -140,7 +140,7 @@ func (c *Client) getManifestsWithClient(ctx context.Context, client *acrClient, 
 	}
 
 	if resp.StatusCode != 200 {
-		body, err := ioutil.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return nil, fmt.Errorf("bad request for image host %s", host)
 		}
