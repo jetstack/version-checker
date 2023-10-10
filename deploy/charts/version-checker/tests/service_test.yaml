@@ -1,0 +1,16 @@
+suite: test service
+templates:
+  - service.yaml
+tests:
+  - it: should work (defaults)
+    asserts:
+      - containsDocument:
+          kind: Service
+          apiVersion: v1
+          name: version-checker
+      - equal:
+          path: spec.ports[0].targetPort
+          value: 8080
+      - equal:
+          path: spec.ports[0].name
+          value: web
