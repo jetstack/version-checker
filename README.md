@@ -5,8 +5,6 @@ images running in the cluster, as well as the latest available upstream. These
 checks get exposed as Prometheus metrics to be viewed on a dashboard, or _soft_
 alert cluster operators.
 
-> This tool is currently experimental.
-
 ## Registries
 
 version-checker supports the following registries:
