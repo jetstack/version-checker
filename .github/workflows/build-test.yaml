@@ -1,6 +1,8 @@
 name: Test & Build
 on:
   pull_request:
+    paths:
+      - '!*.md'
     branches:
       - 'main'
 
