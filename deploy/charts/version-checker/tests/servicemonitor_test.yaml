@@ -1,0 +1,35 @@
+suite: test ServiceMonitor
+templates:
+  - servicemonitor.yaml
+tests:
+  - it: should work (defaults)
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: works (when enabled)
+    set:
+      serviceMonitor.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
+      - containsDocument:
+          kind: ServiceMonitor
+          apiVersion: monitoring.coreos.com/v1
+          name: version-checker
+
+  - it: able to provide custom labels
+    set:
+      serviceMonitor.enabled: true
+      serviceMonitor.additionalLabels:
+        foo: bar
+    asserts:
+      - hasDocuments:
+          count: 1
+      - containsDocument:
+          kind: ServiceMonitor
+          apiVersion: monitoring.coreos.com/v1
+          name: version-checker
+      - equal:
+          path: metadata.labels["foo"]
+          value: bar

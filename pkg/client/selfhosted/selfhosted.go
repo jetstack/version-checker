@@ -7,8 +7,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -228,7 +229,7 @@ func (c *Client) doRequest(ctx context.Context, url, header string, obj interfac
 		return nil, fmt.Errorf("failed to get docker image: %s", err)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -267,7 +268,7 @@ func (c *Client) setupBasicAuth(ctx context.Context, url, tokenPath string) (str
 			req.URL, err)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
@@ -292,7 +293,7 @@ func newTLSConfig(insecure bool, CAPath string) (*tls.Config, error) {
 	}
 
 	if CAPath != "" {
-		certs, err := ioutil.ReadFile(CAPath)
+		certs, err := os.ReadFile(CAPath)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to append %q to RootCAs: %v", CAPath, err)
 		}

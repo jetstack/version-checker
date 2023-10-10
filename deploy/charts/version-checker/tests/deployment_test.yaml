@@ -1,0 +1,308 @@
+suite: test deployment
+templates:
+  - deployment.yaml
+tests:
+  - it: should work (defaults)
+    set:
+      image.tag: latest
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.name
+          value: version-checker
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: quay.io/jetstack/version-checker:latest
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value: {}
+      - equal:
+          path: spec.template.metadata.labels["app.kubernetes.io/name"]
+          value: version-checker
+      - equal:
+          path: spec.template.metadata.labels["app.kubernetes.io/instance"]
+          value: RELEASE-NAME
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: version-checker
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe
+          value:
+            httpGet:
+              path: /readyz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 3
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe
+          value:
+            httpGet:
+              path: /readyz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 3
+      - isNullOrEmpty:
+          path: spec.template.spec.volumes
+
+  # ACR
+  - it: ACR should work
+    set:
+      acr.refreshToken: ajbhvdsbjvh
+      acr.username: jsgbjkas
+      acr.password: sgkjnabskjga
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          count: 1
+          content:
+            name: VERSION_CHECKER_ACR_REFRESH_TOKEN
+            valueFrom:
+              secretKeyRef:
+                key: acr.refreshToken
+                name: version-checker
+      - contains:
+          path: spec.template.spec.containers[0].env
+          count: 1
+          content:
+            name: VERSION_CHECKER_ACR_USERNAME
+            valueFrom:
+              secretKeyRef:
+                key: acr.username
+                name: version-checker
+      - contains:
+          path: spec.template.spec.containers[0].env
+          count: 1
+          content:
+            name: VERSION_CHECKER_ACR_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: acr.password
+                name: version-checker
+
+  # ECR
+  - it: ECR should work
+    set:
+      ecr.iamRoleArn: ajbhvdsbjvh
+      ecr.accessKeyID: jsgbjkas
+      ecr.secretAccessKey: sgkjnabskjga
+      ecr.sessionToken: asgjasg
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          count: 1
+          content:
+            name: VERSION_CHECKER_ECR_IAM_ROLE_ARN
+            value: ajbhvdsbjvh
+      - contains:
+          path: spec.template.spec.containers[0].env
+          count: 1
+          content:
+            name: VERSION_CHECKER_ECR_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                key: ecr.accessKeyID
+                name: version-checker
+      - contains:
+          path: spec.template.spec.containers[0].env
+          count: 1
+          content:
+            name: VERSION_CHECKER_ECR_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                key: ecr.secretAccessKey
+                name: version-checker
+      - contains:
+          path: spec.template.spec.containers[0].env
+          count: 1
+          content:
+            name: VERSION_CHECKER_ECR_SESSION_TOKEN
+            valueFrom:
+              secretKeyRef:
+                key: ecr.sessionToken
+                name: version-checker
+
+  # Docker
+  - it: Docker should work
+    set:
+      docker.token: ajbhvdsbjvh
+      docker.username: username
+      docker.password: hunter1
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          count: 1
+          content:
+            name: VERSION_CHECKER_DOCKER_TOKEN
+            valueFrom:
+              secretKeyRef:
+                key: docker.token
+                name: version-checker
+      - contains:
+          path: spec.template.spec.containers[0].env
+          count: 1
+          content:
+            name: VERSION_CHECKER_DOCKER_USERNAME
+            valueFrom:
+              secretKeyRef:
+                key: docker.username
+                name: version-checker
+      - contains:
+          path: spec.template.spec.containers[0].env
+          count: 1
+          content:
+            name: VERSION_CHECKER_DOCKER_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: docker.password
+                name: version-checker
+
+  # GCR
+  - it: GCR should work
+    set:
+      gcr.token: ajbhvdsbjvh
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          count: 1
+          content:
+            name: VERSION_CHECKER_GCR_TOKEN
+            valueFrom:
+              secretKeyRef:
+                key: gcr.token
+                name: version-checker
+
+  # Quay
+  - it: Quay should work
+    set:
+      quay.token: ajbhvdsbjvh
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          count: 1
+          content:
+            name: VERSION_CHECKER_QUAY_TOKEN
+            valueFrom:
+              secretKeyRef:
+                key: quay.token
+                name: version-checker
+
+  # Self Hosted
+  - it: Self hosted should work
+    set:
+      selfhosted:
+        - name: bob
+          host: http://example.com
+          username: asgasasf
+          password: hunter1
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          count: 1
+          content:
+            name: VERSION_CHECKER_SELFHOSTED_HOST_bob
+            valueFrom:
+              secretKeyRef:
+                key: selfhosted.bob.host
+                name: version-checker
+      - contains:
+          path: spec.template.spec.containers[0].env
+          count: 1
+          content:
+            name: VERSION_CHECKER_SELFHOSTED_USERNAME_bob
+            valueFrom:
+              secretKeyRef:
+                key: selfhosted.bob.username
+                name: version-checker
+      - contains:
+          path: spec.template.spec.containers[0].env
+          count: 1
+          content:
+            name: VERSION_CHECKER_SELFHOSTED_PASSWORD_bob
+            valueFrom:
+              secretKeyRef:
+                key: selfhosted.bob.password
+                name: version-checker
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: VERSION_CHECKER_SELFHOSTED_TOKEN_bob
+            valueFrom:
+              secretKeyRef:
+                key: selfhosted.bob.password
+                name: version-checker
+
+  # Multiple Self Hosted
+  - it: Multiple Self hosted should work
+    set:
+      selfhosted:
+        - name: bob
+          host: http://example.com
+          username: asgasasf
+          password: hunter1
+        - name: bill
+          host: http://sub.example.com
+          token: askjgnasbjkgas
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          count: 1
+          content:
+            name: VERSION_CHECKER_SELFHOSTED_HOST_bob
+            valueFrom:
+              secretKeyRef:
+                key: selfhosted.bob.host
+                name: version-checker
+      - contains:
+          path: spec.template.spec.containers[0].env
+          count: 1
+          content:
+            name: VERSION_CHECKER_SELFHOSTED_USERNAME_bob
+            valueFrom:
+              secretKeyRef:
+                key: selfhosted.bob.username
+                name: version-checker
+      - contains:
+          path: spec.template.spec.containers[0].env
+          count: 1
+          content:
+            name: VERSION_CHECKER_SELFHOSTED_PASSWORD_bob
+            valueFrom:
+              secretKeyRef:
+                key: selfhosted.bob.password
+                name: version-checker
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: VERSION_CHECKER_SELFHOSTED_TOKEN_bob
+            valueFrom:
+              secretKeyRef:
+                key: selfhosted.bob.password
+                name: version-checker
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: VERSION_CHECKER_SELFHOSTED_TOKEN_bill
+            valueFrom:
+              secretKeyRef:
+                key: selfhosted.bill.token
+                name: version-checker
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: VERSION_CHECKER_SELFHOSTED_HOST_bill
+            valueFrom:
+              secretKeyRef:
+                key: selfhosted.bill.host
+                name: version-checker
+
+  - it: SecretEnabled
+    set:
+      acr.refreshToken: asgasga
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: version-checker
+            secret:
+              secretName: version-checker
