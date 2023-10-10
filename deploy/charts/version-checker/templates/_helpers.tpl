@@ -25,16 +25,3 @@ app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}
-
-{{/*
-Required claims serialized to CLI argument
-*/}}
-{{- define "requiredClaims" -}}
-{{- if .Values.oidc.requiredClaims -}}
-{{- $local := (list) -}}
-{{- range $k, $v := .Values.oidc.requiredClaims -}}
-{{- $local = (printf "%s=%s" $k $v | append $local) -}}
-{{- end -}}
-{{ join "," $local }}
-{{- end -}}
-{{- end -}}

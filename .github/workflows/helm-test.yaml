@@ -45,8 +45,8 @@ jobs:
 
       - name: Run Tests
         run: |
-          if [ ! -e "deploy/charts/verson-checker/tests" ]; then
-            echo "Not running tests, directory doesn't exist: deploy/charts/verson-checker/tests"
+          if [ ! -e "deploy/charts/version-checker/tests" ]; then
+            echo "Not running tests, directory doesn't exist: deploy/charts/version-checker/tests"
             exit 0
           fi
-          helm unittest --helm3 --color deploy/charts/verson-checker
+          helm unittest deploy/charts/version-checker
