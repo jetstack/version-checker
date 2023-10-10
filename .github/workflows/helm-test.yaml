@@ -2,6 +2,7 @@ name: Test Helm Chart
 on:
   pull_request:
     paths:
+      - '!*.md'
       - 'deploy/charts/version-checker/**'
     branches:
       - 'main'
