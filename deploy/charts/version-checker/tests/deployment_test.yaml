@@ -45,6 +45,57 @@ tests:
       - isNullOrEmpty:
           path: spec.template.spec.volumes
 
+  #  Custom Envs
+  - it: Custom Env vars
+    set:
+      env:
+        - name: CUSTOM_ENV_VAR
+          value: CUSTOM_ENV_VALUE
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          count: 1
+          content:
+            name: CUSTOM_ENV_VAR
+            value: CUSTOM_ENV_VALUE
+
+    # Param changes
+  - it: imageCacheTimeout
+    set:
+      versionChecker.imageCacheTimeout: 60m
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          count: 1
+          content: "--image-cache-timeout=60m"
+
+  - it: logLevel
+    set:
+      versionChecker.logLevel: debug
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          count: 1
+          content: "--log-level=debug"
+
+  - it: metricsServingAddress
+    set:
+      versionChecker.metricsServingAddress: 0.0.0.0:9999
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          count: 1
+          content: "--metrics-serving-address=0.0.0.0:9999"
+
+  - it: testAllContainers
+    set:
+      versionChecker.testAllContainers: false
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          count: 1
+          content: "--test-all-containers=false"
+
   # ACR
   - it: ACR should work
     set:
@@ -306,3 +357,35 @@ tests:
             name: version-checker
             secret:
               secretName: version-checker
+
+  - it: Resources are reflected
+    set:
+      resources:
+        limits:
+          cpu: 100m
+          memory: 512Mi
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value:
+            limits:
+              cpu: 100m
+              memory: 512Mi
+
+  - it: Custom Labels to Pod
+    set:
+      additionalLabels:
+        foo: bar
+    asserts:
+      - equal:
+          path: spec.template.metadata.labels["foo"]
+          value: bar
+
+  - it: Custom Annotations to Pod
+    set:
+      additionalAnnotations:
+        foo: bar
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["foo"]
+          value: bar

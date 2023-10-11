@@ -18,16 +18,16 @@ spec:
     metadata:
       labels:
         {{- include "version-checker.labels" . | nindent 8 }}
-        {{- if .Values.pod.labels }}
-          {{ toYaml .Values.pod.labels | nindent 8 }}
+        {{- if .Values.additionalLabels }}
+          {{ toYaml .Values.additionalLabels | nindent 8 }}
         {{- end }}
       annotations:
         prometheus.io/path: "/metrics"
         prometheus.io/scrape: "true"
         prometheus.io/port: "8080"
         enable.version-checker.io/{{ $chartname }}: "true"
-        {{- if .Values.pod.annotations }}
-        {{ toYaml .Values.pod.annotations | nindent 8 }}
+        {{- if .Values.additionalAnnotations }}
+        {{ toYaml .Values.additionalAnnotations | nindent 8 }}
         {{- end }}
     spec:
       serviceAccountName: {{ $chartname }}

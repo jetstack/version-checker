@@ -5,12 +5,12 @@ metadata:
   labels:
     app: {{ include "version-checker.name" . }}
     {{ include "version-checker.labels" . | nindent 4 }}
-    {{- if .Values.svc.annotations }}
-    {{ toYaml .Values.pod.annotations | nindent 4 }}
+    {{- if .Values.service.labels }}
+    {{ toYaml .Values.service.labels | nindent 4 }}
     {{- end }}
-  {{- if .Values.svc.annotations }}
+  {{- if .Values.service.annotations }}
   annotations:
-    {{ toYaml .Values.pod.annotations | nindent 4 }}
+    {{ toYaml .Values.service.annotations | nindent 4 }}
   {{- end }}
 spec:
   ports:

@@ -9,8 +9,37 @@ tests:
           apiVersion: v1
           name: version-checker
       - equal:
+          path: spec.ports[0].port
+          value: 8080
+      - equal:
           path: spec.ports[0].targetPort
           value: 8080
       - equal:
           path: spec.ports[0].name
           value: web
+
+  - it: Custom Port
+    set:
+      service.port: 9999
+    asserts:
+      - equal:
+          path: spec.ports[0].port
+          value: 9999
+
+  - it: Custom Labels
+    set:
+      service.labels:
+        foo: bar
+    asserts:
+      - equal:
+          path: metadata.labels["foo"]
+          value: bar
+
+  - it: Custom Annotations
+    set:
+      service.annotations:
+        foo: bar
+    asserts:
+      - equal:
+          path: metadata.annotations["foo"]
+          value: bar

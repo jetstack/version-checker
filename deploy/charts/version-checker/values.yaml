@@ -4,13 +4,8 @@
 
 replicaCount: 1
 
-pod:
-  labels: {}
-  annotations: {}
-
-svc:
-  labels: {}
-  annotations: {}
+additionalLabels: {}
+additionalAnnotations: {}
 
 image:
   repository: quay.io/jetstack/version-checker
@@ -19,6 +14,8 @@ image:
   pullPolicy: IfNotPresent
 
 service:
+  labels: {}
+  annotations: {}
   port: 8080
 
 versionChecker:
