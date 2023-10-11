@@ -5,4 +5,4 @@ description: A Helm chart for version-checker
 home: https://github.com/jetstack/version-checker
 name: version-checker
 maintainers:
-- name: davidcollom
+  - name: davidcollom

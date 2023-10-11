@@ -8,22 +8,27 @@ kind: Deployment
 metadata:
   name: {{ $chartname }}
   labels:
-  {{ include "version-checker.labels" . | nindent 2 }}
+    {{ include "version-checker.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: {{ $chartname }}
+      {{- include "version-checker.labels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app: {{ $chartname }}
-        {{ include "version-checker.labels" . | nindent 8 }}
+        {{- include "version-checker.labels" . | nindent 8 }}
+        {{- if .Values.additionalLabels }}
+          {{ toYaml .Values.additionalLabels | nindent 8 }}
+        {{- end }}
       annotations:
         prometheus.io/path: "/metrics"
         prometheus.io/scrape: "true"
         prometheus.io/port: "8080"
         enable.version-checker.io/{{ $chartname }}: "true"
+        {{- if .Values.additionalAnnotations }}
+        {{ toYaml .Values.additionalAnnotations | nindent 8 }}
+        {{- end }}
     spec:
       serviceAccountName: {{ $chartname }}
       containers:

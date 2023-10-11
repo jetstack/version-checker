@@ -4,6 +4,9 @@
 
 replicaCount: 1
 
+additionalLabels: {}
+additionalAnnotations: {}
+
 image:
   repository: quay.io/jetstack/version-checker
   # Override the chart version
@@ -11,6 +14,8 @@ image:
   pullPolicy: IfNotPresent
 
 service:
+  labels: {}
+  annotations: {}
   port: 8080
 
 versionChecker:
@@ -48,7 +53,8 @@ quay:
 # Can be used to provide custom environment variables e.g. proxy settings
 env: {}
 
-selfhosted: {}
+selfhosted:
+  {}
   #- name: REGISTRY
   #  host: http://registry:5000
   #  username:
@@ -60,7 +66,8 @@ selfhosted: {}
   #  password: bar
   #  token:
 
-resources: {}
+resources:
+  {}
   # limits:
   #   cpu: 100m
   #   memory: 128Mi
@@ -84,7 +91,6 @@ livenessProbe:
     port: 8080
   initialDelaySeconds: 3
   periodSeconds: 3
-
 
 # Prometheus Operator
 prometheus:
