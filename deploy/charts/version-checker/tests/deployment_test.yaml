@@ -347,6 +347,18 @@ tests:
                 key: selfhosted.bill.host
                 name: version-checker
 
+  # Set Environment variables from existing secrets
+  - it: Existing Secret for Credentials
+    set:
+      existingSecret: preexistingsecret
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          count: 1
+          content:
+            secretRef:
+              name: preexistingsecret
+
   - it: SecretEnabled
     set:
       acr.refreshToken: asgasga
