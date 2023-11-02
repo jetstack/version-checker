@@ -47,6 +47,9 @@ ecr:
 gcr:
   token:
 
+ghcr:
+  token:
+
 quay:
   token:
 

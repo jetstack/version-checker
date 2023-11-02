@@ -136,6 +136,15 @@ spec:
               key: gcr.token
         {{- end }}
 
+        # GHCR
+        {{- if .Values.ghcr.token }}
+        - name: VERSION_CHECKER_GHCR_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: {{ $chartname }}
+              key: ghcr.token
+        {{- end }}
+
         # Quay
         {{- if .Values.quay.token }}
         - name: VERSION_CHECKER_QUAY_TOKEN
