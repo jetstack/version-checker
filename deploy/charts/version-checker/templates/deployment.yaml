@@ -53,6 +53,11 @@ spec:
         readinessProbe:
           {{- omit .Values.readinessProbe "enabled" | toYaml | nindent 10}}
         {{- end }}
+        {{- if .Values.existingSecret }}
+        envFrom:
+          - secretRef:
+              name: {{.Values.existingSecret}}
+        {{- end }}
         env:
         # ACR
         {{- if .Values.acr.refreshToken }}
