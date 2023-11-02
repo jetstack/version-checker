@@ -94,9 +94,12 @@ func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTa
 				continue
 			}
 
-			timestamp, err := time.Parse(time.RFC3339Nano, result.Timestamp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse image timestamp: %s", err)
+			var timestamp time.Time
+			if len(result.Timestamp) > 0 {
+				timestamp, err = time.Parse(time.RFC3339Nano, result.Timestamp)
+				if err != nil {
+					return nil, fmt.Errorf("failed to parse image timestamp: %s", err)
+				}
 			}
 
 			for _, image := range result.Images {
