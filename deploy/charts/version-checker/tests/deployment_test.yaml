@@ -223,6 +223,21 @@ tests:
                 key: gcr.token
                 name: version-checker
 
+  # GHCR
+  - it: GHCR should work
+    set:
+      ghcr.token: ajbhvsagsagsdsbjvh
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          count: 1
+          content:
+            name: VERSION_CHECKER_GHCR_TOKEN
+            valueFrom:
+              secretKeyRef:
+                key: ghcr.token
+                name: version-checker
+
   # Quay
   - it: Quay should work
     set:
