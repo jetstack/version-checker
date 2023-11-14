@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -94,9 +94,12 @@ func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTa
 				continue
 			}
 
-			timestamp, err := time.Parse(time.RFC3339Nano, result.Timestamp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse image timestamp: %s", err)
+			var timestamp time.Time
+			if len(result.Timestamp) > 0 {
+				timestamp, err = time.Parse(time.RFC3339Nano, result.Timestamp)
+				if err != nil {
+					return nil, fmt.Errorf("failed to parse image timestamp: %s", err)
+				}
 			}
 
 			for _, image := range result.Images {
@@ -138,7 +141,7 @@ func (c *Client) doRequest(ctx context.Context, url string) (*TagResponse, error
 		return nil, fmt.Errorf("failed to get docker image: %s", err)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +174,7 @@ func basicAuthSetup(ctx context.Context, client *http.Client, opts Options) (str
 		return "", err
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}

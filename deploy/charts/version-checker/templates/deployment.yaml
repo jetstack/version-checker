@@ -8,26 +8,32 @@ kind: Deployment
 metadata:
   name: {{ $chartname }}
   labels:
-{{ include "version-checker.labels" . | indent 4 }}
+    {{ include "version-checker.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: {{ $chartname }}
+      {{- include "version-checker.labels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app: {{ $chartname }}
+        {{- include "version-checker.labels" . | nindent 8 }}
+        {{- if .Values.additionalLabels }}
+          {{ toYaml .Values.additionalLabels | nindent 8 }}
+        {{- end }}
       annotations:
         prometheus.io/path: "/metrics"
         prometheus.io/scrape: "true"
         prometheus.io/port: "8080"
         enable.version-checker.io/{{ $chartname }}: "true"
+        {{- if .Values.additionalAnnotations }}
+        {{ toYaml .Values.additionalAnnotations | nindent 8 }}
+        {{- end }}
     spec:
       serviceAccountName: {{ $chartname }}
       containers:
       - name: {{ $chartname }}
-        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         ports:
         - containerPort: 8080
@@ -39,8 +45,20 @@ spec:
           - "--test-all-containers={{.Values.versionChecker.testAllContainers}}"
         resources:
           {{- toYaml .Values.resources | nindent 12 }}
+        {{- if .Values.livenessProbe.enabled }}
+        livenessProbe:
+          {{- omit .Values.livenessProbe "enabled" | toYaml | nindent 10}}
+        {{- end }}
+        {{- if .Values.readinessProbe.enabled }}
+        readinessProbe:
+          {{- omit .Values.readinessProbe "enabled" | toYaml | nindent 10}}
+        {{- end }}
+        {{- if .Values.existingSecret }}
+        envFrom:
+          - secretRef:
+              name: {{.Values.existingSecret}}
+        {{- end }}
         env:
-
         # ACR
         {{- if .Values.acr.refreshToken }}
         - name: VERSION_CHECKER_ACR_REFRESH_TOKEN
@@ -123,6 +141,15 @@ spec:
               key: gcr.token
         {{- end }}
 
+        # GHCR
+        {{- if .Values.ghcr.token }}
+        - name: VERSION_CHECKER_GHCR_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: {{ $chartname }}
+              key: ghcr.token
+        {{- end }}
+
         # Quay
         {{- if .Values.quay.token }}
         - name: VERSION_CHECKER_QUAY_TOKEN
@@ -173,4 +200,3 @@ spec:
           secret:
             secretName: {{ include "version-checker.name" . }}
         {{ end }}
-

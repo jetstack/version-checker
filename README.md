@@ -5,12 +5,6 @@ images running in the cluster, as well as the latest available upstream. These
 checks get exposed as Prometheus metrics to be viewed on a dashboard, or _soft_
 alert cluster operators.
 
-> This tool is currently experimental.
-
-If you're interested in this tool, version checking is a built-in feature
-in our [Preflight](https://preflight.jetstack.io/) product. You may want to 
-check it out if you would like multi-cluster component version checking.
-
 ## Registries
 
 version-checker supports the following registries:
@@ -40,8 +34,15 @@ $ kubectl apply -k ./deploy/yaml
 Or through helm;
 
 ```sh
-$ cd ./deploy/charts/version-checker && kubectl create namespace version-checker
-$ helm install version-checker . -n version-checker
+$ helm repo add jetstack https://charts.jetstack.io
+"jetstack" has been added to your repositories
+$ helm install version-checker jetstack/version-checker
+NAME: version-checker
+LAST DEPLOYED: Wed Jul 12 17:47:41 2023
+NAMESPACE: default
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
 ```
 
 The helm chart supports creating a Prometheus/ServiceMonitor to expose the

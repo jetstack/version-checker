@@ -1,0 +1,52 @@
+name: Test Helm Chart
+on:
+  pull_request:
+    paths:
+      - '!*.md'
+      - 'deploy/charts/version-checker/**'
+    branches:
+      - 'main'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    permissions:
+      contents: read  # for actions/checkout to fetch code
+      pull-requests: read  # for golangci/golangci-lint-action to fetch pull requests
+    name: Lint Helm Chart
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
+      - uses: azure/setup-helm@v3
+
+      - run: helm lint deploy/charts/version-checker
+
+  test:
+    name: Run unit tests for Helm Chart
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
+      - uses: azure/setup-helm@v3
+        with:
+          token: ${{ github.token }}
+
+      - name: Install helm Plugins
+        run: |
+          if [ ! -e "${HELM_PLUGINS}/helm-unittest" ]; then
+            helm plugin install https://github.com/helm-unittest/helm-unittest.git
+          fi
+
+      - name: Run Tests
+        run: |
+          if [ ! -e "deploy/charts/version-checker/tests" ]; then
+            echo "Not running tests, directory doesn't exist: deploy/charts/version-checker/tests"
+            exit 0
+          fi
+          helm unittest deploy/charts/version-checker

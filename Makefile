@@ -6,18 +6,23 @@ help:  ## display this help
 
 .PHONY: help build image all clean
 
-test: ## test version-checker
-	go test ./...
+deps: ## Download all Dependencies
+	go mod download
 
-build: ## build version-checker
+test: deps ## test version-checker
+	go test ./... -coverprofile=coverage.out
+
+$(BINDIR):
 	mkdir -p $(BINDIR)
+
+build: deps $(BINDIR) ## build version-checker
 	CGO_ENABLED=0 go build -o ./bin/version-checker ./cmd/.
 
 verify: test build ## tests and builds version-checker
 
 image: ## build docker image
 	GOARCH=$(ARCH) GOOS=linux CGO_ENABLED=0 go build -o ./bin/version-checker-linux ./cmd/.
-	docker build -t quay.io/jetstack/version-checker:v0.2.2 .
+	docker build -t quay.io/jetstack/version-checker:v0.3.2 .
 
 clean: ## clean up created files
 	rm -rf \
