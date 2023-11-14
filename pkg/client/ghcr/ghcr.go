@@ -49,6 +49,9 @@ func (c *Client) Tags(ctx context.Context, host, owner, repo string) ([]api.Imag
 		}
 
 		for _, rel := range releases {
+			if rel.TagName == nil {
+				continue
+			}
 			tags = append(tags, api.ImageTag{
 				Tag:       *rel.TagName,
 				SHA:       "",
