@@ -36,7 +36,8 @@ spec:
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         ports:
-        - containerPort: 8080
+        - name: metrics
+          containerPort: 8080
         command: ["version-checker"]
         args:
           - "--image-cache-timeout={{.Values.versionChecker.imageCacheTimeout}}"
