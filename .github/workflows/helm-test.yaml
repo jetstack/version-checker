@@ -26,6 +26,28 @@ jobs:
 
       - run: helm lint deploy/charts/version-checker
 
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        ref: ${{ github.event.pull_request.head.ref }}
+    - uses: dorny/paths-filter@v2
+      id: filter
+      with:
+        filters: |
+          values:
+            - 'deploy/charts/version-checker/values.yaml'
+
+      # Only run if the values.yaml file has changed.
+    - name: Render helm docs inside the README.md and push changes back to PR branch
+      if: steps.filter.outputs.values == 'true'
+      uses: shaybentk/helm-docs-action@v0.0.1
+      with:
+        working-dir: deploy/charts/version-checker
+        git-push: "true"
+
+
   test:
     name: Run unit tests for Helm Chart
     runs-on: ubuntu-latest
