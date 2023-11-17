@@ -48,6 +48,7 @@ jobs:
       with:
         version: 1.11.0
     - name: Update Helm Docs
+      if: steps.filter.outputs.values == 'true'
       run: |
         set -ex
         cd deploy/charts/version-checker

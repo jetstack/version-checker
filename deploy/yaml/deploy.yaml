@@ -49,7 +49,7 @@ spec:
     spec:
       serviceAccountName: version-checker
       containers:
-      - image: quay.io/jetstack/version-checker:v0.3.2
+      - image: quay.io/jetstack/version-checker:v0.3.3
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
