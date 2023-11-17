@@ -27,25 +27,48 @@ jobs:
       - run: helm lint deploy/charts/version-checker
 
   docs:
+    name: Generate Helm Docs
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
     - uses: actions/checkout@v3
       with:
         ref: ${{ github.event.pull_request.head.ref }}
-    - uses: dorny/paths-filter@v2
+    - name: Check for values.yaml changes
+      uses: dorny/paths-filter@v2
       id: filter
       with:
         filters: |
           values:
             - 'deploy/charts/version-checker/values.yaml'
-
-      # Only run if the values.yaml file has changed.
-    - name: Render helm docs inside the README.md and push changes back to PR branch
+    - name: Install Helm Docs
       if: steps.filter.outputs.values == 'true'
-      uses: shaybentk/helm-docs-action@v0.0.1
+      uses: envoy/install-helm-docs@v1.0.0
       with:
-        working-dir: deploy/charts/version-checker
-        git-push: "true"
+        version: 1.11.0
+    - name: Update Helm Docs
+      run: |
+        set -ex
+        cd deploy/charts/version-checker
+        helm-docs
+    - name: Check for README.md changes
+      uses: dorny/paths-filter@v2
+      id: filter-readme
+      with:
+        base: HEAD
+        filters: |
+          readme:
+            - 'deploy/charts/version-checker/README.md'
+    - name: Commit Helm Docs
+      if: steps.filter-readme.outputs.readme == 'true'
+      run: |
+        set -ex
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add deploy/charts/version-checker
+        git commit -m "[HELM] Update helm docs"
+        git push
 
 
   test:
