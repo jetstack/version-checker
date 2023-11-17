@@ -41,7 +41,7 @@ jobs:
           replace: "${{steps.release_number.outputs.substring}}"
           include: "deploy/yaml/deploy.yaml"
           regex: true
-      - name: Fid and Replace Makefile versions
+      - name: Find and Replace Makefile versions
         uses: jacobtomlinson/gha-find-replace@v3
         with:
           find: 'v(\d+)\.(\d+)\.(\d+)(-rc(\d)+)?'
@@ -49,13 +49,27 @@ jobs:
           include: "Makefile"
           regex: true
 
+      - name: Detect any Local Changes
+        uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          base: HEAD
+          filters: |
+            versions:
+              - 'Makefile'
+              - 'deploy/yaml/deploy.yaml'
+              - 'deploy/charts/version-checker/Chart.yaml'
+
+
       - name: Commit files
+        if: steps.filter.outputs.versions == 'true'
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git status
           git commit -a -m "Bump versions to ${{steps.release_number.outputs.substring}} "
       - name: Push changes
+        if: steps.filter.outputs.versions == 'true'
         uses: ad-m/github-push-action@v0.6.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
