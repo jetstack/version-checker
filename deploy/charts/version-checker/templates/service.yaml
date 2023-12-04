@@ -19,4 +19,5 @@ spec:
       protocol: TCP
       name: web
   selector:
-    {{ include "version-checker.labels" . | nindent 4 }}
+    app.kubernetes.io/name: {{ include "version-checker.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
