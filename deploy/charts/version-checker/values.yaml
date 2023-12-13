@@ -17,6 +17,19 @@ image:
   # -- Set the Image Pull Policy
   pullPolicy: IfNotPresent
 
+# -- Configure tolerations
+tolerations:
+  - key: node.kubernetes.io/not-ready
+    effect: NoSchedule
+  - key: node-role.kubernetes.io/master
+    effect: NoSchedule
+  - key: node-role.kubernetes.io/control-plane
+    effect: NoSchedule
+  - key: node.cloudprovider.kubernetes.io/uninitialized
+    effect: NoSchedule
+    value: "true"
+
+
 # -- Configure version-checkers Service
 service:
   labels: {}
@@ -96,6 +109,7 @@ selfhosted:
   #  username: foo
   #  password: bar
   #  token:
+
 
 # -- Setup version-checkers resource requests/limits
 resources:
