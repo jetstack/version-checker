@@ -42,6 +42,7 @@ jobs:
         filters: |
           values:
             - 'deploy/charts/version-checker/values.yaml'
+            - 'deploy/charts/version-checker/Chart.yaml'
     - name: Install Helm Docs
       if: steps.filter.outputs.values == 'true'
       uses: envoy/install-helm-docs@v1.0.0
