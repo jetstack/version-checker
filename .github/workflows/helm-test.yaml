@@ -42,6 +42,7 @@ jobs:
         filters: |
           values:
             - 'deploy/charts/version-checker/values.yaml'
+            - 'deploy/charts/version-checker/Chart.yaml'
     - name: Install Helm Docs
       if: steps.filter.outputs.values == 'true'
       uses: envoy/install-helm-docs@v1.0.0
@@ -69,7 +70,12 @@ jobs:
         git config --local user.name "github-actions[bot]"
         git add deploy/charts/version-checker
         git commit -m "[HELM] Update helm docs"
-        git push
+    - name: Push Changes
+      if: steps.filter-readme.outputs.readme == 'true'
+      uses: ad-m/github-push-action@v0.6.0
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        branch: ${{ github.head_ref }}
 
 
   test:
