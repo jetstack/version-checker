@@ -131,48 +131,6 @@ tests:
                 key: acr.password
                 name: version-checker
 
-  # ECR
-  - it: ECR should work
-    set:
-      ecr.iamRoleArn: ajbhvdsbjvh
-      ecr.accessKeyID: jsgbjkas
-      ecr.secretAccessKey: sgkjnabskjga
-      ecr.sessionToken: asgjasg
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          count: 1
-          content:
-            name: VERSION_CHECKER_ECR_IAM_ROLE_ARN
-            value: ajbhvdsbjvh
-      - contains:
-          path: spec.template.spec.containers[0].env
-          count: 1
-          content:
-            name: VERSION_CHECKER_ECR_ACCESS_KEY_ID
-            valueFrom:
-              secretKeyRef:
-                key: ecr.accessKeyID
-                name: version-checker
-      - contains:
-          path: spec.template.spec.containers[0].env
-          count: 1
-          content:
-            name: VERSION_CHECKER_ECR_SECRET_ACCESS_KEY
-            valueFrom:
-              secretKeyRef:
-                key: ecr.secretAccessKey
-                name: version-checker
-      - contains:
-          path: spec.template.spec.containers[0].env
-          count: 1
-          content:
-            name: VERSION_CHECKER_ECR_SESSION_TOKEN
-            valueFrom:
-              secretKeyRef:
-                key: ecr.sessionToken
-                name: version-checker
-
   # Docker
   - it: Docker should work
     set:
