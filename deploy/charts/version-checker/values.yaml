@@ -3,7 +3,7 @@
 # Declare variables to be passed into your templates.
 
 # -- Replica Count for version-checker
-replicaCount: 1
+replicaCount: 2
 
 #  -- Additional Labels to apply to Service and Deployment/Pod Objects
 additionalLabels: {}
