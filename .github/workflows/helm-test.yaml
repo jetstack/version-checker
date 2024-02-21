@@ -69,7 +69,12 @@ jobs:
         git config --local user.name "github-actions[bot]"
         git add deploy/charts/version-checker
         git commit -m "[HELM] Update helm docs"
-        git push
+    - name: Push Changes
+      if: steps.filter-readme.outputs.readme == 'true'
+      uses: ad-m/github-push-action@v0.6.0
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        branch: ${{ github.ref_name }}
 
 
   test:
