@@ -52,7 +52,8 @@ type Image struct {
 
 func New(ctx context.Context, opts Options) (*Client, error) {
 	client := &http.Client{
-		Timeout: time.Second * 10,
+		Timeout:   time.Second * 10,
+		Transport: &http.Transport{Proxy: http.ProxyFromEnvironment},
 	}
 
 	// Setup Auth if username and password used.

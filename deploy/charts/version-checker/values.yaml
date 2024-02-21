@@ -17,6 +17,9 @@ image:
   # -- Set the Image Pull Policy
   pullPolicy: IfNotPresent
 
+# -- Configure tolerations
+tolerations: []
+
 # -- Configure version-checkers Service
 service:
   labels: {}
@@ -96,6 +99,7 @@ selfhosted:
   #  username: foo
   #  password: bar
   #  token:
+
 
 # -- Setup version-checkers resource requests/limits
 resources:

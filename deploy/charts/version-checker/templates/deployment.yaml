@@ -32,6 +32,10 @@ spec:
         {{- end }}
     spec:
       serviceAccountName: {{ $chartname }}
+      {{- with .Values.tolerations }}
+      tolerations: 
+        {{- toYaml . | trim | nindent 8 }}
+      {{- end }}
       containers:
       - name: {{ $chartname }}
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
