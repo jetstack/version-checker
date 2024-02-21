@@ -2,11 +2,14 @@ package selfhosted
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -24,7 +27,7 @@ const (
 	// /v2/{repo/image}/manifests/{tag}
 	manifestPath = "%s/v2/%s/manifests/%s"
 	// Token endpoint
-	tokenPath = "/v2/token"
+	defaultTokenPath = "/v2/token"
 
 	// HTTP headers to request API version
 	dockerAPIv1Header = "application/vnd.docker.distribution.manifest.v1+json"
@@ -32,10 +35,13 @@ const (
 )
 
 type Options struct {
-	Host     string
-	Username string
-	Password string
-	Bearer   string
+	Host      string
+	Username  string
+	Password  string
+	Bearer    string
+	TokenPath string
+	Insecure  bool
+	CAPath    string
 }
 
 type Client struct {
@@ -58,8 +64,8 @@ type TagResponse struct {
 
 type ManifestResponse struct {
 	Digest       string
-	Architecture string    `json:"architecture"`
-	History      []History `json:"history"`
+	Architecture api.Architecture `json:"architecture"`
+	History      []History        `json:"history"`
 }
 
 type History struct {
@@ -94,7 +100,12 @@ func New(ctx context.Context, log *logrus.Entry, opts *Options) (*Client, error)
 				return nil, errors.New("cannot specify Bearer token as well as username/password")
 			}
 
-			token, err := client.setupBasicAuth(ctx, opts.Host)
+			tokenPath := opts.TokenPath
+			if tokenPath == "" {
+				tokenPath = defaultTokenPath
+			}
+
+			token, err := client.setupBasicAuth(ctx, opts.Host, tokenPath)
 			if httpErr, ok := selfhostederrors.IsHTTPError(err); ok {
 				return nil, fmt.Errorf("failed to setup token auth (%d): %s",
 					httpErr.StatusCode, httpErr.Body)
@@ -110,6 +121,17 @@ func New(ctx context.Context, log *logrus.Entry, opts *Options) (*Client, error)
 	// Default to https if no scheme set
 	if client.httpScheme == "" {
 		client.httpScheme = "https"
+	}
+	if client.httpScheme == "https" {
+		tlsConfig, err := newTLSConfig(opts.Insecure, opts.CAPath)
+		if err != nil {
+			return nil, err
+		}
+
+		client.Client.Transport = &http.Transport{
+			TLSClientConfig: tlsConfig,
+			Proxy:           http.ProxyFromEnvironment,
+		}
 	}
 
 	return client, nil
@@ -208,7 +230,7 @@ func (c *Client) doRequest(ctx context.Context, url, header string, obj interfac
 		return nil, fmt.Errorf("failed to get docker image: %s", err)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -224,7 +246,7 @@ func (c *Client) doRequest(ctx context.Context, url, header string, obj interfac
 	return resp.Header, nil
 }
 
-func (c *Client) setupBasicAuth(ctx context.Context, url string) (string, error) {
+func (c *Client) setupBasicAuth(ctx context.Context, url, tokenPath string) (string, error) {
 	upReader := strings.NewReader(
 		fmt.Sprintf(`{"username": "%s", "password": "%s"}`,
 			c.Username, c.Password,
@@ -247,7 +269,7 @@ func (c *Client) setupBasicAuth(ctx context.Context, url string) (string, error)
 			req.URL, err)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
@@ -262,4 +284,25 @@ func (c *Client) setupBasicAuth(ctx context.Context, url string) (string, error)
 	}
 
 	return response.Token, nil
+}
+
+func newTLSConfig(insecure bool, CAPath string) (*tls.Config, error) {
+	// Load system CA Certs and/or create a new CertPool
+	rootCAs, _ := x509.SystemCertPool()
+	if rootCAs == nil {
+		rootCAs = x509.NewCertPool()
+	}
+
+	if CAPath != "" {
+		certs, err := os.ReadFile(CAPath)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to append %q to RootCAs: %v", CAPath, err)
+		}
+		rootCAs.AppendCertsFromPEM(certs)
+	}
+
+	return &tls.Config{
+		InsecureSkipVerify: insecure,
+		RootCAs:            rootCAs,
+	}, nil
 }

@@ -4,15 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"time"
 
+	"github.com/hashicorp/go-retryablehttp"
+
 	"github.com/jetstack/version-checker/pkg/api"
+	"github.com/jetstack/version-checker/pkg/client/util"
 )
 
 const (
-	lookupURL = "https://quay.io/api/v1/repository/%s/%s/tag/"
+	tagURL      = "https://quay.io/api/v1/repository/%s/%s/tag/?page=%d"
+	manifestURL = "https://quay.io/api/v1/repository/%s/%s/manifest/%s"
 )
 
 type Options struct {
@@ -20,26 +23,49 @@ type Options struct {
 }
 
 type Client struct {
-	*http.Client
+	*retryablehttp.Client
 	Options
 }
 
-type Response struct {
-	Tags []Tag `json:"tags"`
+type responseTag struct {
+	Tags          []responseTagItem `json:"tags"`
+	HasAdditional bool              `json:"has_additional"`
+	Page          int               `json:"page"`
 }
 
-type Tag struct {
+type responseTagItem struct {
 	Name           string `json:"name"`
 	ManifestDigest string `json:"manifest_digest"`
 	LastModified   string `json:"last_modified"`
+	IsManifestList bool   `json:"is_manifest_list"`
+}
+
+type responseManifest struct {
+	ManifestData string `json:"manifest_data"`
+	Status       *int   `json:"status,omitempty"`
+}
+
+type responseManifestData struct {
+	Manifests []responseManifestDataItem `json:"manifests"`
+}
+
+type responseManifestDataItem struct {
+	Digest   string `json:"digest"`
+	Platform struct {
+		Architecture api.Architecture `json:"architecture"`
+		OS           api.OS           `json:"os"`
+	} `json:"platform"`
 }
 
 func New(opts Options) *Client {
+	client := retryablehttp.NewClient()
+	client.HTTPClient.Transport = &http.Transport{Proxy: http.ProxyFromEnvironment}
+	client.RetryMax = 10
+	client.Logger = nil
+
 	return &Client{
 		Options: opts,
-		Client: &http.Client{
-			Timeout: time.Second * 5,
-		},
+		Client:  client,
 	}
 }
 
@@ -47,12 +73,88 @@ func (c *Client) Name() string {
 	return "quay"
 }
 
+// Fetch the image tags from an upstream repository and image
 func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTag, error) {
-	url := fmt.Sprintf(lookupURL, repo, image)
+	p := c.newPager(repo, image)
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err := p.fetchTags(ctx); err != nil {
+		return nil, err
+	}
+
+	return p.tags, nil
+}
+
+// fetchImageManifest will lookup all manifests for a tag, if it is a list
+func (c *Client) fetchImageManifest(ctx context.Context, repo, image string, tag *responseTagItem) ([]api.ImageTag, error) {
+	timestamp, err := time.Parse(time.RFC1123Z, tag.LastModified)
 	if err != nil {
 		return nil, err
+	}
+
+	// If a multi-arch image, call manifest endpoint
+	if tag.IsManifestList {
+		url := fmt.Sprintf(manifestURL, repo, image, tag.ManifestDigest)
+		tags, err := c.callManifests(ctx, timestamp, tag.Name, url)
+		if err != nil {
+			return nil, err
+		}
+
+		return tags, nil
+	}
+
+	// Fallback to not using multi-arch image
+
+	os, arch := util.OSArchFromTag(tag.Name)
+
+	return []api.ImageTag{
+		{
+			Tag:          tag.Name,
+			SHA:          tag.ManifestDigest,
+			Timestamp:    timestamp,
+			OS:           os,
+			Architecture: arch,
+		},
+	}, nil
+}
+
+// callManifests endpoint on the tags image manifest
+func (c *Client) callManifests(ctx context.Context, timestamp time.Time, tag, url string) ([]api.ImageTag, error) {
+	var manifestResp responseManifest
+	if err := c.makeRequest(ctx, url, &manifestResp); err != nil {
+		return nil, err
+	}
+
+	// Got error on this manifest, ignore
+	if manifestResp.Status != nil {
+		return nil, nil
+	}
+
+	var manifestData responseManifestData
+	if err := json.Unmarshal([]byte(manifestResp.ManifestData), &manifestData); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal manifest data %s: %#+v: %s",
+			tag, manifestResp, err)
+	}
+
+	var tags []api.ImageTag
+	for _, manifest := range manifestData.Manifests {
+		tags = append(tags, api.ImageTag{
+			Tag:          tag,
+			SHA:          manifest.Digest,
+			Timestamp:    timestamp,
+			Architecture: manifest.Platform.Architecture,
+			OS:           manifest.Platform.OS,
+		})
+	}
+
+	return tags, nil
+}
+
+// makeRequest will make a call and write the response to the object.
+// Implements backoff.
+func (c *Client) makeRequest(ctx context.Context, url string, obj interface{}) error {
+	req, err := retryablehttp.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return err
 	}
 
 	if len(c.Token) > 0 {
@@ -64,32 +166,12 @@ func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTa
 
 	resp, err := c.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get quay image: %s", err)
+		return fmt.Errorf("failed to make quay call %q: %s", url, err)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
+	if err := json.NewDecoder(resp.Body).Decode(obj); err != nil {
+		return err
 	}
 
-	var response Response
-	if err := json.Unmarshal(body, &response); err != nil {
-		return nil, err
-	}
-
-	var tags []api.ImageTag
-	for _, tag := range response.Tags {
-		timestamp, err := time.Parse(time.RFC1123Z, tag.LastModified)
-		if err != nil {
-			return nil, err
-		}
-
-		tags = append(tags, api.ImageTag{
-			Tag:       tag.Name,
-			SHA:       tag.ManifestDigest,
-			Timestamp: timestamp,
-		})
-	}
-
-	return tags, nil
+	return nil
 }

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -15,7 +15,7 @@ import (
 
 const (
 	loginURL  = "https://hub.docker.com/v2/users/login/"
-	lookupURL = "https://registry.hub.docker.com/v2/repositories/%s/%s/tags"
+	lookupURL = "https://registry.hub.docker.com/v2/repositories/%s/%s/tags?page_size=100"
 )
 
 type Options struct {
@@ -45,14 +45,15 @@ type Result struct {
 }
 
 type Image struct {
-	Digest       string `json:"digest"`
-	OS           string `json:"os"`
-	Architecture string `json:"Architecture"`
+	Digest       string           `json:"digest"`
+	OS           api.OS           `json:"os"`
+	Architecture api.Architecture `json:"Architecture"`
 }
 
 func New(ctx context.Context, opts Options) (*Client, error) {
 	client := &http.Client{
-		Timeout: time.Second * 5,
+		Timeout:   time.Second * 10,
+		Transport: &http.Transport{Proxy: http.ProxyFromEnvironment},
 	}
 
 	// Setup Auth if username and password used.
@@ -94,9 +95,12 @@ func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTa
 				continue
 			}
 
-			timestamp, err := time.Parse(time.RFC3339Nano, result.Timestamp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse image timestamp: %s", err)
+			var timestamp time.Time
+			if len(result.Timestamp) > 0 {
+				timestamp, err = time.Parse(time.RFC3339Nano, result.Timestamp)
+				if err != nil {
+					return nil, fmt.Errorf("failed to parse image timestamp: %s", err)
+				}
 			}
 
 			for _, image := range result.Images {
@@ -130,7 +134,7 @@ func (c *Client) doRequest(ctx context.Context, url string) (*TagResponse, error
 	req.URL.Scheme = "https"
 	req = req.WithContext(ctx)
 	if len(c.Token) > 0 {
-		req.Header.Add("Authorization", "Token "+c.Token)
+		req.Header.Add("Authorization", "Bearer "+c.Token)
 	}
 
 	resp, err := c.Do(req)
@@ -138,7 +142,7 @@ func (c *Client) doRequest(ctx context.Context, url string) (*TagResponse, error
 		return nil, fmt.Errorf("failed to get docker image: %s", err)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +175,7 @@ func basicAuthSetup(ctx context.Context, client *http.Client, opts Options) (str
 		return "", err
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}

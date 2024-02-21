@@ -95,6 +95,19 @@ func (c *Checker) Container(ctx context.Context, log *logrus.Entry,
 
 // containerStatusImageSHA will return the containers image SHA, if it is ready
 func containerStatusImageSHA(pod *corev1.Pod, containerName string) string {
+	for _, status := range pod.Status.InitContainerStatuses {
+		if status.Name == containerName {
+			statusImage, _, statusSHA := urlTagSHAFromImage(status.ImageID)
+
+			// If the image ID contains a URL, use the parsed SHA
+			if len(statusSHA) > 0 {
+				return statusSHA
+			}
+
+			return statusImage
+		}
+	}
+
 	// Get the SHA of the current image
 	for _, status := range pod.Status.ContainerStatuses {
 		if status.Name == containerName {
@@ -112,7 +125,7 @@ func containerStatusImageSHA(pod *corev1.Pod, containerName string) string {
 	return ""
 }
 
-// isLatestOrEmptyTag will return true if the given tag is '' or 'latest'
+// isLatestOrEmptyTag will return true if the given tag is ” or 'latest'
 func (c *Checker) isLatestOrEmptyTag(tag string) bool {
 	return tag == "" || tag == "latest"
 }

@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -35,11 +35,14 @@ type ManifestItem struct {
 }
 
 func New(opts Options) *Client {
+	client := &http.Client{
+		Timeout:   time.Second * 5,
+		Transport: &http.Transport{Proxy: http.ProxyFromEnvironment},
+	}
+
 	return &Client{
 		Options: opts,
-		Client: &http.Client{
-			Timeout: time.Second * 5,
-		},
+		Client:  client,
 	}
 }
 
@@ -70,7 +73,7 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 		return nil, fmt.Errorf("failed to get docker image: %s", err)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}

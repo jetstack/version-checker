@@ -44,7 +44,7 @@ func New(log *logrus.Entry) *Metrics {
 			Help:      "Where the container in use is using the latest upstream registry version",
 		},
 		[]string{
-			"namespace", "pod", "container", "image", "current_version", "latest_version",
+			"namespace", "pod", "container", "container_type", "image", "current_version", "latest_version",
 		},
 	)
 
@@ -63,6 +63,8 @@ func New(log *logrus.Entry) *Metrics {
 func (m *Metrics) Run(servingAddress string) error {
 	router := http.NewServeMux()
 	router.Handle("/metrics", promhttp.HandlerFor(m.registry, promhttp.HandlerOpts{}))
+	router.Handle("/healthz", http.HandlerFunc(m.healthzAndReadyzHandler))
+	router.Handle("/readyz", http.HandlerFunc(m.healthzAndReadyzHandler))
 
 	ln, err := net.Listen("tcp", servingAddress)
 	if err != nil {
@@ -89,9 +91,9 @@ func (m *Metrics) Run(servingAddress string) error {
 	return nil
 }
 
-func (m *Metrics) AddImage(namespace, pod, container, imageURL string, isLatest bool, currentVersion, latestVersion string) {
+func (m *Metrics) AddImage(namespace, pod, container, containerType, imageURL string, isLatest bool, currentVersion, latestVersion string) {
 	// Remove old image url/version if it exists
-	m.RemoveImage(namespace, pod, container)
+	m.RemoveImage(namespace, pod, container, containerType)
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -102,7 +104,7 @@ func (m *Metrics) AddImage(namespace, pod, container, imageURL string, isLatest 
 	}
 
 	m.containerImageVersion.With(
-		m.buildLabels(namespace, pod, container, imageURL, currentVersion, latestVersion),
+		m.buildLabels(namespace, pod, container, containerType, imageURL, currentVersion, latestVersion),
 	).Set(isLatestF)
 
 	index := m.latestImageIndex(namespace, pod, container)
@@ -113,7 +115,7 @@ func (m *Metrics) AddImage(namespace, pod, container, imageURL string, isLatest 
 	}
 }
 
-func (m *Metrics) RemoveImage(namespace, pod, container string) {
+func (m *Metrics) RemoveImage(namespace, pod, container, containerType string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -124,7 +126,7 @@ func (m *Metrics) RemoveImage(namespace, pod, container string) {
 	}
 
 	m.containerImageVersion.Delete(
-		m.buildLabels(namespace, pod, container, item.image, item.currentVersion, item.latestVersion),
+		m.buildLabels(namespace, pod, container, containerType, item.image, item.currentVersion, item.latestVersion),
 	)
 	delete(m.containerCache, index)
 }
@@ -133,10 +135,11 @@ func (m *Metrics) latestImageIndex(namespace, pod, container string) string {
 	return strings.Join([]string{namespace, pod, container}, "")
 }
 
-func (m *Metrics) buildLabels(namespace, pod, container, imageURL, currentVersion, latestVersion string) prometheus.Labels {
+func (m *Metrics) buildLabels(namespace, pod, container, containerType, imageURL, currentVersion, latestVersion string) prometheus.Labels {
 	return prometheus.Labels{
 		"namespace":       namespace,
 		"pod":             pod,
+		"container_type":  containerType,
 		"container":       container,
 		"image":           imageURL,
 		"current_version": currentVersion,
@@ -162,4 +165,13 @@ func (m *Metrics) Shutdown() error {
 	m.log.Info("prometheus metrics server gracefully stopped")
 
 	return nil
+}
+
+func (m *Metrics) healthzAndReadyzHandler(w http.ResponseWriter, r *http.Request) {
+	// Its not great, but does help ensure that we're alive and ready over
+	// calling the /metrics endpoint which can be expensive on large payloads
+	_, err := w.Write([]byte("OK"))
+	if err != nil {
+		m.log.Errorf("Failed to send Healthz/Readyz response: %s", err)
+	}
 }

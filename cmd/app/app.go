@@ -10,6 +10,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth" // Load all auth plugins
 
+	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/jetstack/version-checker/pkg/client"
 	"github.com/jetstack/version-checker/pkg/controller"
 	"github.com/jetstack/version-checker/pkg/metrics"
@@ -66,9 +67,9 @@ func NewCommand(ctx context.Context) *cobra.Command {
 				}
 			}()
 
-			defaultTestAllInfoMsg := `only containers with the annotation "enable.version-checker/${my-container}=true" will be parsed`
+			defaultTestAllInfoMsg := fmt.Sprintf(`only containers with the annotation "%s/${my-container}=true" will be parsed`, api.EnableAnnotationKey)
 			if opts.DefaultTestAll {
-				defaultTestAllInfoMsg = `all containers will be tested, unless they have the annotation "enable.version-checker/${my-container}=false"`
+				defaultTestAllInfoMsg = fmt.Sprintf(`all containers will be tested, unless they have the annotation "%s/${my-container}=false"`, api.EnableAnnotationKey)
 			}
 
 			log.Infof("flag --test-all-containers=%t %s", opts.DefaultTestAll, defaultTestAllInfoMsg)

@@ -1,0 +1,89 @@
+name: Test & Build
+on:
+  pull_request:
+    branches:
+      - 'main'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    permissions:
+      contents: read  # for actions/checkout to fetch code
+      pull-requests: read  # for golangci/golangci-lint-action to fetch pull requests
+    name: Lint Go code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - name: Setup Golang
+        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.0
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@639cd343e1d3b897ff35927a75193d57cfcba299 # v3.6.0
+        with:
+          version: v1.53
+          args: --timeout 10m --exclude SA5011 --verbose --issues-exit-code=0
+          only-new-issues: true
+
+  test:
+    name: Run unit tests for Go packages
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3 # v3.5.3
+    - name: Setup Go
+      uses: actions/setup-go@v4
+
+    - name: Download and required packages
+      run: |
+        make deps
+
+    - name: Run all unit tests
+      run: make test
+
+    - name: check test coverage
+      uses: vladopajic/go-test-coverage@v2
+      with:
+        config: ./.testcoverage.yml
+
+    - name: Generate code coverage artifacts
+      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+      with:
+        name: code-coverage
+        path: coverage.out
+
+  build:
+    needs:
+      - test
+      - lint
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm64
+          - linux/arm/v7
+    name: Build Images
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      with:
+        platforms: ${{ matrix.platform }}
+
+    - name: Build Images
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        platforms: ${{ matrix.platform }}
+        push: false
+        tags: quay.io/jetstack/version-checker:${{github.sha}}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max

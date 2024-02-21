@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	cliflag "k8s.io/component-base/cli/flag"
 
+	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/jetstack/version-checker/pkg/client"
 	"github.com/jetstack/version-checker/pkg/client/selfhosted"
 )
@@ -29,20 +31,28 @@ const (
 
 	envGCRAccessToken = "GCR_TOKEN"
 
+	envGHCRAccessToken = "GHCR_TOKEN"
+
 	envQuayToken = "QUAY_TOKEN"
 
-	envSelfhostedPrefix   = "SELFHOSTED"
-	envSelfhostedUsername = "USERNAME"
-	envSelfhostedPassword = "PASSWORD"
-	envSelfhostedBearer   = "TOKEN"
-	envSelfhostedHost     = "HOST"
+	envSelfhostedPrefix    = "SELFHOSTED"
+	envSelfhostedUsername  = "USERNAME"
+	envSelfhostedPassword  = "PASSWORD"
+	envSelfhostedHost      = "HOST"
+	envSelfhostedBearer    = "TOKEN"
+	envSelfhostedTokenPath = "TOKEN_PATH"
+	envSelfhostedInsecure  = "INSECURE"
+	envSelfhostedCAPath    = "CA_PATH"
 )
 
 var (
 	selfhostedHostReg     = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_HOST_(.*)")
 	selfhostedUsernameReg = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_USERNAME_(.*)")
 	selfhostedPasswordReg = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_PASSWORD_(.*)")
+	selfhostedTokenPath   = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_TOKEN_PATH_(.*)")
 	selfhostedTokenReg    = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_TOKEN_(.*)")
+	selfhostedCAPath      = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_CA_PATH_(.*)")
+	selfhostedInsecureReg = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_INSECURE_(.*)")
 )
 
 // Options is a struct to hold options for the version-checker
@@ -92,7 +102,7 @@ func (o *Options) addAppFlags(fs *pflag.FlagSet) {
 	fs.BoolVarP(&o.DefaultTestAll,
 		"test-all-containers", "a", false,
 		"If enabled, all containers will be tested, unless they have the "+
-			`annotation "enable.version-checker/${my-container}=false".`)
+			fmt.Sprintf(`annotation "%s/${my-container}=false".`, api.EnableAnnotationKey))
 
 	fs.DurationVarP(&o.CacheTimeout,
 		"image-cache-timeout", "c", time.Minute*30,
@@ -158,6 +168,15 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 		))
 	///
 
+	/// GHCR
+	fs.StringVar(&o.Client.GHCR.Token,
+		"gchr-token", "",
+		fmt.Sprintf(
+			"Personal Access token for read access to GHCR releases (%s_%s).",
+			envPrefix, envGHCRAccessToken,
+		))
+	///
+
 	/// Quay
 	fs.StringVar(&o.Client.Quay.Token,
 		"quay-token", "",
@@ -187,11 +206,31 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 				"username/password (%s_%s).",
 			envPrefix, envSelfhostedBearer,
 		))
+	fs.StringVar(&o.selfhosted.TokenPath,
+		"selfhosted-token-path", "",
+		fmt.Sprintf(
+			"Override the default selfhosted registry's token auth path. "+
+				"(%s_%s).",
+			envPrefix, envSelfhostedTokenPath,
+		))
 	fs.StringVar(&o.selfhosted.Host,
 		"selfhosted-registry-host", "",
 		fmt.Sprintf(
-			"Full host of the selfhosted registry. Include http[s] scheme (%s_%s",
+			"Full host of the selfhosted registry. Include http[s] scheme (%s_%s)",
 			envPrefix, envSelfhostedHost,
+		))
+	fs.StringVar(&o.selfhosted.Host,
+		"selfhosted-registry-ca-path", "",
+		fmt.Sprintf(
+			"Absolute path to a PEM encoded x509 certificate chain. (%s_%s)",
+			envPrefix, envSelfhostedCAPath,
+		))
+	fs.BoolVarP(&o.selfhosted.Insecure,
+		"selfhosted-insecure", "", false,
+		fmt.Sprintf(
+			"Enable/Disable SSL Certificate Validation. WARNING: "+
+				"THIS IS NOT RECOMMENDED AND IS INTENDED FOR DEBUGGING (%s_%s)",
+			envPrefix, envSelfhostedInsecure,
 		))
 	///
 }
@@ -213,6 +252,8 @@ func (o *Options) complete() {
 		{envDockerToken, &o.Client.Docker.Token},
 
 		{envGCRAccessToken, &o.Client.GCR.Token},
+
+		{envGHCRAccessToken, &o.Client.GHCR.Token},
 
 		{envQuayToken, &o.Client.Quay.Token},
 	} {
@@ -275,9 +316,30 @@ func (o *Options) assignSelfhosted(envs []string) {
 			continue
 		}
 
+		if matches := selfhostedTokenPath.FindStringSubmatch(strings.ToUpper(pair[0])); len(matches) == 2 {
+			initOptions(matches[1])
+			o.Client.Selfhosted[matches[1]].TokenPath = pair[1]
+			continue
+		}
+
 		if matches := selfhostedTokenReg.FindStringSubmatch(strings.ToUpper(pair[0])); len(matches) == 2 {
 			initOptions(matches[1])
 			o.Client.Selfhosted[matches[1]].Bearer = pair[1]
+			continue
+		}
+
+		if matches := selfhostedInsecureReg.FindStringSubmatch(strings.ToUpper(pair[0])); len(matches) == 2 {
+			initOptions(matches[1])
+			val, err := strconv.ParseBool(pair[1])
+			if err == nil {
+				o.Client.Selfhosted[matches[1]].Insecure = val
+			}
+			continue
+		}
+
+		if matches := selfhostedCAPath.FindStringSubmatch(strings.ToUpper(pair[0])); len(matches) == 2 {
+			initOptions(matches[1])
+			o.Client.Selfhosted[matches[1]].CAPath = pair[1]
 			continue
 		}
 	}

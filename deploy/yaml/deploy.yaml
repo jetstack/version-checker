@@ -49,12 +49,24 @@ spec:
     spec:
       serviceAccountName: version-checker
       containers:
-      - image: quay.io/jetstack/version-checker:v0.2.1
+      - image: quay.io/jetstack/version-checker:v0.5.1
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
         name: version-checker
         command: ["version-checker"]
+        livenessProbe:
+          httpGet:
+            path: /readyz
+            port: 8080
+          initialDelaySeconds: 3
+          periodSeconds: 3
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8080
+          initialDelaySeconds: 3
+          periodSeconds: 3
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
