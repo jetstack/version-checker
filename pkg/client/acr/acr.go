@@ -55,7 +55,8 @@ type ACRManifestResponse struct {
 
 func New(opts Options) (*Client, error) {
 	client := &http.Client{
-		Timeout: time.Second * 5,
+		Timeout:   time.Second * 5,
+		Transport: &http.Transport{Proxy: http.ProxyFromEnvironment},
 	}
 
 	if len(opts.RefreshToken) > 0 &&
