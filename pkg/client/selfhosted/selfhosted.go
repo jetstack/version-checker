@@ -130,6 +130,7 @@ func New(ctx context.Context, log *logrus.Entry, opts *Options) (*Client, error)
 
 		client.Client.Transport = &http.Transport{
 			TLSClientConfig: tlsConfig,
+			Proxy:           http.ProxyFromEnvironment,
 		}
 	}
 
