@@ -1,6 +1,6 @@
 # version-checker
 
-![Version: v0.3.2](https://img.shields.io/badge/Version-v0.3.2-informational?style=flat-square) ![AppVersion: v0.3.2](https://img.shields.io/badge/AppVersion-v0.3.2-informational?style=flat-square)
+![Version: v0.3.3](https://img.shields.io/badge/Version-v0.3.3-informational?style=flat-square) ![AppVersion: v0.3.3](https://img.shields.io/badge/AppVersion-v0.3.3-informational?style=flat-square)
 
 A Helm chart for version-checker
 
@@ -43,7 +43,7 @@ A Helm chart for version-checker
 | quay.token | string | `nil` |  |
 | readinessProbe | object | `{"enabled":true,"httpGet":{"path":"/readyz","port":8080},"initialDelaySeconds":3,"periodSeconds":3}` | Configure the readiness probe for version-checker |
 | readinessProbe.enabled | bool | `true` | Enable/Disable the setting of a readinessProbe |
-| replicaCount | int | `1` | Replica Count for version-checker |
+| replicaCount | int | `2` | Replica Count for version-checker |
 | resources | object | `{}` | Setup version-checkers resource requests/limits |
 | selfhosted | []{name: "", host: "", username:"", password:"", token:""}] | `[]` | Setup a number of SelfHosted Repositories and their credentials |
 | service | object | `{"annotations":{},"labels":{},"port":8080}` | Configure version-checkers Service |
