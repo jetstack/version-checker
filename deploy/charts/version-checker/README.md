@@ -15,7 +15,7 @@ A Helm chart for version-checker
 ## Values
 
 | Key | Type | Default | Description |
-|-----|------|---------|-------------|
+|-----|------|--------|-------------|
 | acr | object | `{"password":null,"refreshToken":null,"username":null}` | Azure Container Registry Credentials Configuration |
 | acr.password | string | `nil` |  |
 | acr.refreshToken | string | `nil` |  |
@@ -43,7 +43,7 @@ A Helm chart for version-checker
 | quay.token | string | `nil` |  |
 | readinessProbe | object | `{"enabled":true,"httpGet":{"path":"/readyz","port":8080},"initialDelaySeconds":3,"periodSeconds":3}` | Configure the readiness probe for version-checker |
 | readinessProbe.enabled | bool | `true` | Enable/Disable the setting of a readinessProbe |
-| replicaCount | int | `2` | Replica Count for version-checker |
+| replicaCount | int | `1` | Replica Count for version-checker |
 | resources | object | `{}` | Setup version-checkers resource requests/limits |
 | selfhosted | []{name: "", host: "", username:"", password:"", token:""}] | `[]` | Setup a number of SelfHosted Repositories and their credentials |
 | service | object | `{"annotations":{},"labels":{},"port":8080}` | Configure version-checkers Service |
