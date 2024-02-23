@@ -12,12 +12,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  update-version-files:
+  prepair-release:
     # Don't push back to a tag!
     if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-    name: Update Version Numbers
+    name: Prepair release
     runs-on: ubuntu-latest
     permissions:
+      pull-requests: write
       contents: write
     steps:
       - uses: actions/checkout@v2
@@ -26,7 +27,6 @@ jobs:
         with:
           value: ${{github.ref_name}}
           index_of_str: "release-"
-
       - name: Find and Replace Helm Chart Version
         uses: jacobtomlinson/gha-find-replace@v3
         with:
@@ -48,7 +48,6 @@ jobs:
           replace: "${{steps.release_number.outputs.substring}}"
           include: "Makefile"
           regex: true
-
       - name: Detect any Local Changes
         uses: dorny/paths-filter@v2
         id: filter
@@ -59,8 +58,6 @@ jobs:
               - 'Makefile'
               - 'deploy/yaml/deploy.yaml'
               - 'deploy/charts/version-checker/Chart.yaml'
-
-
       - name: Commit files
         if: steps.filter.outputs.versions == 'true'
         run: |
@@ -74,6 +71,17 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: ${{ github.ref_name }}
+      - name: Create Release PR
+        uses: devops-infra/action-pull-request@v0.5.5
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          target_branch: main
+          title: "Release ${{steps.release_number.outputs.substring}}"
+          body: "**Automated Release Pull Request**"
+          draft: false
+          get_diff: false
+          allow_no_diff: false
+
 
   helm-release:
     runs-on: ubuntu-latest
