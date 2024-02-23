@@ -13,8 +13,7 @@ spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ include "version-checker.name" . }}
-      app.kubernetes.io/instance: {{ .Release.Name }}
+      {{- include "version-checker.selector" . | nindent 6 }}
   template:
     metadata:
       labels:
