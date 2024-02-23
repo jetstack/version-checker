@@ -31,6 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
     steps:
     - uses: actions/checkout@v3
       with:
@@ -73,7 +74,7 @@ jobs:
         git commit -m "[HELM] Update helm docs"
     - name: Push Changes
       if: steps.filter-readme.outputs.readme == 'true'
-      uses: ad-m/github-push-action@v0.6.0
+      uses: ad-m/github-push-action@v0.8.0
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         branch: ${{ github.head_ref }}
