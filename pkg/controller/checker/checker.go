@@ -76,7 +76,7 @@ func (c *Checker) Container(ctx context.Context, log *logrus.Entry,
 	latestVersion := latestImage.Tag
 
 	// If we are using SHA and tag, make latest version include both
-	if usingSHA && !strings.Contains(latestVersion, "@") {
+	if usingSHA && !strings.Contains(latestVersion, "@") && latestImage.SHA != "" {
 		latestVersion = fmt.Sprintf("%s@%s", latestVersion, latestImage.SHA)
 	}
 
@@ -148,7 +148,7 @@ func (c *Checker) isLatestSemver(ctx context.Context, imageURL, currentSHA strin
 
 	// If using the same image version, but the SHA has been updated upstream,
 	// make not latest
-	if currentImage.Equal(latestImageV) && currentSHA != latestImage.SHA {
+	if currentImage.Equal(latestImageV) && currentSHA != latestImage.SHA && latestImage.SHA != "" {
 		isLatest = false
 		latestImage.Tag = fmt.Sprintf("%s@%s", latestImage.Tag, latestImage.SHA)
 	}
