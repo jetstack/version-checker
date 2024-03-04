@@ -3,11 +3,13 @@ package oci
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/jetstack/version-checker/pkg/api"
+	"github.com/jetstack/version-checker/pkg/version/semver"
 )
 
 type Client struct{}
@@ -34,9 +36,36 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 		return []api.ImageTag{}, err
 	}
 
+	sort.SliceStable(bareTags, func(i, j int) bool {
+		return semver.Parse(bareTags[i]).LessThan(semver.Parse(bareTags[j]))
+	})
+
 	var tags []api.ImageTag
-	for _, t := range bareTags {
-		tags = append(tags, api.ImageTag{Tag: t})
+	for i, t := range bareTags {
+		tag := api.ImageTag{Tag: t}
+
+		// Only fetch metadata for the highest version
+		// Could be very slow otherwise if there are a lot of tags, and
+		// we only really care about the highest version.
+		if i == len(bareTags)-1 {
+			img, err := name.ParseReference(fmt.Sprintf("%s:%s", src, t))
+			if err != nil {
+				continue
+			}
+			image, err := remote.Image(img, remote.WithContext(ctx))
+			if err != nil {
+				continue
+			}
+			if digest, err := image.Digest(); err == nil {
+				tag.SHA = digest.String()
+			}
+			if conf, err := image.ConfigFile(); err == nil {
+				tag.Architecture = api.Architecture(conf.Architecture)
+				tag.OS = api.OS(conf.OS)
+				tag.Timestamp = conf.Created.Time
+			}
+		}
+		tags = append(tags, tag)
 	}
 
 	return tags, nil
