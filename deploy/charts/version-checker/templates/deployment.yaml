@@ -32,8 +32,12 @@ spec:
     spec:
       serviceAccountName: {{ $chartname }}
       {{- with .Values.tolerations }}
-      tolerations: 
+      tolerations:
         {{- toYaml . | trim | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
       - name: {{ $chartname }}

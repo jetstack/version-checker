@@ -20,6 +20,9 @@ image:
 # -- Configure tolerations
 tolerations: []
 
+# -- Configure nodeSelector
+nodeSelector: {}
+
 # -- Configure version-checkers Service
 service:
   labels: {}
