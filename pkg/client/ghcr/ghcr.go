@@ -25,8 +25,7 @@ func New(opts Options) *Client {
 	return &Client{
 		Options: opts,
 		Client: &http.Client{
-			Timeout:   time.Second * 5,
-			Transport: &http.Transport{Proxy: http.ProxyFromEnvironment},
+			Timeout: time.Second * 5,
 		},
 	}
 }

@@ -3,7 +3,6 @@ package ecr
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -103,8 +102,6 @@ func (c *Client) getClient(region string) (*ecr.ECR, error) {
 			return nil, err
 		}
 	}
-	// Try and use an HTTP(S) Proxies defined within Environment variables.
-	client.Config.WithHTTPClient(&http.Client{Transport: &http.Transport{Proxy: http.ProxyFromEnvironment}})
 
 	c.cachedRegionClients[region] = client
 	return client, nil
