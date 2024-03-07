@@ -107,7 +107,7 @@ func (m *Metrics) AddImage(namespace, pod, container, containerType, imageURL st
 		m.buildLabels(namespace, pod, container, containerType, imageURL, currentVersion, latestVersion),
 	).Set(isLatestF)
 
-	index := m.latestImageIndex(namespace, pod, container)
+	index := m.latestImageIndex(namespace, pod, container, containerType)
 	m.containerCache[index] = cacheItem{
 		image:          imageURL,
 		currentVersion: currentVersion,
@@ -119,7 +119,7 @@ func (m *Metrics) RemoveImage(namespace, pod, container, containerType string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	index := m.latestImageIndex(namespace, pod, container)
+	index := m.latestImageIndex(namespace, pod, container, containerType)
 	item, ok := m.containerCache[index]
 	if !ok {
 		return
@@ -131,8 +131,8 @@ func (m *Metrics) RemoveImage(namespace, pod, container, containerType string) {
 	delete(m.containerCache, index)
 }
 
-func (m *Metrics) latestImageIndex(namespace, pod, container string) string {
-	return strings.Join([]string{namespace, pod, container}, "")
+func (m *Metrics) latestImageIndex(namespace, pod, container, containerType string) string {
+	return strings.Join([]string{namespace, pod, container, containerType}, "")
 }
 
 func (m *Metrics) buildLabels(namespace, pod, container, containerType, imageURL, currentVersion, latestVersion string) prometheus.Labels {
