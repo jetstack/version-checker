@@ -13,7 +13,7 @@ spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      {{- include "version-checker.labels" . | nindent 6 }}
+      {{- include "version-checker.selector" . | nindent 6 }}
   template:
     metadata:
       labels:
