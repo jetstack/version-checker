@@ -59,6 +59,15 @@ tests:
             name: CUSTOM_ENV_VAR
             value: CUSTOM_ENV_VALUE
 
+  - it: NodeSelectors Present
+    set:
+      nodeSelector:
+        abc: "123"
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector.abc
+          value: "123"
+
     # Param changes
   - it: imageCacheTimeout
     set:
