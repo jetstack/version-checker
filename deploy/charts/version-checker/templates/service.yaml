@@ -19,4 +19,4 @@ spec:
       protocol: TCP
       name: web
   selector:
-    {{ include "version-checker.labels" . | nindent 4 }}
+    {{- include "version-checker.selector" . | nindent 4 }}

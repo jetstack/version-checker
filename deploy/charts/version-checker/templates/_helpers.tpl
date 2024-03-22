@@ -25,3 +25,11 @@ app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}
+
+{{/*
+Common selector
+*/}}
+{{- define "version-checker.selector" -}}
+app.kubernetes.io/name: {{ include "version-checker.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end -}}
