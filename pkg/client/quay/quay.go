@@ -59,7 +59,6 @@ type responseManifestDataItem struct {
 
 func New(opts Options) *Client {
 	client := retryablehttp.NewClient()
-	client.HTTPClient.Transport = &http.Transport{Proxy: http.ProxyFromEnvironment}
 	client.RetryMax = 10
 	client.Logger = nil
 
