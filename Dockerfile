@@ -8,7 +8,7 @@ WORKDIR /app/
 RUN make build
 
 
-FROM alpine:3.18.3
+FROM alpine:3.19.1
 LABEL description="Kubernetes utility for exposing used image versions compared to the latest version, as metrics."
 
 RUN apk --no-cache add ca-certificates
