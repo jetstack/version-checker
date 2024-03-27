@@ -29,11 +29,6 @@ const (
 	envDockerPassword = "DOCKER_PASSWORD"
 	envDockerToken    = "DOCKER_TOKEN"
 
-	envECRIamRoleArn      = "ECR_IAM_ROLE_ARN"
-	envECRAccessKeyID     = "ECR_ACCESS_KEY_ID"
-	envECRSecretAccessKey = "ECR_SECRET_ACCESS_KEY"
-	envECRSessionToken    = "ECR_SESSION_TOKEN"
-
 	envGCRAccessToken = "GCR_TOKEN"
 
 	envGHCRAccessToken = "GHCR_TOKEN"
@@ -164,33 +159,6 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 		))
 	///
 
-	/// ECR
-	fs.StringVar(&o.Client.ECR.IamRoleArn,
-		"ecr-iam-role-arn", "",
-		fmt.Sprintf(
-			"IAM role ARN for read access to private registries, can not be used with access-key/secret-key/session-token (%s_%s).",
-			envPrefix, envECRIamRoleArn,
-		))
-	fs.StringVar(&o.Client.ECR.AccessKeyID,
-		"ecr-access-key-id", "",
-		fmt.Sprintf(
-			"ECR access key ID for read access to private registries (%s_%s).",
-			envPrefix, envECRAccessKeyID,
-		))
-	fs.StringVar(&o.Client.ECR.SecretAccessKey,
-		"ecr-secret-access-key", "",
-		fmt.Sprintf(
-			"ECR secret access key for read access to private registries (%s_%s).",
-			envPrefix, envECRSecretAccessKey,
-		))
-	fs.StringVar(&o.Client.ECR.SessionToken,
-		"ecr-session-token", "",
-		fmt.Sprintf(
-			"ECR session token for read access to private registries (%s_%s).",
-			envPrefix, envECRSessionToken,
-		))
-	///
-
 	/// GCR
 	fs.StringVar(&o.Client.GCR.Token,
 		"gcr-token", "",
@@ -282,11 +250,6 @@ func (o *Options) complete() {
 		{envDockerUsername, &o.Client.Docker.Username},
 		{envDockerPassword, &o.Client.Docker.Password},
 		{envDockerToken, &o.Client.Docker.Token},
-
-		{envECRIamRoleArn, &o.Client.ECR.IamRoleArn},
-		{envECRAccessKeyID, &o.Client.ECR.AccessKeyID},
-		{envECRSessionToken, &o.Client.ECR.SessionToken},
-		{envECRSecretAccessKey, &o.Client.ECR.SecretAccessKey},
 
 		{envGCRAccessToken, &o.Client.GCR.Token},
 

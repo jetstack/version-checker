@@ -46,7 +46,6 @@ type Client struct {
 // Options used to configure client authentication.
 type Options struct {
 	ACR        acr.Options
-	ECR        ecr.Options
 	GCR        gcr.Options
 	GHCR       ghcr.Options
 	Docker     docker.Options
@@ -84,7 +83,7 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 		clients: append(
 			selfhostedClients,
 			acrClient,
-			ecr.New(opts.ECR),
+			ecr.New(),
 			dockerClient,
 			gcr.New(opts.GCR),
 			ghcr.New(opts.GHCR),

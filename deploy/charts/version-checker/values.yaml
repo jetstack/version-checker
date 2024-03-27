@@ -30,6 +30,9 @@ service:
   # -- Port to expose within the service
   port: 8080
 
+serviceAccount:
+  annotations: {}
+
 # -- Configure version-checkers behaviour
 versionChecker:
   # versionChecker.imageCacheTimeout -- How long to hold on to image tags and their versions
@@ -58,18 +61,6 @@ docker:
   password:
   # docker.token -- (string)
   token:
-
-# Amazon Elastic Container Registry Credentials Configuration
-ecr:
-  # -- (string) Provide AWS EKS Iam Role ARN following: [Specify A ServiceAccount Role](https://docs.aws.amazon.com/eks/latest/userguide/specify-service-account-role.html)
-  iamRoleArn:
-
-  # -- (string)
-  accessKeyID:
-  # -- (string)
-  secretAccessKey:
-  # -- (string)
-  sessionToken:
 
 # Google Container Registry Credentials Configuration
 gcr:
@@ -102,7 +93,6 @@ selfhosted:
   #  username: foo
   #  password: bar
   #  token:
-
 
 # -- Setup version-checkers resource requests/limits
 resources:

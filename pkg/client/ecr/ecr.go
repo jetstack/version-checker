@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ecr"
 
@@ -17,20 +16,10 @@ import (
 type Client struct {
 	cacheMu             sync.Mutex
 	cachedRegionClients map[string]*ecr.ECR
-
-	Options
 }
 
-type Options struct {
-	IamRoleArn      string
-	AccessKeyID     string
-	SecretAccessKey string
-	SessionToken    string
-}
-
-func New(opts Options) *Client {
+func New() *Client {
 	return &Client{
-		Options:             opts,
 		cachedRegionClients: make(map[string]*ecr.ECR),
 	}
 }
@@ -108,16 +97,9 @@ func (c *Client) getClient(region string) (*ecr.ECR, error) {
 }
 
 func (c *Client) createRegionClient(region string) (*ecr.ECR, error) {
-	var sess *session.Session
-	var err error
-	if c.IamRoleArn != "" {
-		sess, err = session.NewSession()
-	} else {
-		sess, err = session.NewSession(&aws.Config{
-			Credentials: credentials.NewStaticCredentials(c.AccessKeyID, c.SecretAccessKey, c.SessionToken),
-			Region:      &region,
-		})
-	}
+	sess, err := session.NewSession(&aws.Config{
+		Region: &region,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct aws credentials: %s", err)
 	}
