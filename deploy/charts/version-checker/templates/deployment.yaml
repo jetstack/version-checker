@@ -54,6 +54,10 @@ spec:
           - "--test-all-containers={{.Values.versionChecker.testAllContainers}}"
         resources:
           {{- toYaml .Values.resources | nindent 12 }}
+        {{- with .Values.securityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
         {{- if .Values.livenessProbe.enabled }}
         livenessProbe:
           {{- omit .Values.livenessProbe "enabled" | toYaml | nindent 10}}
@@ -202,7 +206,10 @@ spec:
         {{- if .Values.env }}
         {{- toYaml .Values.env | nindent 8 }}
         {{- end }}
-
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       volumes:
         {{- if $secretEnabled }}
         - name: {{ include "version-checker.name" . }}

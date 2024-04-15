@@ -425,3 +425,21 @@ tests:
       - equal:
           path: spec.template.metadata.annotations["foo"]
           value: bar
+
+  - it: (Pod-)SecurityContext is reflected
+    set:
+      podSecurityContext:
+        runAsUser: 65534
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext
+          value:
+            runAsUser: 65534
+      - equal:
+          path: spec.template.spec.containers[0].securityContext
+          value:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
