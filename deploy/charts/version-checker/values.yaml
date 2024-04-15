@@ -5,15 +5,16 @@
 # -- Replica Count for version-checker
 replicaCount: 1
 
-#  -- Additional Labels to apply to Service and Deployment/Pod Objects
+# -- Additional Labels to apply to Service and Deployment/Pod Objects
 additionalLabels: {}
-#  -- Additional Annotations to apply to Service and Deployment/Pod Objects
+# -- Additional Annotations to apply to Service and Deployment/Pod Objects
 additionalAnnotations: {}
 
 image:
+  # -- Repository of the container image
   repository: quay.io/jetstack/version-checker
-  # -- Override the chart version
-  tag:
+  # -- Override the chart version. Defaults to `appVersion` of the helm chart.
+  tag: ""
   # -- Set the Image Pull Policy
   pullPolicy: IfNotPresent
 
@@ -23,40 +24,42 @@ tolerations: []
 # -- Configure nodeSelector
 nodeSelector: {}
 
-# -- Configure version-checkers Service
+# Configure version-checkers Service
 service:
+  # -- Additional labels to add to the service
   labels: {}
+  # -- Additional annotations to add to the service
   annotations: {}
   # -- Port to expose within the service
   port: 8080
 
-# -- Configure version-checkers behaviour
+# Configure version-checkers behaviour
 versionChecker:
-  # versionChecker.imageCacheTimeout -- How long to hold on to image tags and their versions
+  # -- How long to hold on to image tags and their versions
   imageCacheTimeout: 30m
-  # versionChecker.logLevel -- Configure version-checkers logging, valid options are: debug, info, warn, error, fatal, panic
+  # -- Configure version-checkers logging, valid options are: debug, info, warn, error, fatal, panic
   logLevel: info
-  # versionChecker.metricsServingAddress -- Port/interface to which version-checker should bind too
+  # -- Port/interface to which version-checker should bind too
   metricsServingAddress: 0.0.0.0:8080
-  # versionChecker.testAllContainers -- Enable/Disable the requirement for an enable.version-checker.io annotation on pods.
+  # -- Enable/Disable the requirement for an enable.version-checker.io annotation on pods.
   testAllContainers: true
 
-# -- Azure Container Registry Credentials Configuration
+# Azure Container Registry Credentials Configuration
 acr:
-  # acr.username -- (string)
+  # -- (string) Username to authenticate with azure container registry
   username:
-  # acr.password -- (string)
+  # -- (string) Password to authenticate with azure container registry
   password:
-  # acr.refreshToken -- (string)
+  # -- (string) Refresh token to authenticate with azure container registry. Cannot be used with `acr.username` / `acr.password`.
   refreshToken:
 
 # Docker Hub Credentials Configuration
 docker:
-  # docker.username -- (string)
+  # -- (string) Username to authenticate with docker registry
   username:
-  # docker.password -- (string)
+  # -- (string) Password to authenticate with docker registry
   password:
-  # docker.token -- (string)
+  # -- (string) Token to authenticate with docker registry. Cannot be used with `docker.username` / `docker.password`.
   token:
 
 # Amazon Elastic Container Registry Credentials Configuration
@@ -64,26 +67,26 @@ ecr:
   # -- (string) Provide AWS EKS Iam Role ARN following: [Specify A ServiceAccount Role](https://docs.aws.amazon.com/eks/latest/userguide/specify-service-account-role.html)
   iamRoleArn:
 
-  # -- (string)
+  # -- (string) ECR access key ID for read access to private registries
   accessKeyID:
-  # -- (string)
+  # -- (string) ECR secret access key for read access to private registries
   secretAccessKey:
-  # -- (string)
+  # -- (string) ECR session token for read access to private registries
   sessionToken:
 
 # Google Container Registry Credentials Configuration
 gcr:
-  # gcr.token -- (string)
+  # -- (string) Access token for read access to private GCR registries
   token:
 
 # Google Artifact Registry Credentials Configuration
 ghcr:
-  # ghcr.token -- (string)
+  # -- (string) Personal Access token for read access to GHCR releases
   token:
 
 # Quay.io Registry Credentials Configuration
 quay:
-  # quay.token -- (string)
+  # -- (string) Access token for read access to private Quay registries
   token:
 
 # -- Can be used to provide custom environment variables e.g. proxy settings
@@ -115,36 +118,46 @@ resources:
   #   memory: 128Mi
   #
 
-# -- Configure the readiness probe for version-checker
+# Configure the readiness probe for version-checker
 readinessProbe:
-  # readinessProbe.enabled -- Enable/Disable the setting of a readinessProbe
+  # -- Enable/Disable the setting of a readinessProbe
   enabled: true
   httpGet:
+    # -- Path to use for the readinessProbe
     path: /readyz
+    # -- Port to use for the readinessProbe
     port: 8080
+  # -- Number of seconds after the container has started before readiness probes are initiated.
   initialDelaySeconds: 3
+  # -- How often (in seconds) to perform the readinessProbe.
   periodSeconds: 3
 
-# -- Configure the healthcheck probe for version-checker
+# Configure the healthcheck probe for version-checker
 livenessProbe:
-  # livenessProbe.enabled -- Enable/Disable the setting of a livenessProbe
+  # -- Enable/Disable the setting of a livenessProbe
   enabled: true
   httpGet:
+    # -- Path to use for the livenessProbe
     path: /readyz
+    # -- Port to use for the livenessProbe
     port: 8080
+  # -- Number of seconds after the container has started before liveness probes are initiated.
   initialDelaySeconds: 3
+  # -- How often (in seconds) to perform the livenessProbe.
   periodSeconds: 3
 
-# -- Prometheus Operator
+# Prometheus Operator
 prometheus:
   # -- Deploy a Prometheus-Operator Prometheus Object to collect version-checker metrics
   enabled: false
+  # -- Number of Prometheus replicas to create
   replicas: 1
   # -- ServiceAccount for new Prometheus Object
   serviceAccountName: prometheus
 
-# -- Configure a Prometheus-Operator ServiceMonitor object
+# Configure a Prometheus-Operator ServiceMonitor object
 serviceMonitor:
-  # serviceMonitor.enabled -- Disable/Enable ServiceMonitor Object
+  # -- Disable/Enable ServiceMonitor Object
   enabled: false
+  # -- Additional labels to add to the ServiceMonitor
   additionalLabels: {}
