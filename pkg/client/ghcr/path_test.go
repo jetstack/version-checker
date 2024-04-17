@@ -53,15 +53,25 @@ func TestRepoImage(t *testing.T) {
 		path              string
 		expRepo, expImage string
 	}{
+		"empty path should be interpreted as an empty repo and image": {
+			path:     "",
+			expRepo:  "",
+			expImage: "",
+		},
+		"one segement should be interpreted as 'repo'": {
+			path:     "jetstack-cre",
+			expRepo:  "jetstack-cre",
+			expImage: "",
+		},
 		"two segments to path should return both": {
 			path:     "jetstack-cre/version-checker",
 			expRepo:  "jetstack-cre",
 			expImage: "version-checker",
 		},
-		"multiple segments to path should return all in repo, last segment image": {
+		"multiple segments to path should return first segment in repo, rest in image": {
 			path:     "k8s-artifacts-prod/ingress-nginx/nginx",
-			expRepo:  "k8s-artifacts-prod/ingress-nginx",
-			expImage: "nginx",
+			expRepo:  "k8s-artifacts-prod",
+			expImage: "ingress-nginx/nginx",
 		},
 	}
 
