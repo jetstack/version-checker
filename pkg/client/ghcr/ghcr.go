@@ -16,7 +16,9 @@ type Options struct {
 }
 
 type Client struct {
-	client *github.Client
+	client     *github.Client
+	opts       Options
+	ownerTypes map[string]string
 }
 
 func New(opts Options) *Client {
@@ -32,7 +34,9 @@ func New(opts Options) *Client {
 	client := github.NewClient(ghRateLimiter).WithAuthToken(opts.Token)
 
 	return &Client{
-		client: client,
+		client:     client,
+		opts:       opts,
+		ownerTypes: map[string]string{},
 	}
 }
 
@@ -44,11 +48,11 @@ func (c *Client) Tags(ctx context.Context, host, owner, repo string) ([]api.Imag
 	// Choose the correct list packages function based on whether the owner
 	// is a user or an organization
 	getAllVersions := c.client.Organizations.PackageGetAllVersions
-	user, _, err := c.client.Users.Get(ctx, owner)
+	ownerType, err := c.ownerType(ctx, owner)
 	if err != nil {
-		return nil, fmt.Errorf("fetching user: %w", err)
+		return nil, fmt.Errorf("fetching owner type: %w", err)
 	}
-	if strings.ToLower(user.GetType()) == "user" {
+	if ownerType == "user" {
 		getAllVersions = c.client.Users.PackageGetAllVersions
 		// The User implementation doesn't path escape this for you:
 		// - https://github.com/google/go-github/blob/v58.0.0/github/users_packages.go#L136
@@ -109,4 +113,19 @@ func (c *Client) Tags(ctx context.Context, host, owner, repo string) ([]api.Imag
 	}
 
 	return tags, nil
+}
+
+func (c *Client) ownerType(ctx context.Context, owner string) (string, error) {
+	if ownerType, ok := c.ownerTypes[owner]; ok {
+		return ownerType, nil
+	}
+	user, _, err := c.client.Users.Get(ctx, owner)
+	if err != nil {
+		return "", fmt.Errorf("fetching user: %w", err)
+	}
+	ownerType := strings.ToLower(user.GetType())
+
+	c.ownerTypes[owner] = ownerType
+
+	return ownerType, nil
 }
