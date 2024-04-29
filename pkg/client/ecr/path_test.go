@@ -88,6 +88,11 @@ func TestRepoImage(t *testing.T) {
 			expRepo:  "k8s-artifacts-prod/ingress-nginx",
 			expImage: "nginx",
 		},
+		"region": {
+			path:     "000000000000.dkr.ecr.eu-west-2.amazonaws.com/version-checker",
+			expRepo:  "000000000000.dkr.ecr.eu-west-2.amazonaws.com",
+			expImage: "version-checker",
+		},
 	}
 
 	handler := new(Client)
