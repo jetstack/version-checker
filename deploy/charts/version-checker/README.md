@@ -40,6 +40,7 @@ A Helm chart for version-checker
 | livenessProbe.initialDelaySeconds | int | `3` | Number of seconds after the container has started before liveness probes are initiated. |
 | livenessProbe.periodSeconds | int | `3` | How often (in seconds) to perform the livenessProbe. |
 | nodeSelector | object | `{}` | Configure nodeSelector |
+| podSecurityContext | object | `{}` | Set pod-level security context |
 | prometheus.enabled | bool | `false` | Deploy a Prometheus-Operator Prometheus Object to collect version-checker metrics |
 | prometheus.replicas | int | `1` | Number of Prometheus replicas to create |
 | prometheus.serviceAccountName | string | `"prometheus"` | ServiceAccount for new Prometheus Object |
@@ -51,6 +52,7 @@ A Helm chart for version-checker
 | readinessProbe.periodSeconds | int | `3` | How often (in seconds) to perform the readinessProbe. |
 | replicaCount | int | `1` | Replica Count for version-checker |
 | resources | object | `{}` | Setup version-checkers resource requests/limits |
+| securityContext | object | `{}` | Set container-level security context |
 | selfhosted | []{name: "", host: "", username:"", password:"", token:""}] | `[]` | Setup a number of SelfHosted Repositories and their credentials |
 | service.annotations | object | `{}` | Additional annotations to add to the service |
 | service.labels | object | `{}` | Additional labels to add to the service |
