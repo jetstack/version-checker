@@ -24,10 +24,9 @@ const (
 
 type Client struct {
 	*http.Client
-	Options
-
-	cacheMu         sync.Mutex
 	cachedACRClient map[string]*acrClient
+	Options
+	cacheMu sync.Mutex
 }
 
 type acrClient struct {

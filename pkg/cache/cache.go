@@ -12,21 +12,19 @@ import (
 
 // Cache is a generic cache store.
 type Cache struct {
-	log *logrus.Entry
-
-	mu      sync.RWMutex
-	timeout time.Duration
 	handler Handler
-
-	store map[string]*cacheItem
+	log     *logrus.Entry
+	store   map[string]*cacheItem
+	timeout time.Duration
+	mu      sync.RWMutex
 }
 
 // cacheItem is a single item for the cache stored. This cache item is
 // periodically garbage collected.
 type cacheItem struct {
-	mu        sync.Mutex
 	timestamp time.Time
 	i         interface{}
+	mu        sync.Mutex
 }
 
 // Handler is an interface for implementations of the cache fetch
