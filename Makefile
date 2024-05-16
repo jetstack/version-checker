@@ -7,7 +7,7 @@ help:  ## display this help
 .PHONY: help build image all clean
 
 deps: ## Download all Dependencies
-	go mod download
+	go mod tidy
 
 test: deps ## test version-checker
 	go test ./... -coverprofile=coverage.out
