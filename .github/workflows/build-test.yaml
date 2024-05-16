@@ -36,6 +36,8 @@ jobs:
       uses: actions/checkout@v3 # v3.5.3
     - name: Setup Go
       uses: actions/setup-go@v4
+      with:
+        cache-dependency-path: "**/*.sum"
 
     - name: Download and required packages
       run: |
@@ -60,13 +62,6 @@ jobs:
       - test
       - lint
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        platform:
-          - linux/amd64
-          - linux/arm64
-          - linux/arm/v7
     name: Build Images
     steps:
     - name: Checkout code
@@ -76,15 +71,24 @@ jobs:
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
+
+    - name: Setup Go
+      uses: actions/setup-go@v4
       with:
-        platforms: ${{ matrix.platform }}
+        cache-dependency-path: "**/*.sum"
+
+    - name: Build binaries
+      run: |
+        export CGO_ENABLED=0
+        GOOS=linux GOARCH=amd64 go build -a -o dist/cmd-linux-amd64 ./cmd/.
+        GOOS=linux GOARCH=arm64 go build -a -o dist/cmd-linux-arm64 ./cmd/.
+        GOOS=linux GOARCH=arm go build -a -o dist/cmd-linux-arm ./cmd/.
 
     - name: Build Images
       uses: docker/build-push-action@v4
       with:
         context: .
-        platforms: ${{ matrix.platform }}
-        load: true
+        platforms: linux/arm64,linux/amd64,linux/arm/v7
         push: false
         tags: quay.io/jetstack/version-checker:${{github.sha}}
         cache-from: type=gha

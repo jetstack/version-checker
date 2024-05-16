@@ -131,8 +131,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        with:
-          platforms: ${{ matrix.platform }}
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -140,6 +138,18 @@ jobs:
           registry: quay.io
           username: ${{ secrets.QUAY_USERNAME }}
           password: ${{ secrets.QUAY_ROBOT_TOKEN }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          cache-dependency-path: "**/*.sum"
+
+      - name: Build binaries
+        run: |
+          export CGO_ENABLED=0
+          GOOS=linux GOARCH=amd64 go build -a -o dist/cmd-linux-amd64 ./cmd/.
+          GOOS=linux GOARCH=arm64 go build -a -o dist/cmd-linux-arm64 ./cmd/.
+          GOOS=linux GOARCH=arm go build -a -o dist/cmd-linux-arm ./cmd/.
 
       - name: Build and push (if applicable)
         uses: docker/build-push-action@v4
