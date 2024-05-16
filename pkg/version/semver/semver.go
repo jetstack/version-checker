@@ -12,9 +12,13 @@ var (
 
 // SemVer is a struct to contain a SemVer of an image tag.
 type SemVer struct {
+	// metadata holds the metadata, which is the string suffixed from the patch
 	metadata string
+	// original holds the origin string of the tag
 	original string
-	version  [3]int64
+	// version is the version number of a tag. 'Left', or smaller index, the
+	// higher weight.
+	version [3]int64
 }
 
 func Parse(tag string) *SemVer {

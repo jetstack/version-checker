@@ -48,8 +48,11 @@ type Options struct {
 	PinMinor     *int64         `json:"pin-minor,omitempty"`
 	PinPatch     *int64         `json:"pin-patch,omitempty"`
 	RegexMatcher *regexp.Regexp `json:"-"`
-	UseSHA       bool           `json:"use-sha,omitempty"`
-	UseMetaData  bool           `json:"use-metadata,omitempty"`
+	// UseSHA cannot be used with any other options
+	UseSHA bool `json:"use-sha,omitempty"`
+	// UseMetaData defines whether tags with '-alpha', '-debian.0' etc. is
+	// permissible.
+	UseMetaData bool `json:"use-metadata,omitempty"`
 }
 
 // ImageTag describes a container image tag.
