@@ -11,13 +11,17 @@ import (
 var _ search.Searcher = &FakeSearch{}
 
 type FakeSearch struct {
-	latestImageF func() (*api.ImageTag, error)
+	latestImageF     func() (*api.ImageTag, error)
+	resolveSHAToTagF func() (string, error)
 }
 
 func New() *FakeSearch {
 	return &FakeSearch{
 		latestImageF: func() (*api.ImageTag, error) {
 			return nil, nil
+		},
+		resolveSHAToTagF: func() (string, error) {
+			return "", nil
 		},
 	}
 }
@@ -33,5 +37,8 @@ func (f *FakeSearch) LatestImage(context.Context, string, *api.Options) (*api.Im
 	return f.latestImageF()
 }
 
+func (f *FakeSearch) ResolveSHAToTag(ctx context.Context, imageURL string, imageSHA string) (string, error) {
+	return f.resolveSHAToTagF()
+}
 func (f *FakeSearch) Run(time.Duration) {
 }
