@@ -17,6 +17,8 @@ image:
   tag: ""
   # -- Set the Image Pull Policy
   pullPolicy: IfNotPresent
+  # -- Pull secrects - name of existing secret
+  imagePullSecret:
 
 # -- Configure tolerations
 tolerations: []
@@ -117,6 +119,21 @@ resources:
   #   cpu: 100m
   #   memory: 128Mi
   #
+
+# -- Set container-level security context
+securityContext: {}
+  # allowPrivilegeEscalation: false
+  # capabilities:
+  #   drop:
+  #     - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 65534
+  # seccompProfile:
+  #   type: RuntimeDefault
+
+# -- Set pod-level security context
+podSecurityContext: {}
 
 # Configure the readiness probe for version-checker
 readinessProbe:
