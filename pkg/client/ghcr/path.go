@@ -1,20 +1,21 @@
 package ghcr
 
 import (
-	"regexp"
 	"strings"
 )
 
-var (
-	reg = regexp.MustCompile(`^ghcr.io$`)
-)
-
 func (c *Client) IsHost(host string) bool {
-	return reg.MatchString(host)
+	return host == "ghcr.io"
 }
 
 func (c *Client) RepoImageFromPath(path string) (string, string) {
-	lastIndex := strings.LastIndex(path, "/")
-
-	return path[:lastIndex], path[lastIndex+1:]
+	var owner, pkg string
+	parts := strings.SplitN(path, "/", 2)
+	if len(parts) > 0 {
+		owner = parts[0]
+	}
+	if len(parts) > 1 {
+		pkg = parts[1]
+	}
+	return owner, pkg
 }
