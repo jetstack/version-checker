@@ -115,6 +115,12 @@ func latestSemver(opts *api.Options, tags []api.ImageTag) (*api.ImageTag, error)
 	for i := range tags {
 		v := semver.Parse(tags[i].Tag)
 
+		// If the image in question is "older" than the one we believe to be Latest
+		// Then we can ignore this image.
+		if latestV != nil && tags[i].Timestamp.After(latestImageTag.Timestamp) {
+			continue
+		}
+
 		// If regex enabled continue here.
 		// If we match, and is less than, update latest.
 		if opts.RegexMatcher != nil {
