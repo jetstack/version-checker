@@ -3,9 +3,8 @@ package ghcr
 import (
 	"context"
 	"fmt"
-	"net/http"
+	"net/url"
 	"strings"
-	"time"
 
 	"github.com/gofri/go-github-ratelimit/github_ratelimit"
 	"github.com/google/go-github/v58/github"
@@ -17,27 +16,12 @@ type Options struct {
 }
 
 type Client struct {
-	*http.Client
-	Options
+	client     *github.Client
+	opts       Options
+	ownerTypes map[string]string
 }
 
 func New(opts Options) *Client {
-	return &Client{
-		Options: opts,
-		Client: &http.Client{
-			Timeout: time.Second * 5,
-		},
-	}
-}
-
-func (c *Client) Name() string {
-	return "ghcr"
-}
-
-func (c *Client) Tags(ctx context.Context, host, owner, repo string) ([]api.ImageTag, error) {
-	var err error
-	var tags []api.ImageTag
-
 	rateLimitDetection := func(ctx *github_ratelimit.CallbackContext) {
 		fmt.Printf("Hit Github Rate Limit, sleeping for %v", ctx.TotalSleepTime)
 	}
@@ -47,42 +31,49 @@ func (c *Client) Tags(ctx context.Context, host, owner, repo string) ([]api.Imag
 	if err != nil {
 		panic(err)
 	}
-	client := github.NewClient(ghRateLimiter).WithAuthToken(c.Token)
+	client := github.NewClient(ghRateLimiter).WithAuthToken(opts.Token)
 
-	if repoExist(client, owner, repo) {
-		tags, err = getTagsFromRelease(client, owner, repo)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-
-		tags, err = getTagsFromOrgPackage(client, owner, repo)
-		if err != nil {
-			return nil, err
-		}
+	return &Client{
+		client:     client,
+		opts:       opts,
+		ownerTypes: map[string]string{},
 	}
-	return tags, nil
 }
 
-func repoExist(client *github.Client, owner string, repo string) bool {
-	_, _, err := client.Repositories.Get(context.TODO(), owner, repo)
-	return err == nil
+func (c *Client) Name() string {
+	return "ghcr"
 }
 
-func getTagsFromOrgPackage(client *github.Client, owner string, repo string) ([]api.ImageTag, error) {
-	var tags []api.ImageTag
-	packageType := "container"
-	packageState := "active"
+func (c *Client) Tags(ctx context.Context, host, owner, repo string) ([]api.ImageTag, error) {
+	// Choose the correct list packages function based on whether the owner
+	// is a user or an organization
+	getAllVersions := c.client.Organizations.PackageGetAllVersions
+	ownerType, err := c.ownerType(ctx, owner)
+	if err != nil {
+		return nil, fmt.Errorf("fetching owner type: %w", err)
+	}
+	if ownerType == "user" {
+		getAllVersions = c.client.Users.PackageGetAllVersions
+		// The User implementation doesn't path escape this for you:
+		// - https://github.com/google/go-github/blob/v58.0.0/github/users_packages.go#L136
+		// - https://github.com/google/go-github/blob/v58.0.0/github/orgs_packages.go#L105
+		repo = url.PathEscape(repo)
+	}
+
 	opts := &github.PackageListOptions{
-		PackageType: &packageType,
-		State:       &packageState,
-		ListOptions: github.ListOptions{PerPage: 100},
+		PackageType: github.String("container"),
+		State:       github.String("active"),
+		ListOptions: github.ListOptions{
+			PerPage: 100,
+		},
 	}
+
+	var tags []api.ImageTag
 
 	for {
-		versions, resp, err := client.Organizations.PackageGetAllVersions(context.TODO(), owner, packageType, repo, opts)
+		versions, resp, err := getAllVersions(ctx, owner, "container", repo, opts)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get Org Package Versions: %s", err)
+			return nil, fmt.Errorf("getting versions: %w", err)
 		}
 
 		for _, ver := range versions {
@@ -96,7 +87,14 @@ func getTagsFromOrgPackage(client *github.Client, owner string, repo string) ([]
 			}
 
 			for _, tag := range ver.Metadata.Container.Tags {
-				if strings.HasSuffix(tag, ".att") { // Skip tags that are attestations
+				// Exclude attestations, signatures and sboms
+				if strings.HasSuffix(tag, ".att") {
+					continue
+				}
+				if strings.HasSuffix(tag, ".sig") {
+					continue
+				}
+				if strings.HasSuffix(tag, ".sbom") {
 					continue
 				}
 
@@ -110,35 +108,24 @@ func getTagsFromOrgPackage(client *github.Client, owner string, repo string) ([]
 		if resp.NextPage == 0 {
 			break
 		}
+
 		opts.ListOptions.Page = resp.NextPage
 	}
+
 	return tags, nil
 }
 
-func getTagsFromRelease(client *github.Client, owner string, repo string) ([]api.ImageTag, error) {
-	var tags []api.ImageTag
-	opt := &github.ListOptions{PerPage: 50}
-	for {
-		releases, resp, err := client.Repositories.ListReleases(context.TODO(), owner, repo, opt)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get github Releases: %s", err)
-		}
-
-		for _, rel := range releases {
-			if rel.TagName == nil {
-				continue
-			}
-			tags = append(tags, api.ImageTag{
-				Tag:       *rel.TagName,
-				SHA:       "",
-				Timestamp: rel.PublishedAt.Time,
-			})
-		}
-
-		if resp.NextPage == 0 {
-			break
-		}
-		opt.Page = resp.NextPage
+func (c *Client) ownerType(ctx context.Context, owner string) (string, error) {
+	if ownerType, ok := c.ownerTypes[owner]; ok {
+		return ownerType, nil
 	}
-	return tags, nil
+	user, _, err := c.client.Users.Get(ctx, owner)
+	if err != nil {
+		return "", fmt.Errorf("fetching user: %w", err)
+	}
+	ownerType := strings.ToLower(user.GetType())
+
+	c.ownerTypes[owner] = ownerType
+
+	return ownerType, nil
 }
