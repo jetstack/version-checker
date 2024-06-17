@@ -7,7 +7,8 @@ import (
 )
 
 var (
-	versionRegex = regexp.MustCompile(`^v?([0-9]+)(\.[0-9]+)?(\.[0-9]+)?(.*)$`)
+	// versionRegex = regexp.MustCompile(`^v?([0-9]+)(\.[0-9]+)?(\.[0-9]+)?(.*)$`)
+	versionRegex = regexp.MustCompile(`^v?(\d+)\.(\d+)\.(\d+)([\w\.\-]+)?$`)
 )
 
 // SemVer is a struct to contain a SemVer of an image tag.

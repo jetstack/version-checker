@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -105,61 +106,62 @@ func (v *Version) Fetch(ctx context.Context, imageURL string, _ *api.Options) (i
 // latestSemver will return the latest ImageTag based on the given options
 // restriction, using semver. This should not be used is UseSHA has been
 // enabled.
-// TODO: add tests..
+// Function to find the latest SemVer tag based on options
 func latestSemver(opts *api.Options, tags []api.ImageTag) (*api.ImageTag, error) {
-	var (
-		latestImageTag *api.ImageTag
-		latestV        *semver.SemVer
-	)
+	var filteredTags []api.ImageTag
 
-	for i := range tags {
-		v := semver.Parse(tags[i].Tag)
-
-		// If the image in question is "older" than the one we believe to be Latest
-		// Then we can ignore this image.
-		if latestV != nil && tags[i].Timestamp.After(latestImageTag.Timestamp) {
-			continue
-		}
-
-		// If regex enabled continue here.
-		// If we match, and is less than, update latest.
-		if opts.RegexMatcher != nil {
-			if opts.RegexMatcher.MatchString(tags[i].Tag) &&
-				(latestV == nil || latestV.LessThan(v)) {
-				latestV = v
-				latestImageTag = &tags[i]
+	// Filter out non-SemVer tags if required
+	if !opts.UseMetaData {
+		for _, tag := range tags {
+			if isSemVer(tag.Tag) {
+				filteredTags = append(filteredTags, tag)
 			}
+		}
+	} else {
+		filteredTags = tags
+	}
 
-			continue
+	// Apply regex matching if provided
+	if opts.RegexMatcher != nil {
+		var matchedTags []api.ImageTag
+		for _, tag := range filteredTags {
+			if opts.RegexMatcher.MatchString(tag.Tag) {
+				matchedTags = append(matchedTags, tag)
+			}
 		}
+		filteredTags = matchedTags
+	}
 
-		// If we have declared we wont use metadata but version has it, continue.
-		if !opts.UseMetaData && v.HasMetaData() {
-			continue
-		}
-
-		if opts.PinMajor != nil && *opts.PinMajor != v.Major() {
-			continue
-		}
-		if opts.PinMinor != nil && *opts.PinMinor != v.Minor() {
-			continue
-		}
-		if opts.PinPatch != nil && *opts.PinPatch != v.Patch() {
-			continue
-		}
-
-		// If no latest yet set
-		if latestV == nil ||
-			// If the latest set is less than
-			latestV.LessThan(v) ||
-			// If the latest is the same tag, but smaller timestamp
-			(latestV.Equal(v) && tags[i].Timestamp.After(latestImageTag.Timestamp)) {
-			latestV = v
-			latestImageTag = &tags[i]
+	// Convert tags to semver.Version instances for sorting
+	var versions []*semver.Version
+	for _, tag := range filteredTags {
+		v, err := semver.NewVersion(tag.Tag)
+		if err == nil {
+			versions = append(versions, v)
 		}
 	}
 
-	return latestImageTag, nil
+	// If no valid SemVer tags are found, return an error
+	if len(versions) == 0 {
+		return nil, fmt.Errorf("no matching SemVer tags found")
+	}
+
+	// Sort versions by descending order
+	sort.Slice(versions, func(i, j int) bool {
+		return versions[i].GreaterThan(versions[j])
+	})
+
+	// Apply version pinning if provided
+	if opts.PinMajor != nil || opts.PinMinor != nil || opts.PinPatch != nil {
+		for _, v := range versions {
+			if versionMatches(v, opts.PinMajor, opts.PinMinor, opts.PinPatch) {
+				return &api.ImageTag{Tag: v.Original()}, nil
+			}
+		}
+	}
+
+	// Return the latest SemVer tag
+	return &api.ImageTag{Tag: versions[0].Original()}, nil
 }
 
 // latestSHA will return the latest ImageTag based on image timestamps.
@@ -173,4 +175,18 @@ func latestSHA(tags []api.ImageTag) (*api.ImageTag, error) {
 	}
 
 	return latestTag, nil
+}
+
+// Helper function to check if a version matches the pinned version
+func versionMatches(v *semver.Version, pinMajor, pinMinor, pinPatch *int64) bool {
+	if pinMajor != nil && *pinMajor != int64(v.Major()) {
+		return false
+	}
+	if pinMinor != nil && *pinMinor != int64(v.Minor()) {
+		return false
+	}
+	if pinPatch != nil && *pinPatch != int64(v.Patch()) {
+		return false
+	}
+	return true
 }
