@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"sort"
 	"time"
 
@@ -14,7 +15,9 @@ import (
 
 	"github.com/jetstack/version-checker/pkg/cache"
 	versionerrors "github.com/jetstack/version-checker/pkg/version/errors"
-	"github.com/jetstack/version-checker/pkg/version/semver"
+
+	// "github.com/jetstack/version-checker/pkg/version/semver"
+	"github.com/Masterminds/semver/v3"
 )
 
 type Version struct {
@@ -189,4 +192,9 @@ func versionMatches(v *semver.Version, pinMajor, pinMinor, pinPatch *int64) bool
 		return false
 	}
 	return true
+}
+
+func isSemVer(tag string) bool {
+	// Simple check for "vX.Y.Z" format
+	return regexp.MustCompile(`^v?\d+\.\d+\.\d+`).MatchString(tag)
 }

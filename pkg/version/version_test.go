@@ -192,6 +192,75 @@ func TestLatestSemver(t *testing.T) {
 	}
 }
 
-func intPtr(i uint64) *uint64 {
+func TestLatestSHA(t *testing.T) {
+	tests := []struct {
+		name        string
+		tags        []api.ImageTag
+		expectedSHA *string
+	}{
+		{
+			name: "Single tag",
+			tags: []api.ImageTag{
+				{SHA: "sha1", Timestamp: time.Date(2022, time.January, 1, 0, 0, 0, 0, time.UTC)},
+			},
+			expectedSHA: strPtr("sha1"),
+		},
+		{
+			name: "Multiple tags, latest in the middle",
+			tags: []api.ImageTag{
+				{SHA: "sha1", Timestamp: time.Date(2022, time.January, 1, 0, 0, 0, 0, time.UTC)},
+				{SHA: "sha2", Timestamp: time.Date(2023, time.January, 1, 0, 0, 0, 0, time.UTC)},
+				{SHA: "sha3", Timestamp: time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)},
+			},
+			expectedSHA: strPtr("sha2"),
+		},
+		{
+			name: "Multiple tags, latest at the end",
+			tags: []api.ImageTag{
+				{SHA: "sha1", Timestamp: time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)},
+				{SHA: "sha2", Timestamp: time.Date(2022, time.January, 1, 0, 0, 0, 0, time.UTC)},
+				{SHA: "sha3", Timestamp: time.Date(2023, time.January, 1, 0, 0, 0, 0, time.UTC)},
+			},
+			expectedSHA: strPtr("sha3"),
+		},
+		{
+			name:        "No tags",
+			tags:        []api.ImageTag{},
+			expectedSHA: nil,
+		},
+		{
+			name: "All tags with the same timestamp",
+			tags: []api.ImageTag{
+				{SHA: "sha1", Timestamp: time.Date(2022, time.January, 1, 0, 0, 0, 0, time.UTC)},
+				{SHA: "sha2", Timestamp: time.Date(2022, time.January, 1, 0, 0, 0, 0, time.UTC)},
+				{SHA: "sha3", Timestamp: time.Date(2022, time.January, 1, 0, 0, 0, 0, time.UTC)},
+			},
+			expectedSHA: strPtr("sha1"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := latestSHA(tt.tags)
+			if err != nil {
+				t.Errorf("latestSHA() error = %v", err)
+				return
+			}
+			if (got == nil && tt.expectedSHA != nil) || (got != nil && tt.expectedSHA == nil) {
+				t.Errorf("latestSHA() = %v, want %v", got, tt.expectedSHA)
+				return
+			}
+			if got != nil && got.SHA != *tt.expectedSHA {
+				t.Errorf("latestSHA() = %v, want %v", got.SHA, *tt.expectedSHA)
+			}
+		})
+	}
+}
+
+func intPtr(i int64) *int64 {
 	return &i
+}
+
+func strPtr(s string) *string {
+	return &s
 }
