@@ -33,7 +33,7 @@ func (c *Controller) sync(ctx context.Context, pod *corev1.Pod) error {
 
 	if len(errs) > 0 {
 		return fmt.Errorf("failed to sync pod %s/%s: %s",
-			pod.Name, pod.Namespace, strings.Join(errs, ","))
+			pod.Namespace, pod.Name, strings.Join(errs, ","))
 	}
 
 	return nil
@@ -94,8 +94,10 @@ func (c *Controller) checkContainer(ctx context.Context, log *logrus.Entry, pod 
 	}
 
 	c.metrics.AddImage(pod.Namespace, pod.Name,
-		container.Name, containerType, result.ImageURL, result.IsLatest,
-		result.CurrentVersion, result.LatestVersion)
+		container.Name, containerType,
+		result.ImageURL, result.IsLatest,
+		result.CurrentVersion, result.LatestVersion,
+	)
 
 	return nil
 }
