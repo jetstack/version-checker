@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	lookupURL = "https://%s/v2/%s/%s/tags/list"
+	lookupURL = "https://%s/v2/%s/tags/list"
 )
 
 type Options struct {
@@ -48,11 +48,11 @@ func (c *Client) Name() string {
 }
 
 func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.ImageTag, error) {
-	if repo == "google-containers" {
-		host = "gcr.io"
+	if repo != "" {
+		image = fmt.Sprintf("%s/%s", repo, image)
 	}
 
-	url := fmt.Sprintf(lookupURL, host, repo, image)
+	url := fmt.Sprintf(lookupURL, host, image)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
