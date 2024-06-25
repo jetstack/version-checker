@@ -18,6 +18,8 @@ import (
 
 	"github.com/jetstack/version-checker/pkg/client"
 	"github.com/jetstack/version-checker/pkg/controller/checker"
+	"github.com/jetstack/version-checker/pkg/controller/checker/architecture"
+	"github.com/jetstack/version-checker/pkg/controller/nodes"
 	"github.com/jetstack/version-checker/pkg/controller/scheduler"
 	"github.com/jetstack/version-checker/pkg/controller/search"
 	"github.com/jetstack/version-checker/pkg/metrics"
@@ -38,6 +40,9 @@ type Controller struct {
 	workqueue          workqueue.RateLimitingInterface
 	scheduledWorkQueue scheduler.ScheduledWorkQueue
 
+	nodesArchitecture *architecture.NodeMap
+	nodeController    *nodes.NodeInformer
+
 	metrics *metrics.Metrics
 	checker *checker.Checker
 
@@ -56,8 +61,12 @@ func New(
 	scheduledWorkQueue := scheduler.NewScheduledWorkQueue(clock.RealClock{}, workqueue.Add)
 
 	log = log.WithField("module", "controller")
+	nodesArchitecture := architecture.New()
+
 	versionGetter := version.New(log, imageClient, cacheTimeout)
 	search := search.New(log, cacheTimeout, versionGetter)
+
+	nodeController := nodes.New(log, nodesArchitecture)
 
 	c := &Controller{
 		log:                log,
@@ -65,8 +74,10 @@ func New(
 		workqueue:          workqueue,
 		scheduledWorkQueue: scheduledWorkQueue,
 		metrics:            metrics,
-		checker:            checker.New(search),
+		checker:            checker.New(search, nodesArchitecture),
 		defaultTestAll:     defaultTestAll,
+		nodesArchitecture:  nodesArchitecture,
+		nodeController:     nodeController,
 	}
 
 	return c
@@ -78,6 +89,8 @@ func (c *Controller) Run(ctx context.Context, cacheRefreshRate time.Duration) er
 
 	sharedInformerFactory := informers.NewSharedInformerFactoryWithOptions(c.kubeClient, time.Second*30)
 	c.podLister = sharedInformerFactory.Core().V1().Pods().Lister()
+	nodeInformer := c.nodeController.Register(sharedInformerFactory)
+
 	podInformer := sharedInformerFactory.Core().V1().Pods().Informer()
 	podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: c.addObject,
@@ -92,7 +105,7 @@ func (c *Controller) Run(ctx context.Context, cacheRefreshRate time.Duration) er
 
 	c.log.Info("starting control loop")
 	sharedInformerFactory.Start(ctx.Done())
-	if !cache.WaitForCacheSync(ctx.Done(), podInformer.HasSynced) {
+	if !cache.WaitForCacheSync(ctx.Done(), nodeInformer.HasSynced, podInformer.HasSynced) {
 		return fmt.Errorf("error waiting for informer caches to sync")
 	}
 
