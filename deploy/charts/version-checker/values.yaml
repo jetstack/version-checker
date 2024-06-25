@@ -108,7 +108,6 @@ selfhosted:
   #  password: bar
   #  token:
 
-
 # -- Setup version-checkers resource requests/limits
 resources:
   {}
@@ -121,7 +120,8 @@ resources:
   #
 
 # -- Set container-level security context
-securityContext: {}
+securityContext:
+  {}
   # allowPrivilegeEscalation: false
   # capabilities:
   #   drop:

@@ -10,6 +10,7 @@ import (
 
 	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/jetstack/version-checker/pkg/controller/options"
+	"github.com/jetstack/version-checker/pkg/metrics"
 	versionerrors "github.com/jetstack/version-checker/pkg/version/errors"
 )
 
@@ -86,18 +87,25 @@ func (c *Controller) checkContainer(ctx context.Context, log *logrus.Entry, pod 
 	}
 
 	if result.IsLatest {
-		log.Debugf("image is latest %s:%s",
-			result.ImageURL, result.CurrentVersion)
+		log.Debugf("image is latest %s [%s/%s]:%s",
+			result.ImageURL, result.OS, result.Architecture, result.CurrentVersion)
 	} else {
-		log.Debugf("image is not latest %s: %s -> %s",
-			result.ImageURL, result.CurrentVersion, result.LatestVersion)
+		log.Debugf("image is not latest %s [%s/%s]: %s -> %s",
+			result.ImageURL, result.OS, result.Architecture, result.CurrentVersion, result.LatestVersion)
 	}
 
-	c.metrics.AddImage(pod.Namespace, pod.Name,
-		container.Name, containerType,
-		result.ImageURL, result.IsLatest,
-		result.CurrentVersion, result.LatestVersion,
-	)
+	c.metrics.AddImage(&metrics.Entry{
+		Namespace:      pod.Namespace,
+		Pod:            pod.Name,
+		Container:      container.Name,
+		ContainerType:  containerType,
+		ImageURL:       result.ImageURL,
+		IsLatest:       result.IsLatest,
+		CurrentVersion: result.CurrentVersion,
+		LatestVersion:  result.LatestVersion,
+		OS:             string(result.OS),
+		Arch:           string(result.Architecture),
+	})
 
 	return nil
 }
