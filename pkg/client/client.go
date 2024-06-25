@@ -39,19 +39,19 @@ type ImageClient interface {
 // Client is a container image registry client to list tags of given image
 // URLs.
 type Client struct {
-	clients        []ImageClient
 	fallbackClient ImageClient
+	clients        []ImageClient
 }
 
 // Options used to configure client authentication.
 type Options struct {
-	ACR        acr.Options
+	Selfhosted map[string]*selfhosted.Options
 	ECR        ecr.Options
+	ACR        acr.Options
+	Docker     docker.Options
 	GCR        gcr.Options
 	GHCR       ghcr.Options
-	Docker     docker.Options
 	Quay       quay.Options
-	Selfhosted map[string]*selfhosted.Options
 }
 
 func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) {

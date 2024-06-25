@@ -20,8 +20,8 @@ type Checker struct {
 type Result struct {
 	CurrentVersion string
 	LatestVersion  string
-	IsLatest       bool
 	ImageURL       string
+	IsLatest       bool
 }
 
 func New(search search.Searcher) *Checker {

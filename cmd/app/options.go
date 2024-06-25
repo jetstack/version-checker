@@ -62,15 +62,13 @@ var (
 
 // Options is a struct to hold options for the version-checker
 type Options struct {
+	Client                client.Options
+	kubeConfigFlags       *genericclioptions.ConfigFlags
+	selfhosted            selfhosted.Options
 	MetricsServingAddress string
-	DefaultTestAll        bool
-	CacheTimeout          time.Duration
 	LogLevel              string
-
-	kubeConfigFlags *genericclioptions.ConfigFlags
-	selfhosted      selfhosted.Options
-
-	Client client.Options
+	CacheTimeout          time.Duration
+	DefaultTestAll        bool
 }
 
 func (o *Options) addFlags(cmd *cobra.Command) {
@@ -272,27 +270,27 @@ func (o *Options) complete() {
 
 	envs := os.Environ()
 	for _, opt := range []struct {
-		key    string
 		assign *string
+		key    string
 	}{
-		{envACRUsername, &o.Client.ACR.Username},
-		{envACRPassword, &o.Client.ACR.Password},
-		{envACRRefreshToken, &o.Client.ACR.RefreshToken},
+		{key: envACRUsername, assign: &o.Client.ACR.Username},
+		{key: envACRPassword, assign: &o.Client.ACR.Password},
+		{key: envACRRefreshToken, assign: &o.Client.ACR.RefreshToken},
 
-		{envDockerUsername, &o.Client.Docker.Username},
-		{envDockerPassword, &o.Client.Docker.Password},
-		{envDockerToken, &o.Client.Docker.Token},
+		{key: envDockerUsername, assign: &o.Client.Docker.Username},
+		{key: envDockerPassword, assign: &o.Client.Docker.Password},
+		{key: envDockerToken, assign: &o.Client.Docker.Token},
 
-		{envECRIamRoleArn, &o.Client.ECR.IamRoleArn},
-		{envECRAccessKeyID, &o.Client.ECR.AccessKeyID},
-		{envECRSessionToken, &o.Client.ECR.SessionToken},
-		{envECRSecretAccessKey, &o.Client.ECR.SecretAccessKey},
+		{key: envECRIamRoleArn, assign: &o.Client.ECR.IamRoleArn},
+		{key: envECRAccessKeyID, assign: &o.Client.ECR.AccessKeyID},
+		{key: envECRSessionToken, assign: &o.Client.ECR.SessionToken},
+		{key: envECRSecretAccessKey, assign: &o.Client.ECR.SecretAccessKey},
 
-		{envGCRAccessToken, &o.Client.GCR.Token},
+		{key: envGCRAccessToken, assign: &o.Client.GCR.Token},
 
-		{envGHCRAccessToken, &o.Client.GHCR.Token},
+		{key: envGHCRAccessToken, assign: &o.Client.GHCR.Token},
 
-		{envQuayToken, &o.Client.Quay.Token},
+		{key: envQuayToken, assign: &o.Client.Quay.Token},
 	} {
 		for _, env := range envs {
 			if o.assignEnv(env, opt.key, opt.assign) {

@@ -15,11 +15,11 @@ import (
 
 func TestContainer(t *testing.T) {
 	tests := map[string]struct {
-		statusSHA  string
-		imageURL   string
 		opts       *api.Options
 		searchResp *api.ImageTag
 		expResult  *Result
+		statusSHA  string
+		imageURL   string
 	}{
 		"no status sha should return nil, nil": {
 			statusSHA:  "",
@@ -278,9 +278,9 @@ func TestContainer(t *testing.T) {
 
 func TestContainerStatusImageSHA(t *testing.T) {
 	tests := map[string]struct {
-		status []corev1.ContainerStatus
 		name   string
 		expSHA string
+		status []corev1.ContainerStatus
 	}{
 		"if no status, then return ''": {
 			status: []corev1.ContainerStatus{},
@@ -393,11 +393,12 @@ func TestIsLatestOrEmptyTag(t *testing.T) {
 
 func TestIsLatestSemver(t *testing.T) {
 	tests := map[string]struct {
-		imageURL, currentSHA string
-		currentImage         *semver.SemVer
-		searchResp           *api.ImageTag
-		expLatestImage       *api.ImageTag
-		expIsLatest          bool
+		currentImage   *semver.SemVer
+		searchResp     *api.ImageTag
+		expLatestImage *api.ImageTag
+		imageURL       string
+		currentSHA     string
+		expIsLatest    bool
 	}{
 		"if current semver is less, then is less": {
 			imageURL:     "docker.io",
@@ -480,9 +481,10 @@ func TestIsLatestSemver(t *testing.T) {
 
 func TestIsLatestSHA(t *testing.T) {
 	tests := map[string]struct {
-		imageURL, currentSHA string
-		searchResp           *api.ImageTag
-		expResult            *Result
+		searchResp *api.ImageTag
+		expResult  *Result
+		imageURL   string
+		currentSHA string
 	}{
 		"if SHA not eqaual, then should be not equal": {
 			imageURL:   "docker.io",

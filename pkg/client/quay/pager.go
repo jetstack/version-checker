@@ -11,14 +11,12 @@ import (
 // pager is used for implementing the paging mechanism for fetching image tags
 type pager struct {
 	*Client
-
-	repo, image string
-
-	mu sync.Mutex
-	wg sync.WaitGroup
-
-	tags []api.ImageTag
-	errs []error
+	repo  string
+	image string
+	tags  []api.ImageTag
+	errs  []error
+	wg    sync.WaitGroup
+	mu    sync.Mutex
 }
 
 func (c *Client) newPager(repo, image string) *pager {

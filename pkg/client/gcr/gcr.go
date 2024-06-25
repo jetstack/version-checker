@@ -30,8 +30,8 @@ type Response struct {
 }
 
 type ManifestItem struct {
-	Tag         []string `json:"tag"`
 	TimeCreated string   `json:"timeCreatedMs"`
+	Tag         []string `json:"tag"`
 }
 
 func New(opts Options) *Client {

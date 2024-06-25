@@ -14,9 +14,8 @@ import (
 )
 
 type Client struct {
-	Config aws.Config
-
 	Options
+	Config aws.Config
 }
 
 type Options struct {

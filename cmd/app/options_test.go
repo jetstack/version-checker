@@ -17,8 +17,8 @@ import (
 
 func TestComplete(t *testing.T) {
 	tests := map[string]struct {
-		envs       [][2]string
 		expOptions client.Options
+		envs       [][2]string
 	}{
 		"no envs should give no options": {
 			envs: [][2]string{},
@@ -190,8 +190,8 @@ func TestComplete(t *testing.T) {
 
 func TestAssignSelfhosted(t *testing.T) {
 	tests := map[string]struct {
-		envs       []string
 		expOptions client.Options
+		envs       []string
 	}{
 		"no envs should give no options": {
 			envs: []string{},
