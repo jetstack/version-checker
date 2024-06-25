@@ -1,6 +1,8 @@
 module github.com/jetstack/version-checker
 
-go 1.20
+go 1.21
+
+toolchain go1.22.3
 
 // Do not remove this comment:
 // please place any replace statements here at the top for visibility and add a
@@ -30,7 +32,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.11
 	github.com/aws/aws-sdk-go-v2/service/ecr v1.27.4
 	github.com/gofri/go-github-ratelimit v1.1.0
-	github.com/google/go-github/v58 v58.0.0
+	github.com/google/go-github/v62 v62.0.0
 )
 
 require (

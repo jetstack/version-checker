@@ -102,7 +102,6 @@ func (c *Client) fetchImageManifest(ctx context.Context, repo, image string, tag
 	}
 
 	// Fallback to not using multi-arch image
-
 	os, arch := util.OSArchFromTag(tag.Name)
 
 	return []api.ImageTag{
