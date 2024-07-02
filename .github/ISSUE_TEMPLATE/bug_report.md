@@ -28,7 +28,7 @@ If applicable, add screenshots to help explain your problem.
  - Version-Checker: [e.g. 0.5.0]
  - Kubernetes: [e.g. v1.18.6]
  - Grafana: [e.g. v11.0.0]
-- Prometheus: [e.g. 2.53.0]
+  - Prometheus: [e.g. 2.53.0]
 
 **Additional context**
 Add any other context about the problem here.
