@@ -1,6 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.20-alpine AS builder
-
-RUN apk --no-cache add make
+FROM --platform=$BUILDPLATFORM golang:1.22-alpine AS builder
 
 COPY . /app/
 WORKDIR /app/
