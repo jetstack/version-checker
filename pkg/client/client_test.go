@@ -12,6 +12,7 @@ import (
 	"github.com/jetstack/version-checker/pkg/client/ecr"
 	"github.com/jetstack/version-checker/pkg/client/gcr"
 	"github.com/jetstack/version-checker/pkg/client/ghcr"
+	"github.com/jetstack/version-checker/pkg/client/gitlab"
 	"github.com/jetstack/version-checker/pkg/client/quay"
 	"github.com/jetstack/version-checker/pkg/client/selfhosted"
 )
@@ -132,6 +133,13 @@ func TestFromImageURL(t *testing.T) {
 			expClient: new(gcr.Client),
 			expHost:   "registry.k8s.io",
 			expPath:   "sig-storage/csi-node-driver-registrar",
+		},
+
+		"gitlab.com should be gitlab": {
+			url:       "gitlab.com/jetstack/version-checker",
+			expClient: new(gitlab.Client),
+			expHost:   "gitlab.com",
+			expPath:   "jetstack/version-checker",
 		},
 
 		"ghcr.io should be ghcr": {
