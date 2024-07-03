@@ -13,6 +13,7 @@ import (
 	"github.com/jetstack/version-checker/pkg/client/ecr"
 	"github.com/jetstack/version-checker/pkg/client/gcr"
 	"github.com/jetstack/version-checker/pkg/client/ghcr"
+	"github.com/jetstack/version-checker/pkg/client/gitlab"
 	"github.com/jetstack/version-checker/pkg/client/quay"
 	"github.com/jetstack/version-checker/pkg/client/selfhosted"
 )
@@ -49,6 +50,7 @@ type Options struct {
 	ECR        ecr.Options
 	GCR        gcr.Options
 	GHCR       ghcr.Options
+	Gitlab     gitlab.Options
 	Docker     docker.Options
 	Quay       quay.Options
 	Selfhosted map[string]*selfhosted.Options
@@ -62,6 +64,10 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 	dockerClient, err := docker.New(ctx, opts.Docker)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create docker client: %s", err)
+	}
+	gitlabClient, err := gitlab.New(opts.Gitlab)
+	if err != nil {
+		return nil, err
 	}
 
 	var selfhostedClients []ImageClient
@@ -89,6 +95,7 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 			gcr.New(opts.GCR),
 			ghcr.New(opts.GHCR),
 			quay.New(opts.Quay),
+			gitlabClient,
 		),
 		fallbackClient: fallbackClient,
 	}
