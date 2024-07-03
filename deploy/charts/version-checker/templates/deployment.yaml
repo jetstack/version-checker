@@ -72,8 +72,8 @@ spec:
               name: {{.Values.existingSecret}}
         {{- end }}
         env:
-        # ACR
         {{- if .Values.acr.refreshToken }}
+        # ACR
         - name: VERSION_CHECKER_ACR_REFRESH_TOKEN
           valueFrom:
             secretKeyRef:
@@ -93,10 +93,10 @@ spec:
             secretKeyRef:
               name: {{ $chartname }}
               key: acr.password
-        {{- end }}
+        {{- end -}}
 
-        # ECR
         {{- if .Values.ecr.iamRoleArn }}
+        # ECR
         - name: VERSION_CHECKER_ECR_IAM_ROLE_ARN
           value: {{ .Values.ecr.iamRoleArn }}
         {{- end }}
@@ -106,7 +106,8 @@ spec:
             secretKeyRef:
               name: {{ $chartname }}
               key: ecr.accessKeyID
-        {{- end }}
+        {{- end -}}
+
         {{- if .Values.ecr.secretAccessKey }}
         - name: VERSION_CHECKER_ECR_SECRET_ACCESS_KEY
           valueFrom:
@@ -120,10 +121,10 @@ spec:
             secretKeyRef:
               name: {{ $chartname }}
               key: ecr.sessionToken
-        {{- end }}
+        {{- end -}}
 
-        # Docker
         {{- if .Values.docker.token }}
+        # Docker
         - name: VERSION_CHECKER_DOCKER_TOKEN
           valueFrom:
             secretKeyRef:
@@ -143,10 +144,10 @@ spec:
             secretKeyRef:
               name: {{ $chartname }}
               key: docker.password
-        {{- end }}
+        {{- end -}}
 
-        # GCR
         {{- if .Values.gcr.token }}
+        # GCR
         - name: VERSION_CHECKER_GCR_TOKEN
           valueFrom:
             secretKeyRef:
@@ -154,26 +155,26 @@ spec:
               key: gcr.token
         {{- end }}
 
-        # GHCR
         {{- if .Values.ghcr.token }}
+        # GHCR
         - name: VERSION_CHECKER_GHCR_TOKEN
           valueFrom:
             secretKeyRef:
               name: {{ $chartname }}
               key: ghcr.token
-        {{- end }}
+        {{- end -}}
 
-        # Quay
         {{- if .Values.quay.token }}
+        # Quay
         - name: VERSION_CHECKER_QUAY_TOKEN
           valueFrom:
             secretKeyRef:
               name: {{ $chartname }}
               key: quay.token
-        {{- end }}
+        {{- end -}}
 
-        # Selfhosted
         {{range $index, $element := .Values.selfhosted }}
+        # Selfhosted
         {{- if $element.host }}
         - name: VERSION_CHECKER_SELFHOSTED_HOST_{{ $element.name }}
           valueFrom:
