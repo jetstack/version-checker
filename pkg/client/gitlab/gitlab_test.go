@@ -7,16 +7,22 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/jarcoal/httpmock"
 	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/stretchr/testify/assert"
 	gitlab "github.com/xanzy/go-gitlab"
 )
 
-// NewMockGitlabClient creates a new Client with a mocked HTTP client
+// NewMockGitlabClient creates a new Client with a mocked HTTP client and retries disabled
 func NewMockGitlabClient(mockTransport http.RoundTripper, opts *Options) *Client {
-	httpClient := &http.Client{Transport: mockTransport}
-	client, _ := gitlab.NewClient("", gitlab.WithHTTPClient(httpClient))
+	retryClient := retryablehttp.NewClient()
+	retryClient.RetryMax = 0 // Disable retries
+	retryClient.HTTPClient = &http.Client{
+		Transport: mockTransport,
+		Timeout:   1 * time.Second, // Set a timeout for HTTP requests
+	}
+	client, _ := gitlab.NewClient("", gitlab.WithHTTPClient(retryClient.StandardClient()))
 	return &Client{
 		Client:  client,
 		Options: opts,
@@ -24,6 +30,14 @@ func NewMockGitlabClient(mockTransport http.RoundTripper, opts *Options) *Client
 }
 
 func TestTags(t *testing.T) {
+	startGlobal := time.Now()
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+	t.Logf("Global setup took %v", time.Since(startGlobal))
+
+	// Add a default responder to catch any unexpected API calls
+	httpmock.RegisterNoResponder(httpmock.NewStringResponder(500, "unexpected API call"))
+
 	tests := []struct {
 		name                     string
 		repo                     string
@@ -63,7 +77,7 @@ func TestTags(t *testing.T) {
 			repo:                  "my-project",
 			image:                 "my-image",
 			mockRepositoriesError: true,
-			expectedError:         "httpmock: error",
+			expectedError:         "giving up after",
 		},
 		{
 			name:                     "Error in ListRegistryRepositoryTags",
@@ -71,7 +85,7 @@ func TestTags(t *testing.T) {
 			image:                    "my-image",
 			mockRepositoriesResponse: `[{"id":123,"path":"my-image"}]`,
 			mockTagsError:            true,
-			expectedError:            "httpmock: error",
+			expectedError:            "giving up after",
 		},
 		{
 			name:                     "Repository not found",
@@ -93,14 +107,16 @@ func TestTags(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			httpmock.Activate()
-			defer httpmock.DeactivateAndReset()
+			start := time.Now()
+			httpmock.Reset() // Clear any existing responders
+			t.Logf("Reset responders took %v", time.Since(start))
 
 			baseURL := "https://gitlab.com/api/v4"
 			projectRegistryURL := baseURL + "/projects/my-project/registry/repositories?page=1&per_page=20"
 			tagsURLPage1 := baseURL + "/projects/my-project/registry/repositories/123/tags?page=1&per_page=20"
 
 			if tt.mockRepositoriesError {
+				t.Log("Simulating error in ListRegistryRepositories")
 				httpmock.RegisterResponder("GET", projectRegistryURL,
 					httpmock.NewStringResponder(500, "httpmock: error"))
 			} else {
@@ -109,21 +125,17 @@ func TestTags(t *testing.T) {
 			}
 
 			if tt.mockTagsError {
+				t.Log("Simulating error in ListRegistryRepositoryTags")
 				httpmock.RegisterResponder("GET", tagsURLPage1,
 					httpmock.NewStringResponder(500, "httpmock: error"))
 			} else {
 				for i, tagsResponse := range tt.mockTagsResponse {
 					url := tagsURLPage1
-					responderWithHeader := httpmock.ResponderFromResponse(&http.Response{
-						StatusCode: 200,
-						Header: http.Header{
-							"Content-Type":  {"application/json"},
-							"X-Total-Pages": {strconv.Itoa(len(tt.mockTagsResponse))},
-							"X-Page":        {strconv.Itoa(i + 1)},
-						},
-						Body: httpmock.NewRespBodyFromString(tagsResponse),
-					})
-					httpmock.RegisterResponder("GET", url, responderWithHeader)
+					resp := httpmock.NewStringResponse(200, tagsResponse)
+					resp.Header.Set("Content-Type", "application/json")
+					resp.Header.Set("X-Total-Pages", strconv.Itoa(len(tt.mockTagsResponse)))
+					resp.Header.Set("X-Page", strconv.Itoa(i+1))
+					httpmock.RegisterResponder("GET", url, httpmock.ResponderFromResponse(resp))
 					tagsURLPage1 = baseURL + "/projects/my-project/registry/repositories/123/tags?page=" + strconv.Itoa(i+2) + "&per_page=20"
 				}
 			}
@@ -131,6 +143,7 @@ func TestTags(t *testing.T) {
 			client := NewMockGitlabClient(httpmock.DefaultTransport, &Options{
 				Host: baseURL,
 			})
+			t.Logf("Client setup took %v", time.Since(start))
 
 			ctx := context.Background()
 			result, err := client.Tags(ctx, baseURL, tt.repo, tt.image)
@@ -147,6 +160,8 @@ func TestTags(t *testing.T) {
 					assert.WithinDuration(t, tt.expectedTags[i].Timestamp, tag.Timestamp, time.Second)
 				}
 			}
+			duration := time.Since(start)
+			t.Logf("Test %s took %v", tt.name, duration)
 		})
 	}
 }
