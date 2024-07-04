@@ -12,6 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -37,7 +38,7 @@ type cacheItem struct {
 }
 
 func New(log *logrus.Entry) *Metrics {
-	containerImageVersion := prometheus.NewGaugeVec(
+	containerImageVersion := promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: "version_checker",
 			Name:      "is_latest_version",
@@ -48,12 +49,8 @@ func New(log *logrus.Entry) *Metrics {
 		},
 	)
 
-	registry := prometheus.NewRegistry()
-	registry.MustRegister(containerImageVersion)
-
 	return &Metrics{
 		log:                   log.WithField("module", "metrics"),
-		registry:              registry,
 		containerImageVersion: containerImageVersion,
 		containerCache:        make(map[string]cacheItem),
 	}
@@ -62,7 +59,7 @@ func New(log *logrus.Entry) *Metrics {
 // Run will run the metrics server
 func (m *Metrics) Run(servingAddress string) error {
 	router := http.NewServeMux()
-	router.Handle("/metrics", promhttp.HandlerFor(m.registry, promhttp.HandlerOpts{}))
+	router.Handle("/metrics", promhttp.Handler())
 	router.Handle("/healthz", http.HandlerFunc(m.healthzAndReadyzHandler))
 	router.Handle("/readyz", http.HandlerFunc(m.healthzAndReadyzHandler))
 
