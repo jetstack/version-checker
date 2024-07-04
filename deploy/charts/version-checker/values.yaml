@@ -81,7 +81,7 @@ gcr:
   # -- (string) Access token for read access to private GCR registries
   token:
 
-# Google Artifact Registry Credentials Configuration
+# GitHub Container Registry Credentials Configuration
 ghcr:
   # -- (string) Personal Access token for read access to GHCR releases
   token:
