@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jetstack/version-checker/pkg/api"
+	"github.com/jetstack/version-checker/pkg/client/util"
 )
 
 const (
@@ -96,6 +97,10 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 		}
 
 		for _, tag := range manifestItem.Tag {
+			// Filter SBOMS, Attestations, Signiture Tags
+			if util.FilterSbomAttestationSigs(tag) {
+				continue
+			}
 			tags = append(tags, api.ImageTag{Tag: tag, SHA: sha, Timestamp: timestamp})
 		}
 	}

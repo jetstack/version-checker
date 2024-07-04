@@ -8,6 +8,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/jetstack/version-checker/pkg/api"
+	"github.com/jetstack/version-checker/pkg/client/util"
 )
 
 type Client struct{}
@@ -34,6 +35,10 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 
 	var tags []api.ImageTag
 	for _, t := range bareTags {
+		// Filter SBOMS, Attestations, Signiture Tags
+		if util.FilterSbomAttestationSigs(t) {
+			continue
+		}
 		tags = append(tags, api.ImageTag{Tag: t})
 	}
 

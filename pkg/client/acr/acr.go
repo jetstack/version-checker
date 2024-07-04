@@ -103,6 +103,10 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 		}
 
 		for _, tag := range manifest.Tags {
+			// Filter SBOMS, Attestations, Signiture Tags
+			if util.FilterSbomAttestationSigs(tag) {
+				continue
+			}
 			tags = append(tags, api.ImageTag{
 				SHA:       manifest.Digest,
 				Timestamp: manifest.CreatedTime,

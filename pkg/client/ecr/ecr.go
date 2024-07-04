@@ -76,6 +76,10 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 		}
 
 		for _, tag := range img.ImageTags {
+			// Filter SBOMS, Attestations, Signiture Tags
+			if util.FilterSbomAttestationSigs(tag) {
+				continue
+			}
 			tags = append(tags, api.ImageTag{
 				SHA:       *img.ImageDigest,
 				Timestamp: *img.ImagePushedAt,

@@ -160,6 +160,11 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 
 	var tags []api.ImageTag
 	for _, tag := range tagResponse.Tags {
+		// Filter SBOMS, Attestations, Signiture Tags
+		if util.FilterSbomAttestationSigs(tag){
+			continue
+		}
+
 		manifestURL := fmt.Sprintf(manifestPath, host, path, tag)
 
 		var manifestResponse ManifestResponse

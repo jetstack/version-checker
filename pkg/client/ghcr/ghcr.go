@@ -9,6 +9,7 @@ import (
 	"github.com/gofri/go-github-ratelimit/github_ratelimit"
 	"github.com/google/go-github/v58/github"
 	"github.com/jetstack/version-checker/pkg/api"
+	"github.com/jetstack/version-checker/pkg/client/util"
 )
 
 type Options struct {
@@ -87,14 +88,9 @@ func (c *Client) Tags(ctx context.Context, host, owner, repo string) ([]api.Imag
 			}
 
 			for _, tag := range ver.Metadata.Container.Tags {
-				// Exclude attestations, signatures and sboms
-				if strings.HasSuffix(tag, ".att") {
-					continue
-				}
-				if strings.HasSuffix(tag, ".sig") {
-					continue
-				}
-				if strings.HasSuffix(tag, ".sbom") {
+
+				// Filter SBOMS, Attestations, Signiture Tags
+				if util.FilterSbomAttestationSigs(tag) {
 					continue
 				}
 
