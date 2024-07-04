@@ -17,6 +17,8 @@ image:
   tag: ""
   # -- Set the Image Pull Policy
   pullPolicy: IfNotPresent
+  # -- Pull secrects - name of existing secret
+  imagePullSecret:
 
 # -- Configure tolerations
 tolerations: []
