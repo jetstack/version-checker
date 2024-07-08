@@ -16,6 +16,7 @@ import (
 	"github.com/jetstack/version-checker/pkg/client/ghcr"
 	"github.com/jetstack/version-checker/pkg/client/quay"
 	"github.com/jetstack/version-checker/pkg/client/selfhosted"
+	"github.com/jetstack/version-checker/pkg/client/util"
 )
 
 // ImageClient represents a image registry client that can list available tags
@@ -105,7 +106,7 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 func (c *Client) Tags(ctx context.Context, imageURL string) ([]api.ImageTag, error) {
 	client, host, path := c.fromImageURL(imageURL)
 	repo, image := client.RepoImageFromPath(path)
-	return client.Tags(ctx, host, repo, image)
+	return c.filterTags(client.Tags(ctx, host, repo, image))
 }
 
 // fromImageURL will return the appropriate registry client for a given
@@ -132,4 +133,16 @@ func (c *Client) fromImageURL(imageURL string) (ImageClient, string, string) {
 
 	// fall back to selfhosted with no path split
 	return c.fallbackClient, host, path
+}
+
+// Filter out returned Tags that we know aren't "valid" versions/images
+func (c *Client) filterTags(tags []api.ImageTag, err error) ([]api.ImageTag, error) {
+  var newTags []api.ImageTag
+  for tag, _ := range tags {
+	if util.FilterSbomAttestationSigs(tag.Tag){
+		continue
+	}
+	newTags = append(newTags, tag)
+  }
+  return newTags, err
 }
