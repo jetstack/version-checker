@@ -5,6 +5,11 @@ import (
 )
 
 func (c *Client) IsHost(host string) bool {
+	// Package API requires Authentication
+	/// This forces the Client to use the fallback method
+	if c.opts.Token == "" {
+		return false
+	}
 	return host == "ghcr.io"
 }
 
