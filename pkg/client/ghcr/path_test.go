@@ -99,6 +99,7 @@ func TestRepoImage(t *testing.T) {
 	handler := new(Client)
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			handler.opts.Token = "fake-token"
 			repo, image := handler.RepoImageFromPath(test.path)
 			if repo != test.expRepo && image != test.expImage {
 				t.Errorf("%s: unexpected repo/image, exp=%s/%s got=%s/%s",
