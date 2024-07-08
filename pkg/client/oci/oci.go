@@ -10,26 +10,38 @@ import (
 	"github.com/jetstack/version-checker/pkg/api"
 )
 
-type Client struct{}
-
-func New() (*Client, error) {
-	return &Client{}, nil
+// Client is a client for a registry compatible with the OCI Distribution Spec
+type Client struct {
+	puller *remote.Puller
 }
 
+// New returns a new client
+func New() (*Client, error) {
+	puller, err := remote.NewPuller()
+	if err != nil {
+		return nil, fmt.Errorf("creating puller: %w", err)
+	}
+
+	return &Client{
+		puller: puller,
+	}, nil
+}
+
+// Name is the name of this client
 func (c *Client) Name() string {
 	return "oci"
 }
 
+// Tags lists all the tags in the specified repository
 func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.ImageTag, error) {
-	src := fmt.Sprintf("%s/%s/%s", host, repo, image)
-	rpo, err := name.NewRepository(src)
+	reg, err := name.NewRegistry(host)
 	if err != nil {
-		return []api.ImageTag{}, err
+		return nil, fmt.Errorf("parsing registry host: %w", err)
 	}
 
-	bareTags, err := remote.List(rpo, remote.WithContext(ctx))
+	bareTags, err := c.puller.List(ctx, reg.Repo(repo, image))
 	if err != nil {
-		return []api.ImageTag{}, err
+		return nil, fmt.Errorf("listing tags: %w", err)
 	}
 
 	var tags []api.ImageTag
@@ -40,10 +52,12 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 	return tags, nil
 }
 
+// IsHost always returns true because it supports any host
 func (c *Client) IsHost(_ string) bool {
 	return true
 }
 
+// RepoImageFromPath splits a repository path into 'repo' and 'image' segments
 func (c *Client) RepoImageFromPath(path string) (string, string) {
 	split := strings.Split(path, "/")
 
