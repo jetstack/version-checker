@@ -44,10 +44,6 @@ func (v *Version) Run(refreshRate time.Duration) {
 // LatestTagFromImage will return the latest tag given an imageURL, according
 // to the given options.
 func (v *Version) LatestTagFromImage(ctx context.Context, imageURL string, opts *api.Options) (*api.ImageTag, error) {
-	if override := opts.OverrideURL; override != nil && len(*override) > 0 {
-		v.log.Debugf("overriding image lookup %s -> %s", imageURL, *override)
-		imageURL = *override
-	}
 	tagsI, err := v.imageCache.Get(ctx, imageURL, imageURL, nil)
 	if err != nil {
 		return nil, err
