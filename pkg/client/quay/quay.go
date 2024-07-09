@@ -85,6 +85,11 @@ func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTa
 
 // fetchImageManifest will lookup all manifests for a tag, if it is a list
 func (c *Client) fetchImageManifest(ctx context.Context, repo, image string, tag *responseTagItem) ([]api.ImageTag, error) {
+	// Filter SBOMS, Attestations, Signiture Tags
+	if util.FilterSbomAttestationSigs(tag.Name) {
+		return []api.ImageTag{}, nil
+	}
+
 	timestamp, err := time.Parse(time.RFC1123Z, tag.LastModified)
 	if err != nil {
 		return nil, err

@@ -71,3 +71,7 @@ func OSArchFromTag(tag string) (api.OS, api.Architecture) {
 
 	return os, arch
 }
+
+func FilterSbomAttestationSigs(tag string) bool {
+	return strings.HasSuffix(tag, ".att") || strings.HasSuffix(tag, ".sig") || strings.HasSuffix(tag, ".sbom")
+}
