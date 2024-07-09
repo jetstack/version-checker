@@ -12,6 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -53,7 +54,7 @@ type Entry struct {
 }
 
 func New(log *logrus.Entry) *Metrics {
-	containerImageVersion := prometheus.NewGaugeVec(
+	containerImageVersion := promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: "version_checker",
 			Name:      "is_latest_version",
@@ -64,12 +65,8 @@ func New(log *logrus.Entry) *Metrics {
 		},
 	)
 
-	registry := prometheus.NewRegistry()
-	registry.MustRegister(containerImageVersion)
-
 	return &Metrics{
 		log:                   log.WithField("module", "metrics"),
-		registry:              registry,
 		containerImageVersion: containerImageVersion,
 		containerCache:        make(map[string]cacheItem),
 	}
@@ -78,7 +75,7 @@ func New(log *logrus.Entry) *Metrics {
 // Run will run the metrics server
 func (m *Metrics) Run(servingAddress string) error {
 	router := http.NewServeMux()
-	router.Handle("/metrics", promhttp.HandlerFor(m.registry, promhttp.HandlerOpts{}))
+	router.Handle("/metrics", promhttp.Handler())
 	router.Handle("/healthz", http.HandlerFunc(m.healthzAndReadyzHandler))
 	router.Handle("/readyz", http.HandlerFunc(m.healthzAndReadyzHandler))
 
@@ -140,21 +137,30 @@ func (m *Metrics) RemoveImage(namespace, pod, container, containerType string) {
 	index := m.latestImageIndex(namespace, pod, container, containerType)
 	item, ok := m.containerCache[index]
 	if !ok {
+		m.log.Warnf("RemoveImage: no cache item found for %s", index)
 		return
 	}
 
-	m.containerImageVersion.Delete(
-		m.buildLabels(&Entry{
-			Namespace:      namespace,
-			Pod:            pod,
-			Container:      container,
-			ImageURL:       item.image,
-			CurrentVersion: item.currentVersion,
-			LatestVersion:  item.latestVersion,
-			OS:             item.os,
-			Arch:           item.arch,
-		}),
-	)
+	m.log.Infof("Removing metric with labels: namespace=%s, pod=%s, container=%s, containerType=%s, image=%s, currentVersion=%s, latestVersion=%s, os=%s, arch=%s",
+		namespace, pod, container, containerType, item.image, item.currentVersion, item.latestVersion, item.os, item.arch)
+
+	labels := m.buildLabels(&Entry{
+		Namespace:      namespace,
+		Pod:            pod,
+		Container:      container,
+		ContainerType:  containerType,
+		ImageURL:       item.image,
+		CurrentVersion: item.currentVersion,
+		LatestVersion:  item.latestVersion,
+		OS:             item.os,
+		Arch:           item.arch,
+	})
+
+	deleted := m.containerImageVersion.Delete(labels)
+	if !deleted {
+		m.log.Warnf("Failed to delete metric with labels: %v", labels)
+	}
+
 	delete(m.containerCache, index)
 }
 

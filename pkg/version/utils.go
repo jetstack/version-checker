@@ -16,7 +16,7 @@ func latestSemver(tags []api.ImageTag, opts *api.Options) (*api.ImageTag, error)
 	)
 
 	for i := range tags {
-		// forcing it be the specific arch and os (defalts to true, if not set)
+		// forcing it be the specific arch and os (defaults to true, if not set)
 		if !osArchMatch(tags[i], opts) {
 			continue
 		}

@@ -20,6 +20,5 @@ func (c *Client) RepoImageFromPath(path string) (string, string) {
 	if lastIndex == -1 {
 		return "", path
 	}
-
 	return path[:lastIndex], path[lastIndex+1:]
 }

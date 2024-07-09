@@ -7,14 +7,14 @@ import (
 )
 
 var (
-	oss = [...]api.OS{
+	KnownOSs = [...]api.OS{
 		"linux",
 		"darwin",
 		"windows",
 		"freebsd",
 	}
 
-	archs = [...]api.Architecture{
+	KnownArchs = [...]api.Architecture{
 		"amd",
 		"amd64",
 		"arm",
@@ -56,13 +56,13 @@ func OSArchFromTag(tag string) (api.OS, api.Architecture) {
 	for _, s := range split {
 		ss := strings.ToLower(s)
 
-		for _, pos := range oss {
+		for _, pos := range KnownOSs {
 			if pos == api.OS(ss) {
 				os = pos
 			}
 		}
 
-		for _, parch := range archs {
+		for _, parch := range KnownArchs {
 			if parch == api.Architecture(ss) {
 				arch = parch
 			}
@@ -70,4 +70,8 @@ func OSArchFromTag(tag string) (api.OS, api.Architecture) {
 	}
 
 	return os, arch
+}
+
+func FilterSbomAttestationSigs(tag string) bool {
+	return strings.HasSuffix(tag, ".att") || strings.HasSuffix(tag, ".sig") || strings.HasSuffix(tag, ".sbom")
 }

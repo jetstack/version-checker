@@ -76,3 +76,47 @@ type ImageTag struct {
 
 type OS string
 type Architecture string
+
+func (i *ImageTag) HasChildren() bool {
+	return len(i.Children) > 0
+}
+
+func (i *ImageTag) HasArchOS(arch Architecture, os OS) bool {
+	if i.matchArchOS(arch, os) {
+		return true
+	}
+
+	for _, c := range i.Children {
+		if c.matchArchOS(arch, os) {
+			return true
+		}
+	}
+
+	return true
+}
+
+func (i *ImageTag) MatchSHA(sha string) bool {
+	if i.SHA == sha {
+		return true
+	}
+
+	for _, c := range i.Children {
+		if c.MatchSHA(sha) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (i *ImageTag) matchArchOS(arch Architecture, os OS) bool {
+	if i.OS != "" && i.OS != os {
+		return false
+	}
+
+	if i.Architecture != "" && i.Architecture != arch {
+		return false
+	}
+
+	return true
+}

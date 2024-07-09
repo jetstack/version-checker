@@ -9,21 +9,13 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/jetstack/version-checker/pkg/api"
 )
 
 const (
 	lookupURL = "https://%s/v2/%s/tags/list"
 )
-
-type Options struct {
-	Token string
-}
-
-type Client struct {
-	*http.Client
-	Options
-}
 
 type Response struct {
 	Manifest map[string]ManifestItem `json:"manifest"`
@@ -54,18 +46,19 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 
 	url := fmt.Sprintf(lookupURL, host, image)
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := retryablehttp.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
 
+	// If we have a static token, we need to set it on each request.
 	if len(c.Token) > 0 {
 		req.SetBasicAuth("oauth2accesstoken", c.Token)
 	}
 
 	req = req.WithContext(ctx)
 
-	resp, err := c.Do(req)
+	resp, err := c.GCR.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get docker image: %s", err)
 	}

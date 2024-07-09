@@ -40,11 +40,24 @@ func (c *Controller) sync(ctx context.Context, pod *corev1.Pod) error {
 	return nil
 }
 
+func isPodRunnindOrReady(pod *corev1.Pod) bool {
+	if pod.Status.Phase != corev1.PodRunning {
+		return false
+	}
+
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type == corev1.PodReady && condition.Status == corev1.ConditionTrue {
+			return true
+		}
+	}
+	return false
+}
+
 // syncContainer will enqueue a given container to check the version
 func (c *Controller) syncContainer(ctx context.Context, log *logrus.Entry, builder *options.Builder, pod *corev1.Pod,
 	container *corev1.Container, containerType string) error {
-	// If not enabled, exit early
-	if !builder.IsEnabled(c.defaultTestAll, container.Name) {
+	// If not enabled, or pod not Ready/Running exit early
+	if !builder.IsEnabled(c.defaultTestAll, container.Name) || !isPodRunnindOrReady(pod) {
 		c.metrics.RemoveImage(pod.Namespace, pod.Name, container.Name, containerType)
 		return nil
 	}

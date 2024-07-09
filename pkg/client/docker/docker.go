@@ -18,38 +18,6 @@ const (
 	lookupURL = "https://registry.hub.docker.com/v2/repositories/%s/%s/tags?page_size=100"
 )
 
-type Options struct {
-	Username string
-	Password string
-	Token    string
-}
-
-type Client struct {
-	*http.Client
-	Options
-}
-
-type AuthResponse struct {
-	Token string `json:"token"`
-}
-
-type TagResponse struct {
-	Next    string   `json:"next"`
-	Results []Result `json:"results"`
-}
-
-type Result struct {
-	Name      string  `json:"name"`
-	Timestamp string  `json:"last_updated"`
-	Images    []Image `json:"images"`
-}
-
-type Image struct {
-	Digest       string           `json:"digest"`
-	OS           api.OS           `json:"os"`
-	Architecture api.Architecture `json:"Architecture"`
-}
-
 func New(ctx context.Context, opts Options) (*Client, error) {
 	client := &http.Client{
 		Timeout: time.Second * 10,
@@ -102,13 +70,19 @@ func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTa
 				}
 			}
 
+			t := api.ImageTag{
+				Tag:       result.Name,
+				SHA:       result.Digest,
+				Timestamp: timestamp,
+			}
+
 			for _, image := range result.Images {
 				// Image without digest contains no real image.
 				if len(image.Digest) == 0 {
 					continue
 				}
 
-				tags = append(tags, api.ImageTag{
+				t.Children = append(t.Children, api.ImageTag{
 					Tag:          result.Name,
 					SHA:          image.Digest,
 					Timestamp:    timestamp,
@@ -116,6 +90,7 @@ func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTa
 					Architecture: image.Architecture,
 				})
 			}
+			tags = append(tags, t)
 		}
 
 		url = response.Next

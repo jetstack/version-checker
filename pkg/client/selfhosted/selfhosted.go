@@ -10,10 +10,10 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"regexp"
 	"strings"
 	"time"
 
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/sirupsen/logrus"
 
 	"github.com/jetstack/version-checker/pkg/api"
@@ -30,57 +30,21 @@ const (
 	defaultTokenPath = "/v2/token"
 
 	// HTTP headers to request API version
-	dockerAPIv1Header = "application/vnd.docker.distribution.manifest.v1+json"
-	dockerAPIv2Header = "application/vnd.docker.distribution.manifest.v2+json"
+	dockerAPIv1Header   = "application/vnd.docker.distribution.manifest.v1+json"
+	dockerAPIv2Header   = "application/vnd.docker.distribution.manifest.v2+json"
+	ociImageIndexHeader = "application/vnd.oci.image.index.v1+json"
 )
 
-type Options struct {
-	Host      string
-	Username  string
-	Password  string
-	Bearer    string
-	TokenPath string
-	Insecure  bool
-	CAPath    string
-}
-
-type Client struct {
-	*http.Client
-	*Options
-
-	log *logrus.Entry
-
-	hostRegex  *regexp.Regexp
-	httpScheme string
-}
-
-type AuthResponse struct {
-	Token string `json:"token"`
-}
-
-type TagResponse struct {
-	Tags []string `json:"tags"`
-}
-
-type ManifestResponse struct {
-	Digest       string
-	Architecture api.Architecture `json:"architecture"`
-	History      []History        `json:"history"`
-}
-
-type History struct {
-	V1Compatibility string `json:"v1Compatibility"`
-}
-
-type V1Compatibility struct {
-	Created time.Time `json:"created,omitempty"`
-}
-
 func New(ctx context.Context, log *logrus.Entry, opts *Options) (*Client, error) {
+
+	retryClient := retryablehttp.NewClient()
+	retryClient.RetryMax = opts.RetryMax
+
+	stdClient := retryClient.StandardClient()
+	stdClient.Timeout = time.Second * time.Duration(opts.Timeout)
+
 	client := &Client{
-		Client: &http.Client{
-			Timeout: time.Second * 10,
-		},
+		Client:  stdClient,
 		Options: opts,
 		log:     log.WithField("client", opts.Host),
 	}
@@ -162,8 +126,14 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 	for _, tag := range tagResponse.Tags {
 		manifestURL := fmt.Sprintf(manifestPath, host, path, tag)
 
+		// Exclude attestations, signatures and sboms
+		if util.FilterSbomAttestationSigs(tag) {
+			continue
+		}
+
 		var manifestResponse ManifestResponse
-		_, err := c.doRequest(ctx, manifestURL, dockerAPIv1Header, &manifestResponse)
+		headers := strings.Join([]string{dockerAPIv1Header, ociImageIndexHeader}, ",")
+		_, err := c.doRequest(ctx, manifestURL, headers, &manifestResponse)
 
 		if httpErr, ok := selfhostederrors.IsHTTPError(err); ok {
 			c.log.Errorf("%s: failed to get manifest response for tag, skipping (%d): %s",
@@ -189,7 +159,8 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 			}
 		}
 
-		header, err := c.doRequest(ctx, manifestURL, dockerAPIv2Header, new(ManifestResponse))
+		headers = strings.Join([]string{dockerAPIv2Header, ociImageIndexHeader}, ",")
+		header, err := c.doRequest(ctx, manifestURL, headers, new(ManifestResponse))
 		if httpErr, ok := selfhostederrors.IsHTTPError(err); ok {
 			c.log.Errorf("%s: failed to get manifest sha response for tag, skipping (%d): %s",
 				manifestURL, httpErr.StatusCode, httpErr.Body)
@@ -296,7 +267,7 @@ func newTLSConfig(insecure bool, CAPath string) (*tls.Config, error) {
 	if CAPath != "" {
 		certs, err := os.ReadFile(CAPath)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to append %q to RootCAs: %v", CAPath, err)
+			return nil, fmt.Errorf("failed to append %q to RootCAs: %v", CAPath, err)
 		}
 		rootCAs.AppendCertsFromPEM(certs)
 	}

@@ -9,6 +9,7 @@ import (
 	"github.com/gofri/go-github-ratelimit/github_ratelimit"
 	"github.com/google/go-github/v62/github"
 	"github.com/jetstack/version-checker/pkg/api"
+	"github.com/jetstack/version-checker/pkg/client/util"
 )
 
 type Options struct {
@@ -31,7 +32,11 @@ func New(opts Options) *Client {
 	if err != nil {
 		panic(err)
 	}
-	client := github.NewClient(ghRateLimiter).WithAuthToken(opts.Token)
+	client := github.NewClient(ghRateLimiter)
+	// Only add Auth Token if it is provided.
+	if len(opts.Token) > 0 {
+		client = client.WithAuthToken(opts.Token)
+	}
 
 	return &Client{
 		client:     client,
@@ -47,6 +52,7 @@ func (c *Client) Name() string {
 func (c *Client) Tags(ctx context.Context, host, owner, repo string) ([]api.ImageTag, error) {
 	// Choose the correct list packages function based on whether the owner
 	// is a user or an organization
+	// getReleases := c.Client.Repositories.ListReleases(ctx, owner, repo)
 	getAllVersions := c.client.Organizations.PackageGetAllVersions
 	ownerType, err := c.ownerType(ctx, owner)
 	if err != nil {
@@ -88,13 +94,7 @@ func (c *Client) Tags(ctx context.Context, host, owner, repo string) ([]api.Imag
 
 			for _, tag := range ver.Metadata.Container.Tags {
 				// Exclude attestations, signatures and sboms
-				if strings.HasSuffix(tag, ".att") {
-					continue
-				}
-				if strings.HasSuffix(tag, ".sig") {
-					continue
-				}
-				if strings.HasSuffix(tag, ".sbom") {
+				if util.FilterSbomAttestationSigs(tag) {
 					continue
 				}
 
