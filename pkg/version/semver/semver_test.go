@@ -8,58 +8,58 @@ import (
 func TestParse(t *testing.T) {
 	tests := map[string]struct {
 		input       string
-		expVersion  [3]int64
 		expMetadata string
+		expVersion  [3]int64
 	}{
 		"No input should no output": {
-			"",
-			[3]int64{0, 0, 0},
-			"",
+			input:       "",
+			expVersion:  [3]int64{0, 0, 0},
+			expMetadata: "",
 		},
 		"No numbers should no output": {
-			"v",
-			[3]int64{0, 0, 0},
-			"v",
+			input:       "v",
+			expVersion:  [3]int64{0, 0, 0},
+			expMetadata: "v",
 		},
 		"Not matching semver should no output": {
-			"hello-1.2.3",
-			[3]int64{0, 0, 0},
-			"hello-1.2.3",
+			input:       "hello-1.2.3",
+			expVersion:  [3]int64{0, 0, 0},
+			expMetadata: "hello-1.2.3",
 		},
 		"1 -> [1 0 0]": {
-			"1",
-			[3]int64{1, 0, 0},
-			"",
+			input:       "1",
+			expVersion:  [3]int64{1, 0, 0},
+			expMetadata: "",
 		},
 		"1.2 -> [1 2 0]": {
-			"1.2",
-			[3]int64{1, 2, 0},
-			"",
+			input:       "1.2",
+			expVersion:  [3]int64{1, 2, 0},
+			expMetadata: "",
 		},
 		"1.0.1 -> [1 0 1]": {
-			"1.0.1",
-			[3]int64{1, 0, 1},
-			"",
+			input:       "1.0.1",
+			expVersion:  [3]int64{1, 0, 1},
+			expMetadata: "",
 		},
 		"v1.0.1 -> [1 0 1]": {
-			"v1.0.1",
-			[3]int64{1, 0, 1},
-			"",
+			input:       "v1.0.1",
+			expVersion:  [3]int64{1, 0, 1},
+			expMetadata: "",
 		},
 		"v1.0.1-debian-3.hello-world-12 -> [1 0 1]": {
-			"v1.0.1-debian-3.hello-world-12",
-			[3]int64{1, 0, 1},
-			"-debian-3.hello-world-12",
+			input:       "v1.0.1-debian-3.hello-world-12",
+			expVersion:  [3]int64{1, 0, 1},
+			expMetadata: "-debian-3.hello-world-12",
 		},
 		"v1.0.1- -> [1 0 1]": {
-			"v1.0.1-",
-			[3]int64{1, 0, 1},
-			"-",
+			input:       "v1.0.1-",
+			expVersion:  [3]int64{1, 0, 1},
+			expMetadata: "-",
 		},
 		"v1.2-alpha -> [1 2 3]": {
-			"v1.0.1-",
-			[3]int64{1, 0, 1},
-			"-",
+			input:       "v1.0.1-",
+			expVersion:  [3]int64{1, 0, 1},
+			expMetadata: "-",
 		},
 	}
 
