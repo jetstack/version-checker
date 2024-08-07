@@ -33,7 +33,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ecr v1.29.1
 	github.com/gofri/go-github-ratelimit v1.1.0
 	github.com/google/go-containerregistry v0.19.0
-	github.com/google/go-github/v58 v58.0.0
+	github.com/google/go-github/v62 v62.0.0
+	github.com/jarcoal/httpmock v1.3.1
 	github.com/stretchr/testify v1.9.0
 )
 
@@ -100,9 +101,9 @@ require (
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/prometheus/client_model v0.5.0 // indirect
-	github.com/prometheus/common v0.48.0 // indirect
-	github.com/prometheus/procfs v0.12.0 // indirect
+	github.com/prometheus/client_model v0.6.1 // indirect
+	github.com/prometheus/common v0.54.0 // indirect
+	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/vbatts/tar-split v0.11.3 // indirect
 	github.com/xlab/treeprint v1.2.0 // indirect
 	go.starlark.net v0.0.0-20240520160348-046347dcd104 // indirect

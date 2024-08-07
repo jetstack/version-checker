@@ -24,6 +24,9 @@ func TestFromImageURL(t *testing.T) {
 				Host: "https://docker.repositories.yourdomain.com",
 			},
 		},
+		GHCR: ghcr.Options{
+			Token: "test-token",
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
