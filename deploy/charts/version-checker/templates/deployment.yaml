@@ -66,7 +66,7 @@ spec:
         readinessProbe:
           {{- omit .Values.readinessProbe "enabled" | toYaml | nindent 10}}
         {{- end }}
-        {{- if .Values.existingSecret }}
+        {{- if not (empty .Values.existingSecret) }}
         envFrom:
           - secretRef:
               name: {{.Values.existingSecret}}
