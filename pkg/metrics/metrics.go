@@ -12,6 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -34,26 +35,38 @@ type cacheItem struct {
 	image          string
 	currentVersion string
 	latestVersion  string
+	os             string
+	arch           string
+}
+
+// Entry is a struct containing a single metrics label set
+type Entry struct {
+	Namespace      string
+	Pod            string
+	Container      string
+	ContainerType  string
+	ImageURL       string
+	IsLatest       bool
+	CurrentVersion string
+	LatestVersion  string
+	OS             string
+	Arch           string
 }
 
 func New(log *logrus.Entry) *Metrics {
-	containerImageVersion := prometheus.NewGaugeVec(
+	containerImageVersion := promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: "version_checker",
 			Name:      "is_latest_version",
 			Help:      "Where the container in use is using the latest upstream registry version",
 		},
 		[]string{
-			"namespace", "pod", "container", "container_type", "image", "current_version", "latest_version",
+			"namespace", "pod", "container", "container_type", "image", "current_version", "latest_version", "architecture", "os",
 		},
 	)
 
-	registry := prometheus.NewRegistry()
-	registry.MustRegister(containerImageVersion)
-
 	return &Metrics{
 		log:                   log.WithField("module", "metrics"),
-		registry:              registry,
 		containerImageVersion: containerImageVersion,
 		containerCache:        make(map[string]cacheItem),
 	}
@@ -62,7 +75,7 @@ func New(log *logrus.Entry) *Metrics {
 // Run will run the metrics server
 func (m *Metrics) Run(servingAddress string) error {
 	router := http.NewServeMux()
-	router.Handle("/metrics", promhttp.HandlerFor(m.registry, promhttp.HandlerOpts{}))
+	router.Handle("/metrics", promhttp.Handler())
 	router.Handle("/healthz", http.HandlerFunc(m.healthzAndReadyzHandler))
 	router.Handle("/readyz", http.HandlerFunc(m.healthzAndReadyzHandler))
 
@@ -91,27 +104,29 @@ func (m *Metrics) Run(servingAddress string) error {
 	return nil
 }
 
-func (m *Metrics) AddImage(namespace, pod, container, containerType, imageURL string, isLatest bool, currentVersion, latestVersion string) {
+func (m *Metrics) AddImage(entry *Entry) {
 	// Remove old image url/version if it exists
-	m.RemoveImage(namespace, pod, container, containerType)
+	m.RemoveImage(entry.Namespace, entry.Pod, entry.Container, entry.ContainerType)
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	isLatestF := 0.0
-	if isLatest {
+	if entry.IsLatest {
 		isLatestF = 1.0
 	}
 
 	m.containerImageVersion.With(
-		m.buildLabels(namespace, pod, container, containerType, imageURL, currentVersion, latestVersion),
+		m.buildLabels(entry),
 	).Set(isLatestF)
 
-	index := m.latestImageIndex(namespace, pod, container, containerType)
+	index := m.latestImageIndex(entry.Namespace, entry.Pod, entry.Container, entry.ContainerType)
 	m.containerCache[index] = cacheItem{
-		image:          imageURL,
-		currentVersion: currentVersion,
-		latestVersion:  latestVersion,
+		image:          entry.ImageURL,
+		currentVersion: entry.CurrentVersion,
+		latestVersion:  entry.LatestVersion,
+		os:             entry.OS,
+		arch:           entry.Arch,
 	}
 }
 
@@ -122,12 +137,30 @@ func (m *Metrics) RemoveImage(namespace, pod, container, containerType string) {
 	index := m.latestImageIndex(namespace, pod, container, containerType)
 	item, ok := m.containerCache[index]
 	if !ok {
+		m.log.Warnf("RemoveImage: no cache item found for %s", index)
 		return
 	}
 
-	m.containerImageVersion.Delete(
-		m.buildLabels(namespace, pod, container, containerType, item.image, item.currentVersion, item.latestVersion),
-	)
+	m.log.Infof("Removing metric with labels: namespace=%s, pod=%s, container=%s, containerType=%s, image=%s, currentVersion=%s, latestVersion=%s, os=%s, arch=%s",
+		namespace, pod, container, containerType, item.image, item.currentVersion, item.latestVersion, item.os, item.arch)
+
+	labels := m.buildLabels(&Entry{
+		Namespace:      namespace,
+		Pod:            pod,
+		Container:      container,
+		ContainerType:  containerType,
+		ImageURL:       item.image,
+		CurrentVersion: item.currentVersion,
+		LatestVersion:  item.latestVersion,
+		OS:             item.os,
+		Arch:           item.arch,
+	})
+
+	deleted := m.containerImageVersion.Delete(labels)
+	if !deleted {
+		m.log.Warnf("Failed to delete metric with labels: %v", labels)
+	}
+
 	delete(m.containerCache, index)
 }
 
@@ -135,15 +168,17 @@ func (m *Metrics) latestImageIndex(namespace, pod, container, containerType stri
 	return strings.Join([]string{namespace, pod, container, containerType}, "")
 }
 
-func (m *Metrics) buildLabels(namespace, pod, container, containerType, imageURL, currentVersion, latestVersion string) prometheus.Labels {
+func (m *Metrics) buildLabels(entry *Entry) prometheus.Labels {
 	return prometheus.Labels{
-		"namespace":       namespace,
-		"pod":             pod,
-		"container_type":  containerType,
-		"container":       container,
-		"image":           imageURL,
-		"current_version": currentVersion,
-		"latest_version":  latestVersion,
+		"namespace":       entry.Namespace,
+		"pod":             entry.Pod,
+		"container":       entry.Container,
+		"container_type":  entry.ContainerType,
+		"image":           entry.ImageURL,
+		"current_version": entry.CurrentVersion,
+		"latest_version":  entry.LatestVersion,
+		"architecture":    entry.Arch,
+		"os":              entry.OS,
 	}
 }
 

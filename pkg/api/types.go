@@ -58,6 +58,10 @@ type Options struct {
 	PinPatch *int64 `json:"pin-patch,omitempty"`
 
 	RegexMatcher *regexp.Regexp `json:"-"`
+
+	// Architecture and OS to search for
+	Architecture *Architecture `json:"pin-architecture,omitempty"`
+	OS           *OS           `json:"pin-os,omitempty"`
 }
 
 // ImageTag describes a container image tag.
@@ -67,7 +71,52 @@ type ImageTag struct {
 	Timestamp    time.Time    `json:"timestamp"`
 	OS           OS           `json:"os,omitempty"`
 	Architecture Architecture `json:"architecture,omitempty"`
+	Children     []ImageTag   `json:"children,omitempty"`
 }
 
 type OS string
 type Architecture string
+
+func (i *ImageTag) HasChildren() bool {
+	return len(i.Children) > 0
+}
+
+func (i *ImageTag) HasArchOS(arch Architecture, os OS) bool {
+	if i.matchArchOS(arch, os) {
+		return true
+	}
+
+	for _, c := range i.Children {
+		if c.matchArchOS(arch, os) {
+			return true
+		}
+	}
+
+	return true
+}
+
+func (i *ImageTag) MatchSHA(sha string) bool {
+	if i.SHA == sha {
+		return true
+	}
+
+	for _, c := range i.Children {
+		if c.MatchSHA(sha) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (i *ImageTag) matchArchOS(arch Architecture, os OS) bool {
+	if i.OS != "" && i.OS != os {
+		return false
+	}
+
+	if i.Architecture != "" && i.Architecture != arch {
+		return false
+	}
+
+	return true
+}

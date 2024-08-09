@@ -10,6 +10,7 @@ import (
 
 	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/jetstack/version-checker/pkg/controller/options"
+	"github.com/jetstack/version-checker/pkg/metrics"
 	versionerrors "github.com/jetstack/version-checker/pkg/version/errors"
 )
 
@@ -39,11 +40,24 @@ func (c *Controller) sync(ctx context.Context, pod *corev1.Pod) error {
 	return nil
 }
 
+func isPodRunnindOrReady(pod *corev1.Pod) bool {
+	if pod.Status.Phase != corev1.PodRunning {
+		return false
+	}
+
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type == corev1.PodReady && condition.Status == corev1.ConditionTrue {
+			return true
+		}
+	}
+	return false
+}
+
 // syncContainer will enqueue a given container to check the version
 func (c *Controller) syncContainer(ctx context.Context, log *logrus.Entry, builder *options.Builder, pod *corev1.Pod,
 	container *corev1.Container, containerType string) error {
-	// If not enabled, exit early
-	if !builder.IsEnabled(c.defaultTestAll, container.Name) {
+	// If not enabled, or pod not Ready/Running exit early
+	if !builder.IsEnabled(c.defaultTestAll, container.Name) || !isPodRunnindOrReady(pod) {
 		c.metrics.RemoveImage(pod.Namespace, pod.Name, container.Name, containerType)
 		return nil
 	}
@@ -86,18 +100,25 @@ func (c *Controller) checkContainer(ctx context.Context, log *logrus.Entry, pod 
 	}
 
 	if result.IsLatest {
-		log.Debugf("image is latest %s:%s",
-			result.ImageURL, result.CurrentVersion)
+		log.Debugf("image is latest %s [%s/%s]:%s",
+			result.ImageURL, result.OS, result.Architecture, result.CurrentVersion)
 	} else {
-		log.Debugf("image is not latest %s: %s -> %s",
-			result.ImageURL, result.CurrentVersion, result.LatestVersion)
+		log.Debugf("image is not latest %s [%s/%s]: %s -> %s",
+			result.ImageURL, result.OS, result.Architecture, result.CurrentVersion, result.LatestVersion)
 	}
 
-	c.metrics.AddImage(pod.Namespace, pod.Name,
-		container.Name, containerType,
-		result.ImageURL, result.IsLatest,
-		result.CurrentVersion, result.LatestVersion,
-	)
+	c.metrics.AddImage(&metrics.Entry{
+		Namespace:      pod.Namespace,
+		Pod:            pod.Name,
+		Container:      container.Name,
+		ContainerType:  containerType,
+		ImageURL:       result.ImageURL,
+		IsLatest:       result.IsLatest,
+		CurrentVersion: result.CurrentVersion,
+		LatestVersion:  result.LatestVersion,
+		OS:             string(result.OS),
+		Arch:           string(result.Architecture),
+	})
 
 	return nil
 }

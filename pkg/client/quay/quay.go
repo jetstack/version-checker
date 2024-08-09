@@ -18,45 +18,6 @@ const (
 	manifestURL = "https://quay.io/api/v1/repository/%s/%s/manifest/%s"
 )
 
-type Options struct {
-	Token string
-}
-
-type Client struct {
-	*retryablehttp.Client
-	Options
-}
-
-type responseTag struct {
-	Tags          []responseTagItem `json:"tags"`
-	HasAdditional bool              `json:"has_additional"`
-	Page          int               `json:"page"`
-}
-
-type responseTagItem struct {
-	Name           string `json:"name"`
-	ManifestDigest string `json:"manifest_digest"`
-	LastModified   string `json:"last_modified"`
-	IsManifestList bool   `json:"is_manifest_list"`
-}
-
-type responseManifest struct {
-	ManifestData string `json:"manifest_data"`
-	Status       *int   `json:"status,omitempty"`
-}
-
-type responseManifestData struct {
-	Manifests []responseManifestDataItem `json:"manifests"`
-}
-
-type responseManifestDataItem struct {
-	Digest   string `json:"digest"`
-	Platform struct {
-		Architecture api.Architecture `json:"architecture"`
-		OS           api.OS           `json:"os"`
-	} `json:"platform"`
-}
-
 func New(opts Options) *Client {
 	client := retryablehttp.NewClient()
 	client.RetryMax = 10
@@ -89,6 +50,10 @@ func (c *Client) fetchImageManifest(ctx context.Context, repo, image string, tag
 	if err != nil {
 		return nil, err
 	}
+	// Filter Sbom, Attestations, Sigs
+	if util.FilterSbomAttestationSigs(tag.Name) {
+		return []api.ImageTag{}, nil
+	}
 
 	// If a multi-arch image, call manifest endpoint
 	if tag.IsManifestList {
@@ -102,7 +67,6 @@ func (c *Client) fetchImageManifest(ctx context.Context, repo, image string, tag
 	}
 
 	// Fallback to not using multi-arch image
-
 	os, arch := util.OSArchFromTag(tag.Name)
 
 	return []api.ImageTag{
@@ -136,6 +100,9 @@ func (c *Client) callManifests(ctx context.Context, timestamp time.Time, tag, ur
 
 	var tags []api.ImageTag
 	for _, manifest := range manifestData.Manifests {
+		if util.FilterSbomAttestationSigs(tag) {
+			continue
+		}
 		tags = append(tags, api.ImageTag{
 			Tag:          tag,
 			SHA:          manifest.Digest,

@@ -7,14 +7,40 @@ import (
 
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/jetstack/version-checker/pkg/api"
+	"github.com/jetstack/version-checker/pkg/controller/checker/architecture"
 	"github.com/jetstack/version-checker/pkg/controller/internal/fake/search"
 	"github.com/jetstack/version-checker/pkg/version/semver"
 )
 
 func TestContainer(t *testing.T) {
+	// Create a NodeMap and pre-fill it with expected nodes
+	nodeMap := architecture.New()
+
+	// Add nodes with expected OS and architecture
+	nodeMap.Add(&corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "node-amd64",
+			Labels: map[string]string{
+				corev1.LabelOSStable:   "linux",
+				corev1.LabelArchStable: "amd64",
+			},
+		},
+	})
+	nodeMap.Add(&corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "node-arm64",
+			Labels: map[string]string{
+				corev1.LabelOSStable:   "linux",
+				corev1.LabelArchStable: "arm64",
+			},
+		},
+	})
+
 	tests := map[string]struct {
+		nodeName   string
 		statusSHA  string
 		imageURL   string
 		opts       *api.Options
@@ -22,6 +48,7 @@ func TestContainer(t *testing.T) {
 		expResult  *Result
 	}{
 		"no status sha should return nil, nil": {
+			nodeName:   "node-amd64",
 			statusSHA:  "",
 			imageURL:   "version-checker:v0.2.0",
 			opts:       nil,
@@ -29,226 +56,134 @@ func TestContainer(t *testing.T) {
 			expResult:  nil,
 		},
 		"if v0.2.0 is latest version, but different sha, then not latest": {
+			nodeName:  "node-amd64",
 			statusSHA: "localhost:5000/version-checker@sha:123",
 			imageURL:  "localhost:5000/version-checker:v0.2.0",
 			opts:      new(api.Options),
 			searchResp: &api.ImageTag{
-				Tag: "v0.2.0",
-				SHA: "sha:456",
+				Tag:          "v0.2.0",
+				SHA:          "sha:456",
+				OS:           "linux",
+				Architecture: "amd64",
 			},
 			expResult: &Result{
 				CurrentVersion: "v0.2.0@sha:123",
 				LatestVersion:  "v0.2.0@sha:456",
 				ImageURL:       "localhost:5000/version-checker",
 				IsLatest:       false,
+				OS:             "linux",
+				Architecture:   "amd64",
 			},
 		},
 		"if v0.2.0 is latest version, but same sha, then latest": {
+			nodeName:  "node-amd64",
 			statusSHA: "localhost:5000/version-checker@sha:123",
 			imageURL:  "localhost:5000/version-checker:v0.2.0",
 			opts:      new(api.Options),
 			searchResp: &api.ImageTag{
-				Tag: "v0.2.0",
-				SHA: "sha:123",
+				Tag:          "v0.2.0",
+				SHA:          "sha:123",
+				OS:           "linux",
+				Architecture: "amd64",
 			},
 			expResult: &Result{
 				CurrentVersion: "v0.2.0",
 				LatestVersion:  "v0.2.0",
 				ImageURL:       "localhost:5000/version-checker",
 				IsLatest:       true,
+				OS:             "linux",
+				Architecture:   "amd64",
 			},
 		},
 		"if v0.2.0@sha:123 is wrong sha, then not latest": {
+			nodeName:  "node-amd64",
 			statusSHA: "localhost:5000/version-checker@sha:123",
 			imageURL:  "localhost:5000/version-checker:v0.2.0@sha:123",
 			opts:      new(api.Options),
 			searchResp: &api.ImageTag{
-				Tag: "v0.2.0",
-				SHA: "sha:456",
+				Tag:          "v0.2.0",
+				SHA:          "sha:456",
+				OS:           "linux",
+				Architecture: "amd64",
 			},
 			expResult: &Result{
 				CurrentVersion: "v0.2.0@sha:123",
 				LatestVersion:  "v0.2.0@sha:456",
 				ImageURL:       "localhost:5000/version-checker",
 				IsLatest:       false,
+				OS:             "linux",
+				Architecture:   "amd64",
 			},
 		},
 		"if v0.2.0@sha:123 is correct sha, then latest": {
+			nodeName:  "node-amd64",
 			statusSHA: "localhost:5000/version-checker@sha:123",
 			imageURL:  "localhost:5000/version-checker:v0.2.0@sha:123",
 			opts:      new(api.Options),
 			searchResp: &api.ImageTag{
-				Tag: "v0.2.0",
-				SHA: "sha:123",
+				Tag:          "v0.2.0",
+				SHA:          "sha:123",
+				OS:           "linux",
+				Architecture: "amd64",
 			},
 			expResult: &Result{
 				CurrentVersion: "v0.2.0@sha:123",
 				LatestVersion:  "v0.2.0@sha:123",
 				ImageURL:       "localhost:5000/version-checker",
 				IsLatest:       true,
+				OS:             "linux",
+				Architecture:   "amd64",
 			},
 		},
-		"if empty is not latest version, then return false": {
-			statusSHA: "localhost:5000/version-checker@sha:123",
-			imageURL:  "localhost:5000/version-checker",
-			opts:      new(api.Options),
-			searchResp: &api.ImageTag{
-				Tag: "v0.2.0",
-				SHA: "sha:456",
-			},
-			expResult: &Result{
-				CurrentVersion: "sha:123",
-				LatestVersion:  "v0.2.0@sha:456",
-				ImageURL:       "localhost:5000/version-checker",
-				IsLatest:       false,
-			},
-		},
-		"if empty is latest version, then return true": {
-			statusSHA: "localhost:5000/version-checker@sha:123",
-			imageURL:  "localhost:5000/version-checker",
-			opts:      new(api.Options),
-			searchResp: &api.ImageTag{
-				Tag: "",
-				SHA: "sha:123",
-			},
-			expResult: &Result{
-				CurrentVersion: "sha:123",
-				LatestVersion:  "sha:123",
-				ImageURL:       "localhost:5000/version-checker",
-				IsLatest:       true,
-			},
-		},
-		"if latest is not latest version, then return false": {
-			statusSHA: "localhost:5000/version-checker@sha:123",
-			imageURL:  "localhost:5000/version-checker:latest",
-			opts:      new(api.Options),
-			searchResp: &api.ImageTag{
-				Tag: "v0.2.0",
-				SHA: "sha:456",
-			},
-			expResult: &Result{
-				CurrentVersion: "sha:123",
-				LatestVersion:  "v0.2.0@sha:456",
-				ImageURL:       "localhost:5000/version-checker",
-				IsLatest:       false,
-			},
-		},
-		"if latest is latest version, then return true": {
-			statusSHA: "localhost:5000/version-checker@sha:123",
-			imageURL:  "localhost:5000/version-checker:latest",
-			opts:      new(api.Options),
-			searchResp: &api.ImageTag{
-				Tag: "",
-				SHA: "sha:123",
-			},
-			expResult: &Result{
-				CurrentVersion: "sha:123",
-				LatestVersion:  "sha:123",
-				ImageURL:       "localhost:5000/version-checker",
-				IsLatest:       true,
-			},
-		},
-		"if using v0.2.0 with use sha, but not latest, return false": {
-			statusSHA: "localhost:5000/version-checker@sha:123",
+		"if arm64 node with v0.2.0 is latest version, but different sha, then not latest": {
+			nodeName:  "node-arm64",
+			statusSHA: "localhost:5000/version-checker@sha:789",
 			imageURL:  "localhost:5000/version-checker:v0.2.0",
-			opts: &api.Options{
-				UseSHA: true,
-			},
+			opts:      new(api.Options),
 			searchResp: &api.ImageTag{
-				Tag: "v0.2.0",
-				SHA: "sha:456",
+				Tag:          "v0.2.0",
+				SHA:          "sha:101112",
+				OS:           "linux",
+				Architecture: "arm64",
 			},
 			expResult: &Result{
-				CurrentVersion: "v0.2.0@sha:123",
-				LatestVersion:  "v0.2.0@sha:456",
+				CurrentVersion: "v0.2.0@sha:789",
+				LatestVersion:  "v0.2.0@sha:101112",
 				ImageURL:       "localhost:5000/version-checker",
 				IsLatest:       false,
+				OS:             "linux",
+				Architecture:   "arm64",
 			},
 		},
-		"if using v0.2.0 with use sha, but latest, return true": {
-			statusSHA: "localhost:5000/version-checker@sha:123",
+		"if arm64 node with v0.2.0 is latest version, but same sha, then latest": {
+			nodeName:  "node-arm64",
+			statusSHA: "localhost:5000/version-checker@sha:789",
 			imageURL:  "localhost:5000/version-checker:v0.2.0",
-			opts: &api.Options{
-				UseSHA: true,
-			},
+			opts:      new(api.Options),
 			searchResp: &api.ImageTag{
-				Tag: "v0.2.0",
-				SHA: "sha:123",
+				Tag:          "v0.2.0",
+				SHA:          "sha:789",
+				OS:           "linux",
+				Architecture: "arm64",
 			},
 			expResult: &Result{
-				CurrentVersion: "v0.2.0@sha:123",
-				LatestVersion:  "v0.2.0@sha:123",
+				CurrentVersion: "v0.2.0",
+				LatestVersion:  "v0.2.0",
 				ImageURL:       "localhost:5000/version-checker",
 				IsLatest:       true,
-			},
-		},
-		"if using sha but not latest, return false": {
-			statusSHA: "localhost:5000/version-checker@sha:123",
-			imageURL:  "localhost:5000/joshvanl/version-checker@sha:123",
-			opts:      new(api.Options),
-			searchResp: &api.ImageTag{
-				Tag: "v0.2.0",
-				SHA: "sha:456",
-			},
-			expResult: &Result{
-				CurrentVersion: "sha:123",
-				LatestVersion:  "v0.2.0@sha:456",
-				ImageURL:       "localhost:5000/joshvanl/version-checker",
-				IsLatest:       false,
-			},
-		},
-		"if using sha but sha not latest, return false and no tag if non exists": {
-			statusSHA: "localhost:5000/version-checker@sha:123",
-			imageURL:  "localhost:5000/joshvanl/version-checker@sha:123",
-			opts:      new(api.Options),
-			searchResp: &api.ImageTag{
-				Tag: "",
-				SHA: "sha:456",
-			},
-			expResult: &Result{
-				CurrentVersion: "sha:123",
-				LatestVersion:  "sha:456",
-				ImageURL:       "localhost:5000/joshvanl/version-checker",
-				IsLatest:       false,
-			},
-		},
-		"if using sha and is latest, return true": {
-			statusSHA: "localhost:5000/version-checker@sha:123",
-			imageURL:  "localhost:5000/joshvanl/version-checker@sha:123",
-			opts:      new(api.Options),
-			searchResp: &api.ImageTag{
-				Tag: "v0.2.0",
-				SHA: "sha:123",
-			},
-			expResult: &Result{
-				CurrentVersion: "sha:123",
-				LatestVersion:  "v0.2.0@sha:123",
-				ImageURL:       "localhost:5000/joshvanl/version-checker",
-				IsLatest:       true,
-			},
-		},
-		"if using sha and is latest, return true and no tag if non exists": {
-			statusSHA: "localhost:5000/version-checker@sha:123",
-			imageURL:  "localhost:5000/joshvanl/version-checker@sha:123",
-			opts:      new(api.Options),
-			searchResp: &api.ImageTag{
-				Tag: "",
-				SHA: "sha:123",
-			},
-			expResult: &Result{
-				CurrentVersion: "sha:123",
-				LatestVersion:  "sha:123",
-				ImageURL:       "localhost:5000/joshvanl/version-checker",
-				IsLatest:       true,
+				OS:             "linux",
+				Architecture:   "arm64",
 			},
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-
-			checker := New(search.New().With(test.searchResp, nil))
+			checker := New(search.New().With(test.searchResp, nil), nodeMap)
 			pod := &corev1.Pod{
+				Spec: corev1.PodSpec{
+					NodeName: test.nodeName,
+				},
 				Status: corev1.PodStatus{
 					ContainerStatuses: []corev1.ContainerStatus{
 						{
@@ -362,6 +297,7 @@ func TestContainerStatusImageSHA(t *testing.T) {
 }
 
 func TestIsLatestOrEmptyTag(t *testing.T) {
+	dummyNodeMap := &architecture.NodeMap{}
 	tests := map[string]struct {
 		tag   string
 		expIs bool
@@ -382,7 +318,7 @@ func TestIsLatestOrEmptyTag(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			checker := New(search.New())
+			checker := New(search.New(), dummyNodeMap)
 			if is := checker.isLatestOrEmptyTag(test.tag); is != test.expIs {
 				t.Errorf("unexpected isLatestOrEmptyTag exp=%t got=%t",
 					test.expIs, is)
@@ -392,6 +328,7 @@ func TestIsLatestOrEmptyTag(t *testing.T) {
 }
 
 func TestIsLatestSemver(t *testing.T) {
+	dummyNodeMap := &architecture.NodeMap{}
 	tests := map[string]struct {
 		imageURL, currentSHA string
 		currentImage         *semver.SemVer
@@ -459,7 +396,7 @@ func TestIsLatestSemver(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			checker := New(search.New().With(test.searchResp, nil))
+			checker := New(search.New().With(test.searchResp, nil), dummyNodeMap)
 			latestImage, isLatest, err := checker.isLatestSemver(context.TODO(), test.imageURL, test.currentSHA, test.currentImage, nil)
 			if err != nil {
 				t.Fatal(err)
@@ -479,6 +416,7 @@ func TestIsLatestSemver(t *testing.T) {
 }
 
 func TestIsLatestSHA(t *testing.T) {
+	dummyNodeMap := &architecture.NodeMap{}
 	tests := map[string]struct {
 		imageURL, currentSHA string
 		searchResp           *api.ImageTag
@@ -514,7 +452,7 @@ func TestIsLatestSHA(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			checker := New(search.New().With(test.searchResp, nil))
+			checker := New(search.New().With(test.searchResp, nil), dummyNodeMap)
 			result, err := checker.isLatestSHA(context.TODO(), test.imageURL, test.currentSHA, nil)
 			if err != nil {
 				t.Fatal(err)

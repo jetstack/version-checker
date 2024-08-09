@@ -79,10 +79,10 @@ func calculateHashIndex(imageURL string, opts *api.Options) (string, error) {
 		return "", fmt.Errorf("failed to marshal options: %s", err)
 	}
 
-	hash := fnv.New32()
+	hash := fnv.New64()
 	if _, err := hash.Write(append(optsJSON, []byte(imageURL)...)); err != nil {
 		return "", fmt.Errorf("failed to calculate search hash: %s", err)
 	}
 
-	return fmt.Sprintf("%d", hash.Sum32()), nil
+	return fmt.Sprintf("%d", hash.Sum64()), nil
 }

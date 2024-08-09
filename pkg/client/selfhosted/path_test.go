@@ -105,6 +105,16 @@ func TestRepoImage(t *testing.T) {
 			expRepo:  "joshvanl",
 			expImage: "version-checker",
 		},
+		"multiple nested segments to path should return last two": {
+			path:     "folder1/subfolder/subsubfolder/image",
+			expRepo:  "folder1/subfolder/subsubfolder",
+			expImage: "image",
+		},
+		"multiple nested segments to paths should return last two": {
+			path:     "folder1/subfolder/subsubfolder/subsubsubfolder/image",
+			expRepo:  "folder1/subfolder/subsubfolder/subsubsubfolder",
+			expImage: "image",
+		},
 	}
 
 	handler := new(Client)

@@ -193,7 +193,7 @@ func TestLatestSemver(t *testing.T) {
 			if len(tt.tags) > 0 {
 				tags = tt.tags
 			}
-			tag, err := latestSemver(tt.opts, tags)
+			tag, err := latestSemver(tags, tt.opts)
 			assert.NoError(t, err)
 			assert.NotNil(t, tag)
 			assert.Equal(t, tt.expected, tag.Tag)

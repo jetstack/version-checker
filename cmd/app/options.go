@@ -25,6 +25,10 @@ const (
 	envACRPassword     = "ACR_PASSWORD"
 	envACRRefreshToken = "ACR_REFRESH_TOKEN"
 
+	envACRAppID        = "ACR_APP_ID"
+	envACRTenantID     = "ACR_TENANT_ID"
+	envACRClientSecret = "ACR_CLIENT_SECRET"
+
 	envDockerUsername = "DOCKER_USERNAME"
 	envDockerPassword = "DOCKER_PASSWORD"
 	envDockerToken    = "DOCKER_TOKEN"
@@ -47,6 +51,8 @@ const (
 	envSelfhostedBearer    = "TOKEN"
 	envSelfhostedTokenPath = "TOKEN_PATH"
 	envSelfhostedInsecure  = "INSECURE"
+	envSelfhostedTimeout   = "TIMEOUT"
+	envSelfhostedRetries   = "RETRIES"
 	envSelfhostedCAPath    = "CA_PATH"
 )
 
@@ -57,6 +63,8 @@ var (
 	selfhostedTokenPath   = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_TOKEN_PATH_(.*)")
 	selfhostedTokenReg    = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_TOKEN_(.*)")
 	selfhostedCAPath      = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_CA_PATH_(.*)")
+	selfhostedTimeout     = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_TIMEOUT_(.*)")
+	selfhostedRetryMax    = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_RETRIES_(.*)")
 	selfhostedInsecureReg = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_INSECURE_(.*)")
 )
 
@@ -139,6 +147,27 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 			"Refresh token to authenticate with azure container registry. Cannot be used with "+
 				"username/password (%s_%s).",
 			envPrefix, envACRRefreshToken,
+		))
+	fs.StringVar(&o.Client.ACR.AppID,
+		"acr-app-id", "",
+		fmt.Sprintf(
+			"App ID to authenticate with azure container registry, to be used with "+
+				"client-secret/tenant-id (%s_%s).",
+			envPrefix, envACRAppID,
+		))
+	fs.StringVar(&o.Client.ACR.TenantID,
+		"acr-tenant-id", "",
+		fmt.Sprintf(
+			"client ID to authenticate with azure container registry, to be used with "+
+				"client-secret/app-id (%s_%s).",
+			envPrefix, envACRTenantID,
+		))
+	fs.StringVar(&o.Client.ACR.ClientSecret,
+		"acr-client-secret", "",
+		fmt.Sprintf(
+			"Client Secret to authenticate with azure container registry, to be used with "+
+				"tenant-id/app-id (%s_%s).",
+			envPrefix, envACRClientSecret,
 		))
 	///
 
@@ -264,6 +293,18 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 				"THIS IS NOT RECOMMENDED AND IS INTENDED FOR DEBUGGING (%s_%s)",
 			envPrefix, envSelfhostedInsecure,
 		))
+	fs.IntVarP(&o.selfhosted.Timeout,
+		"selfhosted-timeout", "", 10,
+		fmt.Sprintf(
+			"Timeout for API Calls to the Registry (%s_%s)",
+			envPrefix, envSelfhostedTimeout,
+		))
+	fs.IntVarP(&o.selfhosted.RetryMax,
+		"selfhosted-retries", "", 10,
+		fmt.Sprintf(
+			"Max number of retries per request to the Registry (%s_%s)",
+			envPrefix, envSelfhostedRetries,
+		))
 	///
 }
 
@@ -278,6 +319,9 @@ func (o *Options) complete() {
 		{envACRUsername, &o.Client.ACR.Username},
 		{envACRPassword, &o.Client.ACR.Password},
 		{envACRRefreshToken, &o.Client.ACR.RefreshToken},
+		{envACRAppID, &o.Client.ACR.AppID},
+		{envACRTenantID, &o.Client.ACR.TenantID},
+		{envACRClientSecret, &o.Client.ACR.ClientSecret},
 
 		{envDockerUsername, &o.Client.Docker.Username},
 		{envDockerPassword, &o.Client.Docker.Password},
@@ -362,6 +406,25 @@ func (o *Options) assignSelfhosted(envs []string) {
 		if matches := selfhostedTokenReg.FindStringSubmatch(strings.ToUpper(pair[0])); len(matches) == 2 {
 			initOptions(matches[1])
 			o.Client.Selfhosted[matches[1]].Bearer = pair[1]
+			continue
+		}
+
+		if matches := selfhostedTimeout.FindStringSubmatch(strings.ToUpper(pair[0])); len(matches) == 2 {
+			initOptions(matches[1])
+			i, err := strconv.Atoi(pair[1])
+			if err != nil {
+				continue
+			}
+			o.Client.Selfhosted[matches[1]].Timeout = i
+			continue
+		}
+		if matches := selfhostedRetryMax.FindStringSubmatch(strings.ToUpper(pair[0])); len(matches) == 2 {
+			initOptions(matches[1])
+			i, err := strconv.Atoi(pair[1])
+			if err != nil {
+				continue
+			}
+			o.Client.Selfhosted[matches[1]].Timeout = i
 			continue
 		}
 
