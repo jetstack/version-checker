@@ -8,7 +8,6 @@ import (
 // latestSemver will return the latest ImageTag based on the given options
 // restriction, using semver. This should not be used is UseSHA has been
 // enabled.
-// TODO: add tests..
 func latestSemver(tags []api.ImageTag, opts *api.Options) (*api.ImageTag, error) {
 	var (
 		latestImageTag *api.ImageTag
@@ -17,7 +16,7 @@ func latestSemver(tags []api.ImageTag, opts *api.Options) (*api.ImageTag, error)
 
 	for i := range tags {
 		// forcing it be the specific arch and os (defaults to true, if not set)
-		if !osArchMatch(tags[i], opts) {
+		if !matchOSandArch(tags[i], opts) {
 			continue
 		}
 
@@ -70,7 +69,7 @@ func latestSHA(tags []api.ImageTag, opts *api.Options) (*api.ImageTag, error) {
 
 	for i := range tags {
 		// forcing it be the specific arch and os (defalts to true, if not set)
-		if !osArchMatch(tags[i], opts) {
+		if !matchOSandArch(tags[i], opts) {
 			continue
 		}
 		if latestTag == nil || tags[i].Timestamp.After(latestTag.Timestamp) {
@@ -81,7 +80,7 @@ func latestSHA(tags []api.ImageTag, opts *api.Options) (*api.ImageTag, error) {
 	return latestTag, nil
 }
 
-func osArchMatch(tag api.ImageTag, opts *api.Options) bool {
+func matchOSandArch(tag api.ImageTag, opts *api.Options) bool {
 	if opts.OS == nil || opts.Architecture == nil {
 		return true
 	}

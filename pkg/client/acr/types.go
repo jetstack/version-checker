@@ -5,12 +5,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/jetstack/version-checker/pkg/api"
-)
-
-const (
-	userAgent = "jetstack/version-checker"
 )
 
 type Client struct {
@@ -22,9 +19,9 @@ type Client struct {
 }
 
 type acrClient struct {
+	token       azcore.AccessToken
 	tokenExpiry time.Time
-	// *azcontainerregistry.Client
-	*autorest.Client
+	Client      *autorest.Client
 }
 
 type Options struct {

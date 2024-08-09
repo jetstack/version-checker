@@ -2,12 +2,17 @@ package acr
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/go-autorest/autorest"
+	"github.com/golang-jwt/jwt/v5"
 )
+
+const userAgent = "jetstack/version-checker"
 
 type AuthOptions struct {
 	Username     string
@@ -32,21 +37,23 @@ func getServicePrincipalClient(ctx context.Context, opts AuthOptions, host strin
 		return nil, err
 	}
 
-	token, err := cred.GetToken(ctx, azidentity.TokenRequestOptions{
-		Scopes: []string{"https://" + host + "/.default"},
-	})
-	if err != nil {
-		return nil, err
+	tokenFunc := func(something, host string) (string, error) {
+		token, err := cred.GetToken(ctx, policy.TokenRequestOptions{
+			Scopes: []string{"https://" + host + "/.default"},
+		})
+		if err != nil {
+			return "", err
+		}
+		return token.Token, nil
 	}
 
 	client := autorest.NewClientWithUserAgent(userAgent)
-	client.Authorizer = autorest.NewBearerAuthorizer(&adal.Token{
-		AccessToken: token.Token,
-	})
+	auth := autorest.NewBearerAuthorizerCallback(client, autorest.BearerAuthorizerCallbackFunc(tokenFunc))
+	client.Authorizer = auth
 
 	return &acrClient{
 		Client:      &client,
-		tokenExpiry: token.ExpiresOn,
+		tokenExpiry: time.Now().Add(time.Hour), // Assuming 1 hour validity for the token
 	}, nil
 }
 
@@ -61,75 +68,54 @@ func getBasicAuthClient(opts AuthOptions, host string) (*acrClient, error) {
 }
 
 func getManagedIdentityClient(ctx context.Context, host string) (*acrClient, error) {
-	credential, err := azidentity.NewDefaultAzureCredential(nil)
+	cred, err := azidentity.NewDefaultAzureCredential(nil)
 	if err != nil {
 		return nil, err
 	}
 
-	token, err := credential.GetToken(ctx, azidentity.TokenRequestOptions{
-		Scopes: []string{"https://" + host + "/.default"},
-	})
-	if err != nil {
-		return nil, err
+	tokenFunc := func(somthing, host string) (string, error) {
+		token, err := cred.GetToken(ctx, policy.TokenRequestOptions{
+			Scopes: []string{"https://" + host + "/.default"},
+		})
+		if err != nil {
+			return "", err
+		}
+		return token.Token, nil
 	}
 
 	client := autorest.NewClientWithUserAgent(userAgent)
-	client.Authorizer = autorest.NewBearerAuthorizer(&adal.Token{
-		AccessToken: token.Token,
-	})
+	auth := autorest.NewBearerAuthorizerCallback(client, autorest.BearerAuthorizerCallbackFunc(tokenFunc))
+	client.Authorizer = auth
 
 	return &acrClient{
 		Client:      &client,
-		tokenExpiry: token.ExpiresOn,
+		tokenExpiry: time.Now().Add(time.Hour), // Assuming 1 hour validity for the token
 	}, nil
 }
 
 func getAccessTokenClient(ctx context.Context, opts AuthOptions, host string) (*acrClient, error) {
-	client := autorest.NewClientWithUserAgent(userAgent)
-	urlParameters := map[string]interface{}{
-		"url": "https://" + host,
-	}
-
-	formDataParameters := map[string]interface{}{
-		"grant_type":    "refresh_token",
-		"refresh_token": opts.RefreshToken,
-		"scope":         "repository:*:*",
-		"service":       host,
-	}
-
-	preparer := autorest.CreatePreparer(
-		autorest.AsPost(),
-		autorest.WithCustomBaseURL("{url}", urlParameters),
-		autorest.WithPath("/oauth2/token"),
-		autorest.WithFormData(autorest.MapToValues(formDataParameters)))
-	req, err := preparer.Prepare((&http.Request{}).WithContext(ctx))
+	cred, err := azidentity.NewClientSecretCredential(opts.TenantID, opts.AppID, opts.ClientSecret, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := autorest.SendWithSender(client, req,
-		autorest.DoRetryForStatusCodes(client.RetryAttempts, client.RetryDuration, autorest.StatusCodesForRetry...))
-	if err != nil {
-		return nil, fmt.Errorf("%s: failed to request access token: %s", host, err)
+	tokenFunc := func() (string, error) {
+		token, err := cred.GetToken(ctx, policy.TokenRequestOptions{
+			Scopes: []string{"https://" + host + "/.default"},
+		})
+		if err != nil {
+			return "", fmt.Errorf("%s: failed to request access token: %s", host, err)
+		}
+		return token.Token, nil
 	}
 
-	var respToken ACRAccessTokenResponse
-	if err := json.NewDecoder(resp.Body).Decode(&respToken); err != nil {
-		return nil, fmt.Errorf("%s: failed to decode access token response: %s", host, err)
-	}
-
-	exp, err := getTokenExpiration(respToken.AccessToken)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %s", host, err)
-	}
-
-	client.Authorizer = autorest.NewBearerAuthorizer(&adal.Token{
-		AccessToken: respToken.AccessToken,
-	})
+	client := autorest.NewClientWithUserAgent(userAgent)
+	auth := autorest.NewBearerAuthorizerCallback(client, autorest.BearerAuthorizerCallbackFunc(tokenFunc))
+	client.Authorizer = auth
 
 	return &acrClient{
-		tokenExpiry: exp,
 		Client:      &client,
+		tokenExpiry: time.Now().Add(time.Hour), // Assuming 1 hour validity for the token
 	}, nil
 }
 
@@ -150,4 +136,17 @@ func getTokenExpiration(tokenString string) (time.Time, error) {
 	}
 
 	return time.Time{}, fmt.Errorf("failed to find 'exp' claim in access token")
+}
+
+type acrClient struct {
+	token       azcore.AccessToken
+	tokenExpiry time.Time
+	Client      *autorest.Client
+}
+
+func (c *acrClient) GetToken(ctx context.Context, options policy.TokenRequestOptions) (azcore.AccessToken, error) {
+	if time.Now().After(c.tokenExpiry) {
+		return azcore.AccessToken{}, fmt.Errorf("token expired")
+	}
+	return c.token, nil
 }

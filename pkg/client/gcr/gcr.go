@@ -26,19 +26,6 @@ type ManifestItem struct {
 	TimeCreated string   `json:"timeCreatedMs"`
 }
 
-func New(opts Options) *Client {
-	return &Client{
-		Options: opts,
-		Client: &http.Client{
-			Timeout: time.Second * 5,
-		},
-	}
-}
-
-func (c *Client) Name() string {
-	return "gcr"
-}
-
 func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.ImageTag, error) {
 	if repo != "" {
 		image = fmt.Sprintf("%s/%s", repo, image)
