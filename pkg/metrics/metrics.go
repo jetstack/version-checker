@@ -117,7 +117,7 @@ func (m *Metrics) RemoveImage(namespace, pod, container, containerType string) {
 	defer m.mu.Unlock()
 
 	index := m.latestImageIndex(namespace, pod, container, containerType)
-	item, ok := m.containerCache[index]
+	_, ok := m.containerCache[index]
 	if !ok {
 		return
 	}
