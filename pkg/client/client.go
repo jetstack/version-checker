@@ -138,7 +138,7 @@ func (c *Client) fromImageURL(imageURL string) (ImageClient, string, string) {
 // Filter out returned Tags that we know aren't "valid" versions/images
 func (c *Client) filterTags(tags []api.ImageTag, err error) ([]api.ImageTag, error) {
   var newTags []api.ImageTag
-  for tag, _ := range tags {
+  for _, tag := range tags {
 	if util.FilterSbomAttestationSigs(tag.Tag){
 		continue
 	}
