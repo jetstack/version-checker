@@ -126,7 +126,7 @@ func (m *Metrics) RemoveImage(namespace, pod, container, containerType string) {
 	}
 
 	m.containerImageVersion.DeletePartialMatch(
-		m.buildPartialLabels(namespace, pod, container, item.image),
+		m.buildPartialLabels(namespace, pod),
 	)
 	delete(m.containerCache, index)
 }
@@ -151,8 +151,6 @@ func (m *Metrics) buildPartialLabels(namespace, pod, container, imageURL string)
 	return prometheus.Labels{
 		"namespace": namespace,
 		"pod":       pod,
-		"container": container,
-		"image":     imageURL,
 	}
 }
 
