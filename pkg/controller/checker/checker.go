@@ -54,6 +54,11 @@ func (c *Checker) Container(ctx context.Context, log *logrus.Entry,
 			currentTag, currentSHA)
 	}
 
+	if opts.OverrideURL != nil && *opts.OverrideURL != imageURL {
+		log.Debugf("overriding image URL %s -> %s", imageURL, *opts.OverrideURL)
+		imageURL = *opts.OverrideURL
+	}
+
 	if opts.UseSHA {
 		result, err := c.isLatestSHA(ctx, imageURL, statusSHA, opts)
 		if err != nil {
