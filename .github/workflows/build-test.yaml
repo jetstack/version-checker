@@ -20,7 +20,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
       - name: Setup Golang
-        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.0
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: go.mod
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@3cfe3a4abbb849e10058ce4af15d205b6da42804      # v4.0.0
         with:
@@ -46,6 +48,8 @@ jobs:
       uses: actions/checkout@v3 # v3.5.3
     - name: Setup Go
       uses: actions/setup-go@v4
+      with:
+        go-version-file: go.mod
 
     - name: Download and required packages
       run: |
@@ -54,13 +58,13 @@ jobs:
     - name: Run all unit tests
       run: make test
 
-    - name: check test coverage
-      uses: vladopajic/go-test-coverage@v2
-      with:
-        config: ./.testcoverage.yml
+    - name: Check test coverage
+      run: |
+        go install github.com/vladopajic/go-test-coverage/v2@latest
+        go-test-coverage --config=./.testcoverage.yml
 
     - name: Generate code coverage artifacts
-      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+      uses: actions/upload-artifact@v4
       with:
         name: code-coverage
         path: coverage.out
