@@ -147,7 +147,7 @@ func (m *Metrics) buildLabels(namespace, pod, container, containerType, imageURL
 	}
 }
 
-func (m *Metrics) buildPartialLabels(namespace, pod, container, imageURL string) prometheus.Labels {
+func (m *Metrics) buildPartialLabels(namespace, pod string) prometheus.Labels {
 	return prometheus.Labels{
 		"namespace": namespace,
 		"pod":       pod,
