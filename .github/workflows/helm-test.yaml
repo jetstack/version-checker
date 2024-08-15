@@ -50,3 +50,14 @@ jobs:
             exit 0
           fi
           helm unittest deploy/charts/version-checker
+
+  security_policies:
+    name: Verify that the Helm chart complies with the pod security standards
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - name: Install Kyverno CLI
+        uses: kyverno/action-install-cli@v0.2.0
+      - uses: azure/setup-helm@v3
+      - run: kyverno apply -p https://github.com/kyverno/policies/pod-security/restricted --git-branch main --resource <(helm template deploy/charts/version-checker/)
