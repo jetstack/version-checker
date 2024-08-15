@@ -28,6 +28,16 @@ jobs:
           args: --timeout 10m --exclude SA5011 --verbose --issues-exit-code=0
           only-new-issues: true
 
+  govulncheck:
+    runs-on: ubuntu-latest
+    name: Run govulncheck
+    steps:
+      - id: govulncheck
+        uses: golang/govulncheck-action@v1
+        with:
+           go-version-file: go.mod
+           go-package: ./...
+
   test:
     name: Run unit tests for Go packages
     runs-on: ubuntu-latest
