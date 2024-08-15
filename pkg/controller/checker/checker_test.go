@@ -148,6 +148,23 @@ func TestContainer(t *testing.T) {
 				IsLatest:       true,
 			},
 		},
+		"if latest is latest version, and OverrideURL is set, then return true": {
+			statusSHA: "localhost:5000/version-checker@sha:123",
+			imageURL:  "localhost:5000/version-checker:latest",
+			opts: &api.Options{
+				OverrideURL: stringp("quay.io/jetstack/version-checker"),
+			},
+			searchResp: &api.ImageTag{
+				Tag: "",
+				SHA: "sha:123",
+			},
+			expResult: &Result{
+				CurrentVersion: "sha:123",
+				LatestVersion:  "sha:123",
+				ImageURL:       "quay.io/jetstack/version-checker",
+				IsLatest:       true,
+			},
+		},
 		"if using v0.2.0 with use sha, but not latest, return false": {
 			statusSHA: "localhost:5000/version-checker@sha:123",
 			imageURL:  "localhost:5000/version-checker:v0.2.0",
@@ -597,4 +614,8 @@ func TestURLAndTagFromImage(t *testing.T) {
 			}
 		})
 	}
+}
+
+func stringp(s string) *string {
+	return &s
 }

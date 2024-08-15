@@ -10,6 +10,7 @@ import (
 	"github.com/jetstack/version-checker/pkg/client/acr"
 	"github.com/jetstack/version-checker/pkg/client/docker"
 	"github.com/jetstack/version-checker/pkg/client/ecr"
+	"github.com/jetstack/version-checker/pkg/client/fallback"
 	"github.com/jetstack/version-checker/pkg/client/gcr"
 	"github.com/jetstack/version-checker/pkg/client/ghcr"
 	"github.com/jetstack/version-checker/pkg/client/quay"
@@ -167,7 +168,7 @@ func TestFromImageURL(t *testing.T) {
 		},
 		"selfhosted with different domain should be fallback": {
 			url:       "registry.opensource.zalan.do/teapot/external-dns",
-			expClient: new(selfhosted.Client),
+			expClient: new(fallback.Client),
 			expHost:   "registry.opensource.zalan.do",
 			expPath:   "teapot/external-dns",
 		},
