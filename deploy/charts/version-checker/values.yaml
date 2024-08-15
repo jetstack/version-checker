@@ -2,6 +2,9 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+# -- Override the Chart Name
+nameOverride: ""
+
 # -- Replica Count for version-checker
 replicaCount: 1
 
@@ -81,7 +84,7 @@ gcr:
   # -- (string) Access token for read access to private GCR registries
   token:
 
-# Google Artifact Registry Credentials Configuration
+# GitHub Container Registry Credentials Configuration
 ghcr:
   # -- (string) Personal Access token for read access to GHCR releases
   token:
@@ -108,6 +111,8 @@ selfhosted:
   #  password: bar
   #  token:
 
+# -- Provide an existing Secret within the cluster to use for authentication and configuration of version-checker
+existingSecret: ""
 
 # -- Setup version-checkers resource requests/limits
 resources:
@@ -121,7 +126,8 @@ resources:
   #
 
 # -- Set container-level security context
-securityContext: {}
+securityContext:
+  {}
   # allowPrivilegeEscalation: false
   # capabilities:
   #   drop:
