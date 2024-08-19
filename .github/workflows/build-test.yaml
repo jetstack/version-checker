@@ -12,7 +12,7 @@ jobs:
   lint:
     permissions:
       contents: read  # for actions/checkout to fetch code
-      pull-requests: read  # for golangci/golangci-lint-action to fetch pull requests
+      pull-requests: write  # for betteralign to comment on PR
       checks: write  # for golangci/golangci-lint-action to annotate Pull Requests
     name: Lint Go code
     runs-on: ubuntu-latest
@@ -27,6 +27,36 @@ jobs:
           version: v1.54
           args: --timeout 10m --exclude SA5011 --verbose --issues-exit-code=0
           only-new-issues: true
+      - name: Run betteralign
+        id: betteralign
+        run: |
+          go install github.com/dkorunic/betteralign/cmd/betteralign@latest
+          {
+            echo 'BETTERALIGN_OUTPUT<<EOF'
+            betteralign ./... 2>&1 || true
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+      - uses: actions/github-script@v7
+        env:
+          BETTERALIGN_OUTPUT: '${{env.BETTERALIGN_OUTPUT}}'
+        with:
+          script: |
+            const {BETTERALIGN_OUTPUT} = process.env
+            const output = `#### Betteralign 🤖
+            
+            \`\`\`bash
+            $ betteralign ./...
+            ${BETTERALIGN_OUTPUT}
+            \n\`\`\`
+
+            *Pushed by: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
 
   test:
     name: Run unit tests for Go packages
