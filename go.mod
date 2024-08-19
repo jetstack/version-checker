@@ -2,6 +2,7 @@ module github.com/jetstack/version-checker
 
 go 1.23.0
 
+
 // Do not remove this comment:
 // please place any replace statements here at the top for visibility and add a
 // comment to it as to when it can be removed
