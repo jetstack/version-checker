@@ -104,7 +104,7 @@ jobs:
         cache-to: type=gha,mode=max
 
     - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@0.19.0
+      uses: aquasecurity/trivy-action@0.24.0
       with:
         image-ref: 'quay.io/jetstack/version-checker:${{github.sha}}'
         format: 'table'
