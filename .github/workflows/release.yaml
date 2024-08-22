@@ -21,7 +21,7 @@ jobs:
       pull-requests: write
       contents: write
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: bhowell2/github-substring-action@1.0.2
         id: release_number
         with:
@@ -87,12 +87,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Checkout our Repo
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           path: version-checker
 
       - name: checkout jetstack-charts
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.JETSTACK_CHARTS_PAT }}
           repository: jetstack/jetstack-charts
@@ -125,7 +125,7 @@ jobs:
   docker-release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -158,7 +158,7 @@ jobs:
       contents: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Create Release / Change Logs
         uses: softprops/action-gh-release@v1

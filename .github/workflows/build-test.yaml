@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       - name: Setup Golang
         uses: actions/setup-go@v4
         with:
@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3 # v3.5.3
+      uses: actions/checkout@v4 # v3.5.3
     - name: Setup Go
       uses: actions/setup-go@v4
       with:
@@ -83,7 +83,7 @@ jobs:
     name: Build Images
     steps:
     - name: Checkout code
-      uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
 
