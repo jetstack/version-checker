@@ -18,13 +18,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       - name: Setup Golang
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@3cfe3a4abbb849e10058ce4af15d205b6da42804      # v4.0.0
+        uses: golangci/golangci-lint-action@aaa42aa0628b4ae2578232a66b541047968fac86      # v6.1.0
         with:
           version: v1.54
           args: --timeout 10m --exclude SA5011 --verbose --issues-exit-code=0
@@ -45,9 +45,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3 # v3.5.3
+      uses: actions/checkout@v4 # v3.5.3
     - name: Setup Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version-file: go.mod
 
@@ -83,7 +83,7 @@ jobs:
     name: Build Images
     steps:
     - name: Checkout code
-      uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
 
@@ -93,7 +93,7 @@ jobs:
         platforms: ${{ matrix.platform }}
 
     - name: Build Images
-      uses: docker/build-push-action@v4
+      uses: docker/build-push-action@v6
       with:
         context: .
         platforms: ${{ matrix.platform }}
@@ -104,7 +104,7 @@ jobs:
         cache-to: type=gha,mode=max
 
     - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@0.19.0
+      uses: aquasecurity/trivy-action@0.24.0
       with:
         image-ref: 'quay.io/jetstack/version-checker:${{github.sha}}'
         format: 'table'
