@@ -49,7 +49,7 @@ jobs:
           include: "Makefile"
           regex: true
       - name: Detect any Local Changes
-        uses: dorny/paths-filter@v2
+        uses: dorny/paths-filter@v3
         id: filter
         with:
           base: HEAD
