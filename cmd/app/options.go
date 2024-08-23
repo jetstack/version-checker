@@ -60,7 +60,7 @@ var (
 	selfhostedInsecureReg = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_INSECURE_(.*)")
 )
 
-// Options is a struct to hold options for the version-checker
+// Options is a struct to hold options for the version-checker.
 type Options struct {
 	MetricsServingAddress string
 	DefaultTestAll        bool
@@ -88,7 +88,7 @@ func (o *Options) addFlags(cmd *cobra.Command) {
 		return nil
 	})
 
-	cmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
+	cmd.SetHelpFunc(func(cmd *cobra.Command, _ []string) {
 		fmt.Fprintf(cmd.OutOrStdout(), "%s\n\n"+usageFmt, cmd.Long, cmd.UseLine())
 		cliflag.PrintSections(cmd.OutOrStdout(), nfs, 0)
 	})
@@ -329,55 +329,53 @@ func (o *Options) assignSelfhosted(envs []string) {
 		}
 	}
 
+	regexActions := map[*regexp.Regexp]func(matches []string, value string){
+		selfhostedHostReg: func(matches []string, value string) {
+			initOptions(matches[1])
+			o.Client.Selfhosted[matches[1]].Host = value
+		},
+		selfhostedUsernameReg: func(matches []string, value string) {
+			initOptions(matches[1])
+			o.Client.Selfhosted[matches[1]].Username = value
+		},
+		selfhostedPasswordReg: func(matches []string, value string) {
+			initOptions(matches[1])
+			o.Client.Selfhosted[matches[1]].Password = value
+		},
+		selfhostedTokenPath: func(matches []string, value string) {
+			initOptions(matches[1])
+			o.Client.Selfhosted[matches[1]].TokenPath = value
+		},
+		selfhostedTokenReg: func(matches []string, value string) {
+			initOptions(matches[1])
+			o.Client.Selfhosted[matches[1]].Bearer = value
+		},
+		selfhostedInsecureReg: func(matches []string, value string) {
+			initOptions(matches[1])
+			if val, err := strconv.ParseBool(value); err == nil {
+				o.Client.Selfhosted[matches[1]].Insecure = val
+			}
+		},
+		selfhostedCAPath: func(matches []string, value string) {
+			initOptions(matches[1])
+			o.Client.Selfhosted[matches[1]].CAPath = value
+		},
+	}
+
 	for _, env := range envs {
 		pair := strings.SplitN(env, "=", 2)
 		if len(pair) != 2 || len(pair[1]) == 0 {
 			continue
 		}
 
-		if matches := selfhostedHostReg.FindStringSubmatch(strings.ToUpper(pair[0])); len(matches) == 2 {
-			initOptions(matches[1])
-			o.Client.Selfhosted[matches[1]].Host = pair[1]
-			continue
-		}
+		key := strings.ToUpper(pair[0])
+		value := pair[1]
 
-		if matches := selfhostedUsernameReg.FindStringSubmatch(strings.ToUpper(pair[0])); len(matches) == 2 {
-			initOptions(matches[1])
-			o.Client.Selfhosted[matches[1]].Username = pair[1]
-			continue
-		}
-
-		if matches := selfhostedPasswordReg.FindStringSubmatch(strings.ToUpper(pair[0])); len(matches) == 2 {
-			initOptions(matches[1])
-			o.Client.Selfhosted[matches[1]].Password = pair[1]
-			continue
-		}
-
-		if matches := selfhostedTokenPath.FindStringSubmatch(strings.ToUpper(pair[0])); len(matches) == 2 {
-			initOptions(matches[1])
-			o.Client.Selfhosted[matches[1]].TokenPath = pair[1]
-			continue
-		}
-
-		if matches := selfhostedTokenReg.FindStringSubmatch(strings.ToUpper(pair[0])); len(matches) == 2 {
-			initOptions(matches[1])
-			o.Client.Selfhosted[matches[1]].Bearer = pair[1]
-			continue
-		}
-
-		if matches := selfhostedInsecureReg.FindStringSubmatch(strings.ToUpper(pair[0])); len(matches) == 2 {
-			initOptions(matches[1])
-			val, err := strconv.ParseBool(pair[1])
-			if err == nil {
-				o.Client.Selfhosted[matches[1]].Insecure = val
+		for regex, action := range regexActions {
+			if matches := regex.FindStringSubmatch(key); len(matches) == 2 {
+				action(matches, value)
+				break
 			}
-			continue
-		}
-
-		if matches := selfhostedCAPath.FindStringSubmatch(strings.ToUpper(pair[0])); len(matches) == 2 {
-			initOptions(matches[1])
-			o.Client.Selfhosted[matches[1]].CAPath = pair[1]
-			continue
 		}
 	}
 

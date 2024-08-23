@@ -33,7 +33,7 @@ var (
 	}
 )
 
-// Join repo and image strings
+// Join repo and image strings.
 func JoinRepoImage(repo, image string) string {
 	if len(repo) == 0 {
 		return image
@@ -45,7 +45,7 @@ func JoinRepoImage(repo, image string) string {
 	return repo + "/" + image
 }
 
-// Attempt to determine the OS and Arch, given a tag name
+// Attempt to determine the OS and Arch, given a tag name.
 func OSArchFromTag(tag string) (api.OS, api.Architecture) {
 	var (
 		os    api.OS

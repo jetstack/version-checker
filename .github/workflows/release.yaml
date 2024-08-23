@@ -34,6 +34,13 @@ jobs:
           replace: "${{steps.release_number.outputs.substring}}"
           include: "deploy/charts/version-checker/Chart.yaml"
           regex: true
+      - name: Find and Replace Helm Chart README
+        uses: jacobtomlinson/gha-find-replace@v3
+        with:
+          find: 'v(\d+)\.(\d+)\.(\d+)(-rc(\d)+)?'
+          replace: "${{steps.release_number.outputs.substring}}"
+          include: "deploy/charts/version-checker/README.md"
+          regex: true
       - name: Find and Replace Kubernetes Manifests
         uses: jacobtomlinson/gha-find-replace@v3
         with:

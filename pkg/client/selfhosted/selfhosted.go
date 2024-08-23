@@ -22,14 +22,14 @@ import (
 )
 
 const (
-	// {host}/v2/{repo/image}/tags/list?n=500
+	// {host}/v2/{repo/image}/tags/list?n=500.
 	tagsPath = "%s/v2/%s/tags/list?n=500"
-	// /v2/{repo/image}/manifests/{tag}
+	// /v2/{repo/image}/manifests/{tag}.
 	manifestPath = "%s/v2/%s/manifests/%s"
-	// Token endpoint
+	// Token endpoint.
 	defaultTokenPath = "/v2/token"
 
-	// HTTP headers to request API version
+	// HTTP headers to request API version.
 	dockerAPIv1Header = "application/vnd.docker.distribution.manifest.v1+json"
 	dockerAPIv2Header = "application/vnd.docker.distribution.manifest.v2+json"
 )
@@ -85,59 +85,79 @@ func New(ctx context.Context, log *logrus.Entry, opts *Options) (*Client, error)
 		log:     log.WithField("client", opts.Host),
 	}
 
-	// Set up client with host matching if set
-	if opts.Host != "" {
-		hostRegex, scheme, err := parseURL(opts.Host)
-		if err != nil {
-			return nil, fmt.Errorf("failed parsing url: %s", err)
-		}
-		client.hostRegex = hostRegex
-		client.httpScheme = scheme
-
-		// Setup Auth if username and password used.
-		if len(opts.Username) > 0 || len(opts.Password) > 0 {
-			if len(opts.Bearer) > 0 {
-				return nil, errors.New("cannot specify Bearer token as well as username/password")
-			}
-
-			tokenPath := opts.TokenPath
-			if tokenPath == "" {
-				tokenPath = defaultTokenPath
-			}
-
-			token, err := client.setupBasicAuth(ctx, opts.Host, tokenPath)
-			if httpErr, ok := selfhostederrors.IsHTTPError(err); ok {
-				return nil, fmt.Errorf("failed to setup token auth (%d): %s",
-					httpErr.StatusCode, httpErr.Body)
-			}
-
-			if err != nil {
-				return nil, fmt.Errorf("failed to setup token auth: %s", err)
-			}
-			client.Bearer = token
-		}
+	if err := client.setupHostAndAuth(ctx); err != nil {
+		return nil, err
 	}
 
-	// Default to https if no scheme set
-	if client.httpScheme == "" {
-		client.httpScheme = "https"
-	}
-	if client.httpScheme == "https" {
-		tlsConfig, err := newTLSConfig(opts.Insecure, opts.CAPath)
-		if err != nil {
-			return nil, err
-		}
+	client.setDefaultScheme()
 
-		client.Client.Transport = &http.Transport{
-			TLSClientConfig: tlsConfig,
-			Proxy:           http.ProxyFromEnvironment,
-		}
+	if err := client.setupTLSConfig(); err != nil {
+		return nil, err
 	}
 
 	return client, nil
 }
 
-// Name returns the name of the host URL for the selfhosted client
+func (c *Client) setupHostAndAuth(ctx context.Context) error {
+	if c.Options.Host == "" {
+		return nil
+	}
+
+	hostRegex, scheme, err := parseURL(c.Options.Host)
+	if err != nil {
+		return fmt.Errorf("failed parsing url: %w", err)
+	}
+	c.hostRegex = hostRegex
+	c.httpScheme = scheme
+
+	if len(c.Options.Username) > 0 || len(c.Options.Password) > 0 {
+		if len(c.Options.Bearer) > 0 {
+			return errors.New("cannot specify Bearer token as well as username/password")
+		}
+
+		tokenPath := c.Options.TokenPath
+		if tokenPath == "" {
+			tokenPath = defaultTokenPath
+		}
+
+		token, err := c.setupBasicAuth(ctx, c.Options.Host, tokenPath)
+		if httpErr, ok := selfhostederrors.IsHTTPError(err); ok {
+			return fmt.Errorf("failed to setup token auth (%d): %s", httpErr.StatusCode, httpErr.Body)
+		}
+		if err != nil {
+			return fmt.Errorf("failed to setup token auth: %w", err)
+		}
+		c.Bearer = token
+	}
+
+	return nil
+}
+
+func (c *Client) setDefaultScheme() {
+	if c.httpScheme == "" {
+		c.httpScheme = "https"
+	}
+}
+
+func (c *Client) setupTLSConfig() error {
+	if c.httpScheme != "https" {
+		return nil
+	}
+
+	tlsConfig, err := newTLSConfig(c.Options.Insecure, c.Options.CAPath)
+	if err != nil {
+		return err
+	}
+
+	c.Client.Transport = &http.Transport{
+		TLSClientConfig: tlsConfig,
+		Proxy:           http.ProxyFromEnvironment,
+	}
+
+	return nil
+}
+
+// Name returns the name of the host URL for the selfhosted client.
 func (c *Client) Name() string {
 	if len(c.Host) == 0 {
 		return "dockerapi"
@@ -229,6 +249,7 @@ func (c *Client) doRequest(ctx context.Context, url, header string, obj interfac
 	if err != nil {
 		return nil, fmt.Errorf("failed to get docker image: %s", err)
 	}
+	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -268,6 +289,7 @@ func (c *Client) setupBasicAuth(ctx context.Context, url, tokenPath string) (str
 		return "", fmt.Errorf("failed to send basic auth request %q: %s",
 			req.URL, err)
 	}
+	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
