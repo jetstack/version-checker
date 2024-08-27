@@ -6,8 +6,6 @@ go 1.22.6
 // please place any replace statements here at the top for visibility and add a
 // comment to it as to when it can be removed
 
-replace github.com/imdario/mergo => github.com/imdario/mergo v0.3.16
-
 require (
 	github.com/Azure/go-autorest/autorest v0.11.29
 	github.com/Azure/go-autorest/autorest/adal v0.9.24
@@ -33,7 +31,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ecr v1.32.2
 	github.com/gofri/go-github-ratelimit v1.1.0
 	github.com/google/go-containerregistry v0.20.2
-	github.com/google/go-github/v58 v58.0.0
+	github.com/google/go-github/v62 v62.0.0
+	github.com/jarcoal/httpmock v1.3.1
 	github.com/stretchr/testify v1.9.0
 )
 
@@ -127,3 +126,5 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
+
+replace github.com/imdario/mergo => github.com/imdario/mergo v0.3.16
