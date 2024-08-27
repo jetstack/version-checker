@@ -115,7 +115,6 @@ func TestRepoImage(t *testing.T) {
 				t.Errorf("%s: unexpected repo/image, exp=%s/%s got=%s/%s",
 					test.path, test.expRepo, test.expImage, repo, image)
 			}
-
 		})
 	}
 }
