@@ -44,10 +44,6 @@ func (v *Version) Run(refreshRate time.Duration) {
 // LatestTagFromImage will return the latest tag given an imageURL, according
 // to the given options.
 func (v *Version) LatestTagFromImage(ctx context.Context, imageURL string, opts *api.Options) (*api.ImageTag, error) {
-	if override := opts.OverrideURL; override != nil && len(*override) > 0 {
-		v.log.Debugf("overriding image lookup %s -> %s", imageURL, *override)
-		imageURL = *override
-	}
 	tagsI, err := v.imageCache.Get(ctx, imageURL, imageURL, nil)
 	if err != nil {
 		return nil, err
@@ -105,7 +101,6 @@ func (v *Version) Fetch(ctx context.Context, imageURL string, _ *api.Options) (i
 // latestSemver will return the latest ImageTag based on the given options
 // restriction, using semver. This should not be used is UseSHA has been
 // enabled.
-// TODO: add tests..
 func latestSemver(opts *api.Options, tags []api.ImageTag) (*api.ImageTag, error) {
 	var (
 		latestImageTag *api.ImageTag
@@ -151,6 +146,10 @@ func latestSemver(opts *api.Options, tags []api.ImageTag) (*api.ImageTag, error)
 			latestV = v
 			latestImageTag = &tags[i]
 		}
+	}
+
+	if latestImageTag == nil {
+		return nil, fmt.Errorf("no suitable version found")
 	}
 
 	return latestImageTag, nil

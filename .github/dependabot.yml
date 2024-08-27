@@ -4,10 +4,23 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 0
-
+    groups:
+      "GitHub Actions":
+        patterns:
+          - "*"
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 0
+    groups:
+      "Go Dependencies":
+        patterns:
+          - "*"
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      "Container Images":
+        patterns:
+          - "*"

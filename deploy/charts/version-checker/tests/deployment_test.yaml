@@ -432,7 +432,14 @@ tests:
         runAsUser: 65534
       securityContext:
         allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
         readOnlyRootFilesystem: true
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile:
+          type: RuntimeDefault
     asserts:
       - equal:
           path: spec.template.spec.securityContext
@@ -442,4 +449,11 @@ tests:
           path: spec.template.spec.containers[0].securityContext
           value:
             allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
             readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65534
+            seccompProfile:
+              type: RuntimeDefault

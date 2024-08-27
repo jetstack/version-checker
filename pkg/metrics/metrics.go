@@ -12,6 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -37,7 +38,7 @@ type cacheItem struct {
 }
 
 func New(log *logrus.Entry) *Metrics {
-	containerImageVersion := prometheus.NewGaugeVec(
+	containerImageVersion := promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: "version_checker",
 			Name:      "is_latest_version",
@@ -48,12 +49,8 @@ func New(log *logrus.Entry) *Metrics {
 		},
 	)
 
-	registry := prometheus.NewRegistry()
-	registry.MustRegister(containerImageVersion)
-
 	return &Metrics{
 		log:                   log.WithField("module", "metrics"),
-		registry:              registry,
 		containerImageVersion: containerImageVersion,
 		containerCache:        make(map[string]cacheItem),
 	}
@@ -62,7 +59,7 @@ func New(log *logrus.Entry) *Metrics {
 // Run will run the metrics server
 func (m *Metrics) Run(servingAddress string) error {
 	router := http.NewServeMux()
-	router.Handle("/metrics", promhttp.HandlerFor(m.registry, promhttp.HandlerOpts{}))
+	router.Handle("/metrics", promhttp.Handler())
 	router.Handle("/healthz", http.HandlerFunc(m.healthzAndReadyzHandler))
 	router.Handle("/readyz", http.HandlerFunc(m.healthzAndReadyzHandler))
 
@@ -120,13 +117,13 @@ func (m *Metrics) RemoveImage(namespace, pod, container, containerType string) {
 	defer m.mu.Unlock()
 
 	index := m.latestImageIndex(namespace, pod, container, containerType)
-	item, ok := m.containerCache[index]
+	_, ok := m.containerCache[index]
 	if !ok {
 		return
 	}
 
-	m.containerImageVersion.Delete(
-		m.buildLabels(namespace, pod, container, containerType, item.image, item.currentVersion, item.latestVersion),
+	m.containerImageVersion.DeletePartialMatch(
+		m.buildPartialLabels(namespace, pod),
 	)
 	delete(m.containerCache, index)
 }
@@ -144,6 +141,13 @@ func (m *Metrics) buildLabels(namespace, pod, container, containerType, imageURL
 		"image":           imageURL,
 		"current_version": currentVersion,
 		"latest_version":  latestVersion,
+	}
+}
+
+func (m *Metrics) buildPartialLabels(namespace, pod string) prometheus.Labels {
+	return prometheus.Labels{
+		"namespace": namespace,
+		"pod":       pod,
 	}
 }
 
