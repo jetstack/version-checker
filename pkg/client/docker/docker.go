@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jetstack/version-checker/pkg/api"
+	"github.com/jetstack/version-checker/pkg/client/util"
 )
 
 const (
@@ -105,6 +106,10 @@ func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTa
 			for _, image := range result.Images {
 				// Image without digest contains no real image.
 				if len(image.Digest) == 0 {
+					continue
+				}
+				// Filter SBOMS, Attestations, Signiture Tags
+				if util.FilterSbomAttestationSigs(result.Name) {
 					continue
 				}
 

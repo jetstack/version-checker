@@ -45,3 +45,29 @@ func TestJoinRepoImage(t *testing.T) {
 		})
 	}
 }
+
+// Unit tests for FilterSbomAttestationSigs function
+func TestFilterSbomAttestationSigs(t *testing.T) {
+	tests := []struct {
+		tag      string
+		expected bool
+	}{
+		{"example.att", true},
+		{"example.sig", true},
+		{"example.sbom", true},
+		{"example.att.sig", true},
+		{"example.att.sbom", true},
+		{"example.sig.sbom", true},
+		{"example.txt", false},
+		{"example.png", false},
+		{"example", false},
+		{"example.att.sig.sbom", true},
+	}
+
+	for _, test := range tests {
+		result := FilterSbomAttestationSigs(test.tag)
+		if result != test.expected {
+			t.Errorf("FilterSbomAttestationSigs(%s) = %v; want %v", test.tag, result, test.expected)
+		}
+	}
+}
