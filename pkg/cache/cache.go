@@ -29,13 +29,13 @@ type cacheItem struct {
 	i         interface{}
 }
 
-// Handler is an interface for implementations of the cache fetch
+// Handler is an interface for implementations of the cache fetch.
 type Handler interface {
 	// Fetch should fetch an item by the given index and options
 	Fetch(ctx context.Context, index string, opts *api.Options) (interface{}, error)
 }
 
-// New returns a new generic Cache
+// New returns a new generic Cache.
 func New(log *logrus.Entry, timeout time.Duration, handler Handler) *Cache {
 	return &Cache{
 		log:     log.WithField("cache", "handler"),
@@ -99,7 +99,6 @@ func (c *Cache) StartGarbageCollector(refreshRate time.Duration) {
 		now := time.Now()
 		for index, item := range c.store {
 			if item.timestamp.Add(c.timeout).Before(now) {
-
 				log.Debugf("removing stale cache item: %q", index)
 				delete(c.store, index)
 			}

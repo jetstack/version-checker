@@ -42,7 +42,7 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 	return c.OCI.Tags(ctx, host, repo, image)
 }
 
-func (c *Client) IsHost(host string) bool {
+func (c *Client) IsHost(_ string) bool {
 	return true
 }
 

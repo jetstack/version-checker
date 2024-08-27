@@ -14,7 +14,7 @@ import (
 	"github.com/jetstack/version-checker/pkg/version"
 )
 
-// Searcher is the interface for Search to facilitate testing
+// Searcher is the interface for Search to facilitate testing.
 type Searcher interface {
 	Run(time.Duration)
 	LatestImage(context.Context, string, *api.Options) (*api.ImageTag, error)
@@ -28,7 +28,7 @@ type Search struct {
 	searchCache   *cache.Cache
 }
 
-// New creates a new Search for querying searches over image tags
+// New creates a new Search for querying searches over image tags.
 func New(log *logrus.Entry, cacheTimeout time.Duration, versionGetter *version.Version) *Search {
 	s := &Search{
 		log:           log.WithField("module", "search"),

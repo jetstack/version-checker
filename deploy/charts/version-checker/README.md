@@ -56,6 +56,12 @@ A Helm chart for version-checker
 | replicaCount | int | `1` | Replica Count for version-checker |
 | resources | object | `{}` | Setup version-checkers resource requests/limits |
 | securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsNonRoot":true,"runAsUser":65534,"seccompProfile":{"type":"RuntimeDefault"}}` | Set container-level security context |
+| securityContext.allowPrivilegeEscalation | bool | `false` | Prevent the container from PrivilegeEscalation |
+| securityContext.capabilities | object | `{"drop":["ALL"]}` | Ensure that we run with the capabilities we explicitly need to run |
+| securityContext.readOnlyRootFilesystem | bool | `true` | Readonly Filesystem |
+| securityContext.runAsNonRoot | bool | `true` | Ensure we don't run as root |
+| securityContext.runAsUser | int | `65534` | Specify UID to run under |
+| securityContext.seccompProfile | object | `{"type":"RuntimeDefault"}` | SeccomProfile to use |
 | selfhosted | []{name: "", host: "", username:"", password:"", token:""}] | `[]` | Setup a number of SelfHosted Repositories and their credentials |
 | service.annotations | object | `{}` | Additional annotations to add to the service |
 | service.labels | object | `{}` | Additional labels to add to the service |

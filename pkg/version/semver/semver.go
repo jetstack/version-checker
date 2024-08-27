@@ -48,25 +48,44 @@ func Parse(tag string) *SemVer {
 // LessThan will return true if the given semver is equal, or larger that the
 // calling semver. If the calling SemVer has metadata, then ASCII comparison
 // will take place on the version.
-// e.g. v1.0.1-alpha.1 < v1.0.1-beta.0
+// e.g. v1.0.1-alpha.1 < v1.0.1-beta.0.
 func (s *SemVer) LessThan(other *SemVer) bool {
-	if len(other.original) == 0 || len(s.original) == 0 {
+	if s.isInvalidComparison(other) {
 		return len(s.original) < len(other.original)
 	}
 
-	// if s doesn't have metadata but other doesn't, false.
+	// Compare stable vs. pre-release
 	if !s.HasMetaData() && other.HasMetaData() {
 		return false
 	}
+	if s.HasMetaData() && !other.HasMetaData() {
+		return true
+	}
 
+	// Compare version numbers
+	if s.compareVersionNumbers(other) {
+		return true
+	}
+
+	// Compare pre-release metadata
+	return s.comparePreReleaseMetadata(other)
+}
+func (s *SemVer) isInvalidComparison(other *SemVer) bool {
+	return len(other.original) == 0 || len(s.original) == 0
+}
+func (s *SemVer) compareVersionNumbers(other *SemVer) bool {
 	for i := 0; i < 3; i++ {
 		if s.version[i] != other.version[i] {
 			return s.version[i] < other.version[i]
 		}
 	}
+	return false
+}
 
+func (s *SemVer) comparePreReleaseMetadata(other *SemVer) bool {
 	sWords := parseStringToWords(s.metadata)
 	otherWords := parseStringToWords(other.metadata)
+
 	l := len(sWords)
 	if len(otherWords) > l {
 		l = len(otherWords)
@@ -97,7 +116,7 @@ func (s *SemVer) Equal(other *SemVer) bool {
 
 // HasMetaData returns whether this SemVer has metadata. MetaData is defined
 // as a tag containing anything after the patch digit.
-// e.g. v1.0.1-gke.3, v1.0.1-alpha.0, v1.2.3.4
+// e.g. v1.0.1-gke.3, v1.0.1-alpha.0, v1.2.3.4.
 func (s *SemVer) HasMetaData() bool {
 	return len(s.metadata) > 0
 }

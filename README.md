@@ -1,5 +1,10 @@
 # version-checker
 
+![GitHub Release](https://img.shields.io/github/v/release/jetstack/version-checker)
+[![Go Report Card](https://goreportcard.com/badge/github.com/jetstack/version-checker)](https://goreportcard.com/report/github.com/jetstack/version-checker)
+[![Tests](https://github.com/jetstack/version-checker/actions/workflows/build-test.yaml/badge.svg)](https://github.com/jetstack/version-checker/actions/workflows/build-test.yaml?query=branch%3Amain)
+![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/jetstack/version-checker)
+
 version-checker is a Kubernetes utility for observing the current versions of
 images running in the cluster, as well as the latest available upstream. These
 checks get exposed as Prometheus metrics to be viewed on a dashboard, or _soft_

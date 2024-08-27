@@ -25,7 +25,7 @@ var afterFunc = func(c clock.Clock, d time.Duration, f func()) stoppable {
 	return t
 }
 
-// stoppable is the subset of time.Timer which we use, split out for mocking purposes
+// stoppable is the subset of time.Timer which we use, split out for mocking purposes.
 type stoppable interface {
 	Stop() bool
 }
@@ -52,7 +52,7 @@ type scheduledWorkQueue struct {
 	workLock    sync.Mutex
 }
 
-// NewScheduledWorkQueue will create a new workqueue with the given processFunc
+// NewScheduledWorkQueue will create a new workqueue with the given processFunc.
 func NewScheduledWorkQueue(clock clock.Clock, processFunc ProcessFunc) ScheduledWorkQueue {
 	return &scheduledWorkQueue{
 		processFunc: processFunc,
@@ -82,7 +82,7 @@ func (s *scheduledWorkQueue) Forget(obj interface{}) {
 	s.forget(obj)
 }
 
-// forget cancels and removes an item. It *must* be called with the lock already held
+// forget cancels and removes an item. It *must* be called with the lock already held.
 func (s *scheduledWorkQueue) forget(obj interface{}) {
 	if timer, ok := s.work[obj]; ok {
 		timer.Stop()

@@ -27,7 +27,7 @@ func NewCommand(ctx context.Context) *cobra.Command {
 		Use:   "version-checker",
 		Short: helpOutput,
 		Long:  helpOutput,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			opts.complete()
 
 			logLevel, err := logrus.ParseLevel(opts.LogLevel)

@@ -52,7 +52,6 @@ jobs:
           include: "Makefile"
           regex: true
 
-
       - name: Install Helm Docs
         uses: envoy/install-helm-docs@v1.0.0
         with:
@@ -93,7 +92,6 @@ jobs:
       - name: Build Changelog
         id: github_release
         uses: mikepenz/release-changelog-builder-action@v5
-
 
       - name: Create Release PR
         uses: devops-infra/action-pull-request@v0.5.5

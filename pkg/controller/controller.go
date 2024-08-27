@@ -35,7 +35,7 @@ type Controller struct {
 
 	kubeClient         kubernetes.Interface
 	podLister          corev1listers.PodLister
-	workqueue          workqueue.RateLimitingInterface
+	workqueue          workqueue.TypedRateLimitingInterface[any]
 	scheduledWorkQueue scheduler.ScheduledWorkQueue
 
 	metrics *metrics.Metrics
@@ -52,7 +52,7 @@ func New(
 	log *logrus.Entry,
 	defaultTestAll bool,
 ) *Controller {
-	workqueue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
+	workqueue := workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[any]())
 	scheduledWorkQueue := scheduler.NewScheduledWorkQueue(clock.RealClock{}, workqueue.Add)
 
 	log = log.WithField("module", "controller")
@@ -79,7 +79,7 @@ func (c *Controller) Run(ctx context.Context, cacheRefreshRate time.Duration) er
 	sharedInformerFactory := informers.NewSharedInformerFactoryWithOptions(c.kubeClient, time.Second*30)
 	c.podLister = sharedInformerFactory.Core().V1().Pods().Lister()
 	podInformer := sharedInformerFactory.Core().V1().Pods().Informer()
-	podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err := podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: c.addObject,
 		UpdateFunc: func(old, new interface{}) {
 			if key, err := cache.MetaNamespaceKeyFunc(old); err == nil {
@@ -89,6 +89,9 @@ func (c *Controller) Run(ctx context.Context, cacheRefreshRate time.Duration) er
 		},
 		DeleteFunc: c.deleteObject,
 	})
+	if err != nil {
+		return fmt.Errorf("error creating podInformer: %s", err)
+	}
 
 	c.log.Info("starting control loop")
 	sharedInformerFactory.Start(ctx.Done())

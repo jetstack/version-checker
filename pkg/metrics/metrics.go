@@ -21,7 +21,6 @@ import (
 type Metrics struct {
 	*http.Server
 
-	registry              *prometheus.Registry
 	containerImageVersion *prometheus.GaugeVec
 	log                   *logrus.Entry
 
@@ -56,7 +55,7 @@ func New(log *logrus.Entry) *Metrics {
 	}
 }
 
-// Run will run the metrics server
+// Run will run the metrics server.
 func (m *Metrics) Run(servingAddress string) error {
 	router := http.NewServeMux()
 	router.Handle("/metrics", promhttp.Handler())
@@ -171,7 +170,7 @@ func (m *Metrics) Shutdown() error {
 	return nil
 }
 
-func (m *Metrics) healthzAndReadyzHandler(w http.ResponseWriter, r *http.Request) {
+func (m *Metrics) healthzAndReadyzHandler(w http.ResponseWriter, _ *http.Request) {
 	// Its not great, but does help ensure that we're alive and ready over
 	// calling the /metrics endpoint which can be expensive on large payloads
 	_, err := w.Write([]byte("OK"))
