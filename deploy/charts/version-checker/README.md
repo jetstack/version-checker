@@ -1,6 +1,6 @@
 # version-checker
 
-![Version: v0.7.0](https://img.shields.io/badge/Version-v0.7.0-informational?style=flat-square) ![AppVersion: v0.7.0](https://img.shields.io/badge/AppVersion-v0.7.0-informational?style=flat-square)
+![Version: v0.8.1](https://img.shields.io/badge/Version-v0.8.1-informational?style=flat-square) ![AppVersion: v0.8.1](https://img.shields.io/badge/AppVersion-v0.8.1-informational?style=flat-square)
 
 A Helm chart for version-checker
 
@@ -55,7 +55,7 @@ A Helm chart for version-checker
 | readinessProbe.periodSeconds | int | `3` | How often (in seconds) to perform the readinessProbe. |
 | replicaCount | int | `1` | Replica Count for version-checker |
 | resources | object | `{}` | Setup version-checkers resource requests/limits |
-| securityContext | object | `{}` | Set container-level security context |
+| securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsNonRoot":true,"runAsUser":65534,"seccompProfile":{"type":"RuntimeDefault"}}` | Set container-level security context |
 | selfhosted | []{name: "", host: "", username:"", password:"", token:""}] | `[]` | Setup a number of SelfHosted Repositories and their credentials |
 | service.annotations | object | `{}` | Additional annotations to add to the service |
 | service.labels | object | `{}` | Additional labels to add to the service |
