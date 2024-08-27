@@ -2,9 +2,10 @@ name: Generate code coverage badge
 
 on:
   workflow_dispatch: # Here for Testing
-  push:
-    branches:
-      - main
+  workflow_call:
+
+permissions:
+  contents: write
 
 jobs:
   test:
