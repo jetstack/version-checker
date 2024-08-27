@@ -1,5 +1,7 @@
 name: Generate Helm Docs
 on:
+  # Allow other workflows to trigger
+  workflow_call:
   push:
     paths:
       - '!*.md'
