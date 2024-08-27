@@ -39,7 +39,7 @@ func (c *Controller) sync(ctx context.Context, pod *corev1.Pod) error {
 	return nil
 }
 
-// syncContainer will enqueue a given container to check the version
+// syncContainer will enqueue a given container to check the version.
 func (c *Controller) syncContainer(ctx context.Context, log *logrus.Entry, builder *options.Builder, pod *corev1.Pod,
 	container *corev1.Container, containerType string) error {
 	// If not enabled, exit early

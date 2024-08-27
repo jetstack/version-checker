@@ -8,7 +8,7 @@ import (
 	"github.com/jetstack/version-checker/pkg/api"
 )
 
-// pager is used for implementing the paging mechanism for fetching image tags
+// pager is used for implementing the paging mechanism for fetching image tags.
 type pager struct {
 	*Client
 
@@ -53,7 +53,7 @@ func (p *pager) fetchTags(ctx context.Context) error {
 }
 
 // fetchTagsPaged will return the image tags from a given page number, as well
-// as if there are more pages
+// as if there are more pages.
 func (p *pager) fetchTagsPaged(ctx context.Context, page int) (bool, error) {
 	url := fmt.Sprintf(tagURL, p.repo, p.image, page)
 	var resp responseTag

@@ -64,7 +64,6 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 
 	var tags []api.ImageTag
 	for _, img := range images.ImageDetails {
-
 		// Continue early if no tags available
 		if len(img.ImageTags) == 0 {
 			tags = append(tags, api.ImageTag{

@@ -127,13 +127,19 @@ resources:
 
 # -- Set container-level security context
 securityContext:
+  # -- Prevent the container from PrivilegeEscalation
   allowPrivilegeEscalation: false
+  # -- Ensure that we run with the capabilities we explicitly need to run
   capabilities:
     drop:
       - ALL
+  # -- Readonly Filesystem
   readOnlyRootFilesystem: true
+  # -- Ensure we don't run as root
   runAsNonRoot: true
+  # -- Specify UID to run under
   runAsUser: 65534
+  # -- SeccomProfile to use
   seccompProfile:
     type: RuntimeDefault
 

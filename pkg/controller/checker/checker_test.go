@@ -263,7 +263,6 @@ func TestContainer(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-
 			checker := New(search.New().With(test.searchResp, nil))
 			pod := &corev1.Pod{
 				Status: corev1.PodStatus{
@@ -306,7 +305,7 @@ func TestContainerStatusImageSHA(t *testing.T) {
 		},
 		"if status with wrong name, then return ''": {
 			status: []corev1.ContainerStatus{
-				corev1.ContainerStatus{
+				{
 					Name:    "foo",
 					ImageID: "123",
 				},
@@ -316,11 +315,11 @@ func TestContainerStatusImageSHA(t *testing.T) {
 		},
 		"if status with wrong name and correct, then return '456'": {
 			status: []corev1.ContainerStatus{
-				corev1.ContainerStatus{
+				{
 					Name:    "foo",
 					ImageID: "123",
 				},
-				corev1.ContainerStatus{
+				{
 					Name:    "test-name",
 					ImageID: "456",
 				},
@@ -330,15 +329,15 @@ func TestContainerStatusImageSHA(t *testing.T) {
 		},
 		"if status with multiple status, then return first '456'": {
 			status: []corev1.ContainerStatus{
-				corev1.ContainerStatus{
+				{
 					Name:    "foo",
 					ImageID: "123",
 				},
-				corev1.ContainerStatus{
+				{
 					Name:    "test-name",
 					ImageID: "456",
 				},
-				corev1.ContainerStatus{
+				{
 					Name:    "test-name",
 					ImageID: "789",
 				},
@@ -348,11 +347,11 @@ func TestContainerStatusImageSHA(t *testing.T) {
 		},
 		"if status with includes URL, then return just SHA": {
 			status: []corev1.ContainerStatus{
-				corev1.ContainerStatus{
+				{
 					Name:    "foo",
 					ImageID: "123",
 				},
-				corev1.ContainerStatus{
+				{
 					Name:    "test-name",
 					ImageID: "localhost:5000/joshvanl/version-checker@sha:456",
 				},

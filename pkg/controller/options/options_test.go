@@ -60,7 +60,7 @@ func TestBuild(t *testing.T) {
 				api.UseSHAAnnotationKey + "/test-name":     "true",
 			},
 			expOptions: nil,
-			expErr:     `cannot define "use-sha.version-checker.io/test-name" with any semver otions`,
+			expErr:     `cannot define "use-sha.version-checker.io/test-name" with any semver options`,
 		},
 		"cannot use sha with non sha options (pins)": {
 			containerName: "test-name",
@@ -70,7 +70,7 @@ func TestBuild(t *testing.T) {
 				api.UseSHAAnnotationKey + "/test-name":   "true",
 			},
 			expOptions: nil,
-			expErr:     `cannot define "use-sha.version-checker.io/test-name" with any semver otions`,
+			expErr:     `cannot define "use-sha.version-checker.io/test-name" with any semver options`,
 		},
 		"output options for pins and add metadata": {
 			containerName: "test-name",
