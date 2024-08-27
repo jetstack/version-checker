@@ -21,7 +21,7 @@ jobs:
       pull-requests: write
       contents: write
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: bhowell2/github-substring-action@1.0.2
         id: release_number
         with:
@@ -56,7 +56,7 @@ jobs:
           include: "Makefile"
           regex: true
       - name: Detect any Local Changes
-        uses: dorny/paths-filter@v2
+        uses: dorny/paths-filter@v3
         id: filter
         with:
           base: HEAD
@@ -74,7 +74,7 @@ jobs:
           git commit -a -m "Bump versions to ${{steps.release_number.outputs.substring}} "
       - name: Push changes
         if: steps.filter.outputs.versions == 'true'
-        uses: ad-m/github-push-action@v0.6.0
+        uses: ad-m/github-push-action@v0.8.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: ${{ github.ref_name }}
@@ -94,19 +94,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Checkout our Repo
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           path: version-checker
 
       - name: checkout jetstack-charts
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.JETSTACK_CHARTS_PAT }}
           repository: jetstack/jetstack-charts
           ref: main
           path: jetstack-charts
 
-      - uses: azure/setup-helm@v3
+      - uses: azure/setup-helm@v4
         with:
           token: ${{ github.token }}
 
@@ -116,7 +116,7 @@ jobs:
 
       - name: Creating PR
         if: startsWith(github.ref, 'refs/tags/')
-        uses: peter-evans/create-pull-request@v5
+        uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.JETSTACK_CHARTS_PAT }}
           title: "Release version-checker ${{github.ref_name }}"
@@ -132,7 +132,7 @@ jobs:
   docker-release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -149,7 +149,7 @@ jobs:
           password: ${{ secrets.QUAY_ROBOT_TOKEN }}
 
       - name: Build and push (if applicable)
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64
@@ -165,10 +165,10 @@ jobs:
       contents: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Create Release / Change Logs
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           draft: ${{ !startsWith(github.ref, 'refs/tags/') }}
           prerelease: ${{ contains('-rc', github.ref_name) || !startsWith(github.ref, 'refs/tags/') }}
