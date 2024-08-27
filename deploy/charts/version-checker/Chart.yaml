@@ -1,6 +1,6 @@
 apiVersion: v2
-appVersion: "v0.8.0"
-version: "v0.8.0"
+appVersion: "v0.8.1"
+version: "v0.8.1"
 description: A Helm chart for version-checker
 home: https://github.com/jetstack/version-checker
 name: version-checker
