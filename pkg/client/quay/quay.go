@@ -72,7 +72,7 @@ func (c *Client) Name() string {
 	return "quay"
 }
 
-// Fetch the image tags from an upstream repository and image
+// Fetch the image tags from an upstream repository and image.
 func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTag, error) {
 	p := c.newPager(repo, image)
 
@@ -83,7 +83,7 @@ func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTa
 	return p.tags, nil
 }
 
-// fetchImageManifest will lookup all manifests for a tag, if it is a list
+// fetchImageManifest will lookup all manifests for a tag, if it is a list.
 func (c *Client) fetchImageManifest(ctx context.Context, repo, image string, tag *responseTagItem) ([]api.ImageTag, error) {
 	timestamp, err := time.Parse(time.RFC1123Z, tag.LastModified)
 	if err != nil {
@@ -116,7 +116,7 @@ func (c *Client) fetchImageManifest(ctx context.Context, repo, image string, tag
 	}, nil
 }
 
-// callManifests endpoint on the tags image manifest
+// callManifests endpoint on the tags image manifest.
 func (c *Client) callManifests(ctx context.Context, timestamp time.Time, tag, url string) ([]api.ImageTag, error) {
 	var manifestResp responseManifest
 	if err := c.makeRequest(ctx, url, &manifestResp); err != nil {
@@ -167,6 +167,7 @@ func (c *Client) makeRequest(ctx context.Context, url string, obj interface{}) e
 	if err != nil {
 		return fmt.Errorf("failed to make quay call %q: %s", url, err)
 	}
+	defer resp.Body.Close()
 
 	if err := json.NewDecoder(resp.Body).Decode(obj); err != nil {
 		return err

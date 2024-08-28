@@ -69,7 +69,7 @@ func TestForget(t *testing.T) {
 		t.Run(test.obj, func(test testT) func(*testing.T) {
 			return func(t *testing.T) {
 				defer wg.Done()
-				queue := NewScheduledWorkQueue(clock.RealClock{}, func(obj interface{}) {
+				queue := NewScheduledWorkQueue(clock.RealClock{}, func(_ interface{}) {
 					t.Errorf("scheduled function should never be called")
 				})
 				queue.Add(test.obj, test.duration)
@@ -131,7 +131,7 @@ func newMockAfter() *mockAfter {
 	}
 }
 
-func (m *mockAfter) AfterFunc(c clock.Clock, d time.Duration, f func()) stoppable {
+func (m *mockAfter) AfterFunc(_ clock.Clock, d time.Duration, f func()) stoppable {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 

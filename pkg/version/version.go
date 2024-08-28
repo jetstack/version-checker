@@ -44,10 +44,6 @@ func (v *Version) Run(refreshRate time.Duration) {
 // LatestTagFromImage will return the latest tag given an imageURL, according
 // to the given options.
 func (v *Version) LatestTagFromImage(ctx context.Context, imageURL string, opts *api.Options) (*api.ImageTag, error) {
-	if override := opts.OverrideURL; override != nil && len(*override) > 0 {
-		v.log.Debugf("overriding image lookup %s -> %s", imageURL, *override)
-		imageURL = *override
-	}
 	tagsI, err := v.imageCache.Get(ctx, imageURL, imageURL, nil)
 	if err != nil {
 		return nil, err
@@ -67,7 +63,6 @@ func (v *Version) LatestTagFromImage(ctx context.Context, imageURL string, opts 
 			return nil, versionerrors.NewVersionErrorNotFound("%s: failed to find latest image based on SHA",
 				imageURL)
 		}
-
 	} else {
 		tag, err = latestSemver(opts, tags)
 		if err != nil {
@@ -114,39 +109,11 @@ func latestSemver(opts *api.Options, tags []api.ImageTag) (*api.ImageTag, error)
 	for i := range tags {
 		v := semver.Parse(tags[i].Tag)
 
-		// If regex enabled continue here.
-		// If we match, and is less than, update latest.
-		if opts.RegexMatcher != nil {
-			if opts.RegexMatcher.MatchString(tags[i].Tag) &&
-				(latestV == nil || latestV.LessThan(v)) {
-				latestV = v
-				latestImageTag = &tags[i]
-			}
-
+		if shouldSkipTag(opts, v) {
 			continue
 		}
 
-		// If we have declared we wont use metadata but version has it, continue.
-		if !opts.UseMetaData && v.HasMetaData() {
-			continue
-		}
-
-		if opts.PinMajor != nil && *opts.PinMajor != v.Major() {
-			continue
-		}
-		if opts.PinMinor != nil && *opts.PinMinor != v.Minor() {
-			continue
-		}
-		if opts.PinPatch != nil && *opts.PinPatch != v.Patch() {
-			continue
-		}
-
-		// If no latest yet set
-		if latestV == nil ||
-			// If the latest set is less than
-			latestV.LessThan(v) ||
-			// If the latest is the same tag, but smaller timestamp
-			(latestV.Equal(v) && tags[i].Timestamp.After(latestImageTag.Timestamp)) {
+		if isBetterTag(opts, latestV, v, latestImageTag, &tags[i]) {
 			latestV = v
 			latestImageTag = &tags[i]
 		}
@@ -157,6 +124,38 @@ func latestSemver(opts *api.Options, tags []api.ImageTag) (*api.ImageTag, error)
 	}
 
 	return latestImageTag, nil
+}
+
+func shouldSkipTag(opts *api.Options, v *semver.SemVer) bool {
+	// Handle Regex matching
+	if opts.RegexMatcher != nil {
+		return !opts.RegexMatcher.MatchString(v.String())
+	}
+
+	// Handle metadata and version pinning
+	return (!opts.UseMetaData && v.HasMetaData()) ||
+		(opts.PinMajor != nil && *opts.PinMajor != v.Major()) ||
+		(opts.PinMinor != nil && *opts.PinMinor != v.Minor()) ||
+		(opts.PinPatch != nil && *opts.PinPatch != v.Patch())
+}
+
+func isBetterTag(_ *api.Options, latestV, v *semver.SemVer, latestImageTag, currentImageTag *api.ImageTag) bool {
+	// No latest version set yet
+	if latestV == nil {
+		return true
+	}
+
+	// If the current version is greater than the latest
+	if latestV.LessThan(v) {
+		return true
+	}
+
+	// If the versions are equal, prefer the one with a later timestamp
+	if latestV.Equal(v) && currentImageTag.Timestamp.After(latestImageTag.Timestamp) {
+		return true
+	}
+
+	return false
 }
 
 // latestSHA will return the latest ImageTag based on image timestamps.

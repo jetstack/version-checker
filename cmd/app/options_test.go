@@ -73,7 +73,7 @@ func TestComplete(t *testing.T) {
 					Token: "quay-token",
 				},
 				Selfhosted: map[string]*selfhosted.Options{
-					"FOO": &selfhosted.Options{
+					"FOO": {
 						Host:     "docker.joshvanl.com",
 						Username: "joshvanl",
 						Password: "password",
@@ -141,21 +141,21 @@ func TestComplete(t *testing.T) {
 					Token: "quay-token",
 				},
 				Selfhosted: map[string]*selfhosted.Options{
-					"FOO": &selfhosted.Options{
+					"FOO": {
 						Host:     "docker.joshvanl.com",
 						Username: "joshvanl",
 						Password: "password",
 						Bearer:   "my-token",
 						Insecure: true,
 					},
-					"BAR": &selfhosted.Options{
+					"BAR": {
 						Host:     "bar.docker.joshvanl.com",
 						Username: "bar.joshvanl",
 						Password: "bar-password",
 						Bearer:   "my-bar-token",
 						Insecure: false,
 					},
-					"BUZZ": &selfhosted.Options{
+					"BUZZ": {
 						Host:     "buzz.docker.jetstack.io",
 						Username: "buzz.davidcollom",
 						Password: "buzz-password",
@@ -208,7 +208,7 @@ func TestAssignSelfhosted(t *testing.T) {
 			},
 			expOptions: client.Options{
 				Selfhosted: map[string]*selfhosted.Options{
-					"FOO": &selfhosted.Options{
+					"FOO": {
 						Host:     "docker.joshvanl.com",
 						Username: "joshvanl",
 						Password: "password",
@@ -228,13 +228,13 @@ func TestAssignSelfhosted(t *testing.T) {
 			},
 			expOptions: client.Options{
 				Selfhosted: map[string]*selfhosted.Options{
-					"FOO": &selfhosted.Options{
+					"FOO": {
 						Host:     "docker.joshvanl.com",
 						Username: "joshvanl",
 						Password: "password",
 						Bearer:   "my-token",
 					},
-					"BAR": &selfhosted.Options{
+					"BAR": {
 						Host:   "hello.world.com",
 						Bearer: "my-bar-token",
 					},
@@ -253,14 +253,14 @@ func TestAssignSelfhosted(t *testing.T) {
 			},
 			expOptions: client.Options{
 				Selfhosted: map[string]*selfhosted.Options{
-					"FOO": &selfhosted.Options{
+					"FOO": {
 						Host:      "docker.joshvanl.com",
 						Username:  "joshvanl",
 						Password:  "password",
 						Bearer:    "my-token",
 						TokenPath: "/artifactory/api/security/token",
 					},
-					"BAR": &selfhosted.Options{
+					"BAR": {
 						Host:   "hello.world.com",
 						Bearer: "my-bar-token",
 					},
@@ -281,17 +281,17 @@ func TestAssignSelfhosted(t *testing.T) {
 			},
 			expOptions: client.Options{
 				Selfhosted: map[string]*selfhosted.Options{
-					"FOO": &selfhosted.Options{
+					"FOO": {
 						Host:     "docker.joshvanl.com",
 						Username: "joshvanl",
 						Password: "password",
 						Bearer:   "my-token",
 					},
-					"BAR": &selfhosted.Options{
+					"BAR": {
 						Host:   "hello.world.com",
 						Bearer: "my-bar-token",
 					},
-					"JOSHVANL": &selfhosted.Options{
+					"JOSHVANL": {
 						Host: "joshvanl.com",
 					},
 				},
@@ -301,7 +301,6 @@ func TestAssignSelfhosted(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-
 			o := new(Options)
 			o.assignSelfhosted(test.envs)
 

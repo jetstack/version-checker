@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	// Regex template to be used to check "isHost"
+	// Regex template to be used to check "isHost".
 	hostRegTemplate = `^.*%s$`
 )
 

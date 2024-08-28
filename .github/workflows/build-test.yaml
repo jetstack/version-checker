@@ -3,6 +3,8 @@ on:
   pull_request:
     branches:
       - 'main'
+    paths:
+      - "!README.md"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -18,24 +20,38 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       - name: Setup Golang
-        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.0
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@3cfe3a4abbb849e10058ce4af15d205b6da42804      # v4.0.0
+        uses: golangci/golangci-lint-action@aaa42aa0628b4ae2578232a66b541047968fac86      # v6.1.0
         with:
           version: v1.54
           args: --timeout 10m --exclude SA5011 --verbose --issues-exit-code=0
           only-new-issues: true
+
+  govulncheck:
+    runs-on: ubuntu-latest
+    name: Run govulncheck
+    steps:
+      - id: govulncheck
+        uses: golang/govulncheck-action@v1
+        with:
+           go-version-file: go.mod
+           go-package: ./...
 
   test:
     name: Run unit tests for Go packages
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3 # v3.5.3
+      uses: actions/checkout@v4 # v3.5.3
     - name: Setup Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
 
     - name: Download and required packages
       run: |
@@ -49,8 +65,11 @@ jobs:
       with:
         config: ./.testcoverage.yml
 
+    - name: Trigger Coverage update
+      uses: ./coverage-badge.yaml
+
     - name: Generate code coverage artifacts
-      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+      uses: actions/upload-artifact@v4
       with:
         name: code-coverage
         path: coverage.out
@@ -69,7 +88,7 @@ jobs:
     name: Build Images
     steps:
     - name: Checkout code
-      uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
 
@@ -79,7 +98,7 @@ jobs:
         platforms: ${{ matrix.platform }}
 
     - name: Build Images
-      uses: docker/build-push-action@v4
+      uses: docker/build-push-action@v6
       with:
         context: .
         platforms: ${{ matrix.platform }}
@@ -90,7 +109,7 @@ jobs:
         cache-to: type=gha,mode=max
 
     - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@0.19.0
+      uses: aquasecurity/trivy-action@0.24.0
       with:
         image-ref: 'quay.io/jetstack/version-checker:${{github.sha}}'
         format: 'table'

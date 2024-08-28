@@ -140,6 +140,7 @@ func (c *Client) doRequest(ctx context.Context, url string) (*TagResponse, error
 	if err != nil {
 		return nil, fmt.Errorf("failed to get docker image: %s", err)
 	}
+	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -173,6 +174,7 @@ func basicAuthSetup(ctx context.Context, client *http.Client, opts Options) (str
 	if err != nil {
 		return "", err
 	}
+	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

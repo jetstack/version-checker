@@ -85,47 +85,72 @@ func New(ctx context.Context, log *logrus.Entry, opts *Options) (*Client, error)
 		log:     log.WithField("client", opts.Host),
 	}
 
-	// Set up client with host matching if set
-	if opts.Host != "" {
-		hostRegex, scheme, err := parseURL(opts.Host)
-		if err != nil {
-			return nil, fmt.Errorf("failed parsing url: %s", err)
-		}
-		client.hostRegex = hostRegex
-		client.httpScheme = scheme
-
-		// Setup Auth if username and password used.
-		if len(opts.Username) > 0 || len(opts.Password) > 0 {
-			if len(opts.Bearer) > 0 {
-				return nil, errors.New("cannot specify Bearer token as well as username/password")
-			}
-
-			tokenPath := opts.TokenPath
-			if tokenPath == "" {
-				tokenPath = defaultTokenPath
-			}
-
-			token, err := client.setupBasicAuth(ctx, opts.Host, tokenPath)
-			if httpErr, ok := selfhostederrors.IsHTTPError(err); ok {
-				return nil, fmt.Errorf("failed to setup token auth (%d): %s",
-					httpErr.StatusCode, httpErr.Body)
-			}
-
-			if err != nil {
-				return nil, fmt.Errorf("failed to setup token auth: %s", err)
-			}
-			client.Bearer = token
-		}
+	if err := configureHost(ctx, client, opts); err != nil {
+		return nil, err
 	}
 
-	// Default to https if no scheme set
+	if err := configureTLS(client, opts); err != nil {
+		return nil, err
+	}
+
+	return client, nil
+}
+
+func configureHost(ctx context.Context, client *Client, opts *Options) error {
+	if opts.Host == "" {
+		return nil
+	}
+
+	hostRegex, scheme, err := parseURL(opts.Host)
+	if err != nil {
+		return fmt.Errorf("failed parsing url: %s", err)
+	}
+	client.hostRegex = hostRegex
+	client.httpScheme = scheme
+
+	if err := configureAuth(ctx, client, opts); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func configureAuth(ctx context.Context, client *Client, opts *Options) error {
+	if len(opts.Username) == 0 && len(opts.Password) == 0 {
+		return nil
+	}
+
+	if len(opts.Bearer) > 0 {
+		return errors.New("cannot specify Bearer token as well as username/password")
+	}
+
+	tokenPath := opts.TokenPath
+	if tokenPath == "" {
+		tokenPath = defaultTokenPath
+	}
+
+	token, err := client.setupBasicAuth(ctx, opts.Host, tokenPath)
+	if httpErr, ok := selfhostederrors.IsHTTPError(err); ok {
+		return fmt.Errorf("failed to setup token auth (%d): %s",
+			httpErr.StatusCode, httpErr.Body)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to setup token auth: %s", err)
+	}
+
+	client.Bearer = token
+	return nil
+}
+
+func configureTLS(client *Client, opts *Options) error {
 	if client.httpScheme == "" {
 		client.httpScheme = "https"
 	}
+
 	if client.httpScheme == "https" {
 		tlsConfig, err := newTLSConfig(opts.Insecure, opts.CAPath)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		client.Client.Transport = &http.Transport{
@@ -134,7 +159,7 @@ func New(ctx context.Context, log *logrus.Entry, opts *Options) (*Client, error)
 		}
 	}
 
-	return client, nil
+	return nil
 }
 
 // Name returns the name of the host URL for the selfhosted client
@@ -229,11 +254,13 @@ func (c *Client) doRequest(ctx context.Context, url, header string, obj interfac
 	if err != nil {
 		return nil, fmt.Errorf("failed to get docker image: %s", err)
 	}
+	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, selfhostederrors.NewHTTPError(resp.StatusCode, body)
@@ -268,6 +295,7 @@ func (c *Client) setupBasicAuth(ctx context.Context, url, tokenPath string) (str
 		return "", fmt.Errorf("failed to send basic auth request %q: %s",
 			req.URL, err)
 	}
+	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -296,7 +324,7 @@ func newTLSConfig(insecure bool, CAPath string) (*tls.Config, error) {
 	if CAPath != "" {
 		certs, err := os.ReadFile(CAPath)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to append %q to RootCAs: %v", CAPath, err)
+			return nil, fmt.Errorf("failed to append %q to RootCAs: %v", CAPath, err)
 		}
 		rootCAs.AppendCertsFromPEM(certs)
 	}

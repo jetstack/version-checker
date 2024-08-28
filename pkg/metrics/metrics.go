@@ -12,6 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -20,7 +21,6 @@ import (
 type Metrics struct {
 	*http.Server
 
-	registry              *prometheus.Registry
 	containerImageVersion *prometheus.GaugeVec
 	log                   *logrus.Entry
 
@@ -37,7 +37,7 @@ type cacheItem struct {
 }
 
 func New(log *logrus.Entry) *Metrics {
-	containerImageVersion := prometheus.NewGaugeVec(
+	containerImageVersion := promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: "version_checker",
 			Name:      "is_latest_version",
@@ -48,21 +48,17 @@ func New(log *logrus.Entry) *Metrics {
 		},
 	)
 
-	registry := prometheus.NewRegistry()
-	registry.MustRegister(containerImageVersion)
-
 	return &Metrics{
 		log:                   log.WithField("module", "metrics"),
-		registry:              registry,
 		containerImageVersion: containerImageVersion,
 		containerCache:        make(map[string]cacheItem),
 	}
 }
 
-// Run will run the metrics server
+// Run will run the metrics server.
 func (m *Metrics) Run(servingAddress string) error {
 	router := http.NewServeMux()
-	router.Handle("/metrics", promhttp.HandlerFor(m.registry, promhttp.HandlerOpts{}))
+	router.Handle("/metrics", promhttp.Handler())
 	router.Handle("/healthz", http.HandlerFunc(m.healthzAndReadyzHandler))
 	router.Handle("/readyz", http.HandlerFunc(m.healthzAndReadyzHandler))
 
@@ -120,13 +116,13 @@ func (m *Metrics) RemoveImage(namespace, pod, container, containerType string) {
 	defer m.mu.Unlock()
 
 	index := m.latestImageIndex(namespace, pod, container, containerType)
-	item, ok := m.containerCache[index]
+	_, ok := m.containerCache[index]
 	if !ok {
 		return
 	}
 
-	m.containerImageVersion.Delete(
-		m.buildLabels(namespace, pod, container, containerType, item.image, item.currentVersion, item.latestVersion),
+	m.containerImageVersion.DeletePartialMatch(
+		m.buildPartialLabels(namespace, pod),
 	)
 	delete(m.containerCache, index)
 }
@@ -144,6 +140,13 @@ func (m *Metrics) buildLabels(namespace, pod, container, containerType, imageURL
 		"image":           imageURL,
 		"current_version": currentVersion,
 		"latest_version":  latestVersion,
+	}
+}
+
+func (m *Metrics) buildPartialLabels(namespace, pod string) prometheus.Labels {
+	return prometheus.Labels{
+		"namespace": namespace,
+		"pod":       pod,
 	}
 }
 
@@ -167,7 +170,7 @@ func (m *Metrics) Shutdown() error {
 	return nil
 }
 
-func (m *Metrics) healthzAndReadyzHandler(w http.ResponseWriter, r *http.Request) {
+func (m *Metrics) healthzAndReadyzHandler(w http.ResponseWriter, _ *http.Request) {
 	// Its not great, but does help ensure that we're alive and ready over
 	// calling the /metrics endpoint which can be expensive on large payloads
 	_, err := w.Write([]byte("OK"))

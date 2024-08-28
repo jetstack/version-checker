@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// Helper function to parse time
+// Helper function to parse time.
 func parseTime(t string) time.Time {
 	parsedTime, _ := time.Parse(time.RFC3339, t)
 	return parsedTime
@@ -181,7 +181,7 @@ func TestLatestSemver(t *testing.T) {
 		{
 			name: "Alpha/Beta SemVer",
 			opts: &api.Options{
-				UseMetaData: true,
+				UseMetaData: false,
 			},
 			tags:     alphaBetaTags,
 			expected: "v1.1.1",

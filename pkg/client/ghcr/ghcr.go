@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/gofri/go-github-ratelimit/github_ratelimit"
-	"github.com/google/go-github/v58/github"
+	"github.com/google/go-github/v62/github"
 	"github.com/jetstack/version-checker/pkg/api"
 )
 
@@ -44,67 +44,24 @@ func (c *Client) Name() string {
 	return "ghcr"
 }
 
-func (c *Client) Tags(ctx context.Context, host, owner, repo string) ([]api.ImageTag, error) {
-	// Choose the correct list packages function based on whether the owner
-	// is a user or an organization
-	getAllVersions := c.client.Organizations.PackageGetAllVersions
-	ownerType, err := c.ownerType(ctx, owner)
+func (c *Client) Tags(ctx context.Context, _, owner, repo string) ([]api.ImageTag, error) {
+	// Determine the correct function to get all versions based on the owner type
+	getAllVersions, repo, err := c.determineGetAllVersionsFunc(ctx, owner, repo)
 	if err != nil {
-		return nil, fmt.Errorf("fetching owner type: %w", err)
-	}
-	if ownerType == "user" {
-		getAllVersions = c.client.Users.PackageGetAllVersions
-		// The User implementation doesn't path escape this for you:
-		// - https://github.com/google/go-github/blob/v58.0.0/github/users_packages.go#L136
-		// - https://github.com/google/go-github/blob/v58.0.0/github/orgs_packages.go#L105
-		repo = url.PathEscape(repo)
+		return nil, err
 	}
 
-	opts := &github.PackageListOptions{
-		PackageType: github.String("container"),
-		State:       github.String("active"),
-		ListOptions: github.ListOptions{
-			PerPage: 100,
-		},
-	}
+	opts := c.buildPackageListOptions()
 
 	var tags []api.ImageTag
-
 	for {
 		versions, resp, err := getAllVersions(ctx, owner, "container", repo, opts)
 		if err != nil {
 			return nil, fmt.Errorf("getting versions: %w", err)
 		}
 
-		for _, ver := range versions {
-			if len(ver.Metadata.Container.Tags) == 0 {
-				continue
-			}
+		tags = append(tags, c.extractImageTags(versions)...)
 
-			sha := ""
-			if strings.HasPrefix(*ver.Name, "sha") {
-				sha = *ver.Name
-			}
-
-			for _, tag := range ver.Metadata.Container.Tags {
-				// Exclude attestations, signatures and sboms
-				if strings.HasSuffix(tag, ".att") {
-					continue
-				}
-				if strings.HasSuffix(tag, ".sig") {
-					continue
-				}
-				if strings.HasSuffix(tag, ".sbom") {
-					continue
-				}
-
-				tags = append(tags, api.ImageTag{
-					Tag:       tag,
-					SHA:       sha,
-					Timestamp: ver.CreatedAt.Time,
-				})
-			}
-		}
 		if resp.NextPage == 0 {
 			break
 		}
@@ -113,6 +70,62 @@ func (c *Client) Tags(ctx context.Context, host, owner, repo string) ([]api.Imag
 	}
 
 	return tags, nil
+}
+
+func (c *Client) determineGetAllVersionsFunc(ctx context.Context, owner, repo string) (func(ctx context.Context, owner, pkgType, repo string, opts *github.PackageListOptions) ([]*github.PackageVersion, *github.Response, error), string, error) {
+	getAllVersions := c.client.Organizations.PackageGetAllVersions
+	ownerType, err := c.ownerType(ctx, owner)
+	if err != nil {
+		return nil, "", fmt.Errorf("fetching owner type: %w", err)
+	}
+	if ownerType == "user" {
+		getAllVersions = c.client.Users.PackageGetAllVersions
+		repo = url.PathEscape(repo)
+	}
+	return getAllVersions, repo, nil
+}
+
+func (c *Client) buildPackageListOptions() *github.PackageListOptions {
+	return &github.PackageListOptions{
+		PackageType: github.String("container"),
+		State:       github.String("active"),
+		ListOptions: github.ListOptions{
+			PerPage: 100,
+		},
+	}
+}
+
+func (c *Client) extractImageTags(versions []*github.PackageVersion) []api.ImageTag {
+	var tags []api.ImageTag
+	for _, ver := range versions {
+		if len(ver.Metadata.Container.Tags) == 0 {
+			continue
+		}
+
+		sha := ""
+		if strings.HasPrefix(*ver.Name, "sha") {
+			sha = *ver.Name
+		}
+
+		for _, tag := range ver.Metadata.Container.Tags {
+			if c.shouldSkipTag(tag) {
+				continue
+			}
+
+			tags = append(tags, api.ImageTag{
+				Tag:       tag,
+				SHA:       sha,
+				Timestamp: ver.CreatedAt.Time,
+			})
+		}
+	}
+	return tags
+}
+
+func (c *Client) shouldSkipTag(tag string) bool {
+	return strings.HasSuffix(tag, ".att") ||
+		strings.HasSuffix(tag, ".sig") ||
+		strings.HasSuffix(tag, ".sbom")
 }
 
 func (c *Client) ownerType(ctx context.Context, owner string) (string, error) {

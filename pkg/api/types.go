@@ -26,7 +26,7 @@ const (
 
 	// UseMetaDataAnnotationKey is defined as a tag containing anything after the
 	// patch digit.
-	// e.g. v1.0.1-gke.3 v1.0.1-alpha.0, v1.2.3.4
+	// e.g. v1.0.1-gke.3 v1.0.1-alpha.0, v1.2.3.4...
 	UseMetaDataAnnotationKey = "use-metadata.version-checker.io"
 
 	// PinMajorAnnotationKey will pin the major version to check.

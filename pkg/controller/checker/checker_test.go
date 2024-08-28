@@ -148,6 +148,23 @@ func TestContainer(t *testing.T) {
 				IsLatest:       true,
 			},
 		},
+		"if latest is latest version, and OverrideURL is set, then return true": {
+			statusSHA: "localhost:5000/version-checker@sha:123",
+			imageURL:  "localhost:5000/version-checker:latest",
+			opts: &api.Options{
+				OverrideURL: stringp("quay.io/jetstack/version-checker"),
+			},
+			searchResp: &api.ImageTag{
+				Tag: "",
+				SHA: "sha:123",
+			},
+			expResult: &Result{
+				CurrentVersion: "sha:123",
+				LatestVersion:  "sha:123",
+				ImageURL:       "quay.io/jetstack/version-checker",
+				IsLatest:       true,
+			},
+		},
 		"if using v0.2.0 with use sha, but not latest, return false": {
 			statusSHA: "localhost:5000/version-checker@sha:123",
 			imageURL:  "localhost:5000/version-checker:v0.2.0",
@@ -246,7 +263,6 @@ func TestContainer(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-
 			checker := New(search.New().With(test.searchResp, nil))
 			pod := &corev1.Pod{
 				Status: corev1.PodStatus{
@@ -289,7 +305,7 @@ func TestContainerStatusImageSHA(t *testing.T) {
 		},
 		"if status with wrong name, then return ''": {
 			status: []corev1.ContainerStatus{
-				corev1.ContainerStatus{
+				{
 					Name:    "foo",
 					ImageID: "123",
 				},
@@ -299,11 +315,11 @@ func TestContainerStatusImageSHA(t *testing.T) {
 		},
 		"if status with wrong name and correct, then return '456'": {
 			status: []corev1.ContainerStatus{
-				corev1.ContainerStatus{
+				{
 					Name:    "foo",
 					ImageID: "123",
 				},
-				corev1.ContainerStatus{
+				{
 					Name:    "test-name",
 					ImageID: "456",
 				},
@@ -313,15 +329,15 @@ func TestContainerStatusImageSHA(t *testing.T) {
 		},
 		"if status with multiple status, then return first '456'": {
 			status: []corev1.ContainerStatus{
-				corev1.ContainerStatus{
+				{
 					Name:    "foo",
 					ImageID: "123",
 				},
-				corev1.ContainerStatus{
+				{
 					Name:    "test-name",
 					ImageID: "456",
 				},
-				corev1.ContainerStatus{
+				{
 					Name:    "test-name",
 					ImageID: "789",
 				},
@@ -331,11 +347,11 @@ func TestContainerStatusImageSHA(t *testing.T) {
 		},
 		"if status with includes URL, then return just SHA": {
 			status: []corev1.ContainerStatus{
-				corev1.ContainerStatus{
+				{
 					Name:    "foo",
 					ImageID: "123",
 				},
-				corev1.ContainerStatus{
+				{
 					Name:    "test-name",
 					ImageID: "localhost:5000/joshvanl/version-checker@sha:456",
 				},
@@ -597,4 +613,8 @@ func TestURLAndTagFromImage(t *testing.T) {
 			}
 		})
 	}
+}
+
+func stringp(s string) *string {
+	return &s
 }

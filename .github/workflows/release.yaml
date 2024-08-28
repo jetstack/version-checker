@@ -5,7 +5,7 @@ on:
     branches:
       - "release-v*"
     tags:
-      - "*"
+      - "v*"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -21,12 +21,13 @@ jobs:
       pull-requests: write
       contents: write
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: bhowell2/github-substring-action@1.0.2
         id: release_number
         with:
           value: ${{github.ref_name}}
           index_of_str: "release-"
+
       - name: Find and Replace Helm Chart Version
         uses: jacobtomlinson/gha-find-replace@v3
         with:
@@ -34,6 +35,7 @@ jobs:
           replace: "${{steps.release_number.outputs.substring}}"
           include: "deploy/charts/version-checker/Chart.yaml"
           regex: true
+
       - name: Find and Replace Kubernetes Manifests
         uses: jacobtomlinson/gha-find-replace@v3
         with:
@@ -41,6 +43,7 @@ jobs:
           replace: "${{steps.release_number.outputs.substring}}"
           include: "deploy/yaml/deploy.yaml"
           regex: true
+
       - name: Find and Replace Makefile versions
         uses: jacobtomlinson/gha-find-replace@v3
         with:
@@ -48,8 +51,19 @@ jobs:
           replace: "${{steps.release_number.outputs.substring}}"
           include: "Makefile"
           regex: true
+
+      - name: Install Helm Docs
+        uses: envoy/install-helm-docs@v1.0.0
+        with:
+          version: 1.11.0
+      - name: Update Helm Docs
+        run: |
+          set -ex
+          cd deploy/charts/version-checker
+          helm-docs
+
       - name: Detect any Local Changes
-        uses: dorny/paths-filter@v2
+        uses: dorny/paths-filter@v3
         id: filter
         with:
           base: HEAD
@@ -58,6 +72,8 @@ jobs:
               - 'Makefile'
               - 'deploy/yaml/deploy.yaml'
               - 'deploy/charts/version-checker/Chart.yaml'
+              - 'deploy/charts/version-checker/README.md'
+
       - name: Commit files
         if: steps.filter.outputs.versions == 'true'
         run: |
@@ -65,19 +81,29 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git status
           git commit -a -m "Bump versions to ${{steps.release_number.outputs.substring}} "
+
       - name: Push changes
         if: steps.filter.outputs.versions == 'true'
-        uses: ad-m/github-push-action@v0.6.0
+        uses: ad-m/github-push-action@v0.8.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: ${{ github.ref_name }}
+
+      - name: Build Changelog
+        id: github_release
+        uses: mikepenz/release-changelog-builder-action@v5
+
       - name: Create Release PR
         uses: devops-infra/action-pull-request@v0.5.5
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           target_branch: main
           title: "Release ${{steps.release_number.outputs.substring}}"
-          body: "**Automated Release Pull Request**"
+          body: |-
+            "**Automated Release Pull Request**
+
+            ## Change log:
+            ${{steps.github_release.outputs.changelog}}
           draft: false
           get_diff: false
           allow_no_diff: false
@@ -87,19 +113,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Checkout our Repo
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           path: version-checker
 
       - name: checkout jetstack-charts
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.JETSTACK_CHARTS_PAT }}
           repository: jetstack/jetstack-charts
           ref: main
           path: jetstack-charts
 
-      - uses: azure/setup-helm@v3
+      - uses: azure/setup-helm@v4
         with:
           token: ${{ github.token }}
 
@@ -109,7 +135,7 @@ jobs:
 
       - name: Creating PR
         if: startsWith(github.ref, 'refs/tags/')
-        uses: peter-evans/create-pull-request@v5
+        uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.JETSTACK_CHARTS_PAT }}
           title: "Release version-checker ${{github.ref_name }}"
@@ -125,7 +151,7 @@ jobs:
   docker-release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -142,7 +168,7 @@ jobs:
           password: ${{ secrets.QUAY_ROBOT_TOKEN }}
 
       - name: Build and push (if applicable)
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64
@@ -158,10 +184,10 @@ jobs:
       contents: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Create Release / Change Logs
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           draft: ${{ !startsWith(github.ref, 'refs/tags/') }}
           prerelease: ${{ contains('-rc', github.ref_name) || !startsWith(github.ref, 'refs/tags/') }}

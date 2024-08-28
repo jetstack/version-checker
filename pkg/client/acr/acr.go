@@ -41,11 +41,11 @@ type Options struct {
 	RefreshToken string
 }
 
-type ACRAccessTokenResponse struct {
+type AccessTokenResponse struct {
 	AccessToken string `json:"access_token"`
 }
 
-type ACRManifestResponse struct {
+type ManifestResponse struct {
 	Manifests []struct {
 		Digest      string    `json:"digest"`
 		CreatedTime time.Time `json:"createdTime"`
@@ -84,8 +84,9 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
-	var manifestResp ACRManifestResponse
+	var manifestResp ManifestResponse
 	if err := json.NewDecoder(resp.Body).Decode(&manifestResp); err != nil {
 		return nil, fmt.Errorf("%s: failed to decode manifest response: %s",
 			host, err)
@@ -177,7 +178,7 @@ func (c *Client) getACRClient(ctx context.Context, host string) (*acrClient, err
 	return client, nil
 }
 
-func (c *Client) getBasicAuthClient(host string) (*acrClient, error) {
+func (c *Client) getBasicAuthClient(_ string) (*acrClient, error) {
 	client := autorest.NewClientWithUserAgent(userAgent)
 	client.Authorizer = autorest.NewBasicAuthorizer(c.Username, c.Password)
 
@@ -216,8 +217,9 @@ func (c *Client) getAccessTokenClient(ctx context.Context, host string) (*acrCli
 		return nil, fmt.Errorf("%s: failed to request access token: %s",
 			host, err)
 	}
+	defer resp.Body.Close()
 
-	var respToken ACRAccessTokenResponse
+	var respToken AccessTokenResponse
 	if err := json.NewDecoder(resp.Body).Decode(&respToken); err != nil {
 		return nil, fmt.Errorf("%s: failed to decode access token response: %s",
 			host, err)
@@ -242,7 +244,6 @@ func (c *Client) getAccessTokenClient(ctx context.Context, host string) (*acrCli
 }
 
 func getTokenExpiration(tokenString string) (time.Time, error) {
-
 	token, err := jwt.Parse(tokenString, nil, jwt.WithoutClaimsValidation())
 	if err != nil {
 		return time.Time{}, err

@@ -127,16 +127,21 @@ resources:
 
 # -- Set container-level security context
 securityContext:
-  {}
-  # allowPrivilegeEscalation: false
-  # capabilities:
-  #   drop:
-  #     - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 65534
-  # seccompProfile:
-  #   type: RuntimeDefault
+  # -- Prevent the container from PrivilegeEscalation
+  allowPrivilegeEscalation: false
+  # -- Ensure that we run with the capabilities we explicitly need to run
+  capabilities:
+    drop:
+      - ALL
+  # -- Readonly Filesystem
+  readOnlyRootFilesystem: true
+  # -- Ensure we don't run as root
+  runAsNonRoot: true
+  # -- Specify UID to run under
+  runAsUser: 65534
+  # -- SeccomProfile to use
+  seccompProfile:
+    type: RuntimeDefault
 
 # -- Set pod-level security context
 podSecurityContext: {}

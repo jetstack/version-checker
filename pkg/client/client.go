@@ -109,7 +109,7 @@ func (c *Client) Tags(ctx context.Context, imageURL string) ([]api.ImageTag, err
 }
 
 // fromImageURL will return the appropriate registry client for a given
-// image URL, and the host + path to search
+// image URL, and the host + path to search.
 func (c *Client) fromImageURL(imageURL string) (ImageClient, string, string) {
 	var host, path string
 
