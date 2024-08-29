@@ -34,6 +34,7 @@ const (
 
 	// HTTP headers to request API version
 	dockerAPIv1Header = "application/vnd.docker.distribution.manifest.v1+json"
+	ociV1Header       = "application/vnd.oci.image.manifest.v1+json"
 	dockerAPIv2Header = "application/vnd.docker.distribution.manifest.v2+json"
 )
 
@@ -237,6 +238,7 @@ func (c *Client) doRequest(ctx context.Context, url, header string, obj interfac
 
 	if len(header) > 0 {
 		req.Header.Set("Accept", header)
+		req.Header.Set("Accept", ociV1Header)
 	}
 
 	resp, err := c.Do(req)
