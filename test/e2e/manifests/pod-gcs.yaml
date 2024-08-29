@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kaniko-0
+spec:
+  containers:
+  - name: kaniko
+    image: gcr.io/kaniko-project/executor:latest
+    args: ["--dockerfile=dockerfile",
+            "--context=gs://jetstack-kaniko-contexts/context.tar.gz",
+            "--insecure=true",
+            "--destination=docker-registry.registry.svc.cluster.local:5000/my-app:0.0.1",
+            "--insecure-registry=docker-registry.registry.svc.cluster.local:5000"]
+    volumeMounts:
+      - name: docker-secret
+        mountPath: /kaniko/.docker
+      - name: kaniko-secret
+        mountPath: /secret
+    env:
+      - name: GOOGLE_APPLICATION_CREDENTIALS
+        value: /secret/kaniko-secret.json
+  restartPolicy: Never
+  volumes:
+    - name: docker-secret
+      secret:
+        secretName: regcred
+        items:
+          - key: .dockerconfigjson
+            path: config.json
+    - name: kaniko-secret
+      secret:
+        secretName: kaniko-secret
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kaniko-1
+spec:
+  containers:
+  - name: kaniko
+    image: gcr.io/kaniko-project/executor:latest
+    args: ["--dockerfile=dockerfile",
+            "--context=gs://jetstack-kaniko-contexts/context.tar.gz",
+            "--insecure=true",
+            "--destination=docker-registry.registry.svc.cluster.local:5000/my-app:0.0.2",
+            "--insecure-registry=docker-registry.registry.svc.cluster.local:5000"]
+    volumeMounts:
+      - name: docker-secret
+        mountPath: /kaniko/.docker
+      - name: kaniko-secret
+        mountPath: /secret
+    env:
+      - name: GOOGLE_APPLICATION_CREDENTIALS
+        value: /secret/kaniko-secret.json
+  restartPolicy: Never
+  volumes:
+    - name: docker-secret
+      secret:
+        secretName: regcred
+        items:
+          - key: .dockerconfigjson
+            path: config.json
+    - name: kaniko-secret
+      secret:
+        secretName: kaniko-secret

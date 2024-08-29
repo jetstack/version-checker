@@ -42,7 +42,6 @@ spec:
         ports:
         - name: metrics
           containerPort: 8080
-        command: ["version-checker"]
         args:
         {{- include "version-checker.pod.args" . | nindent 8 }}
         resources:
