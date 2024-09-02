@@ -8,7 +8,7 @@ kind: Deployment
 metadata:
   name: {{ $chartname }}
   labels:
-    {{ include "version-checker.labels" . | nindent 4 }}
+    {{- include "version-checker.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
@@ -72,8 +72,8 @@ spec:
               name: {{.Values.existingSecret}}
         {{- end }}
         env:
-        # ACR
         {{- if .Values.acr.refreshToken }}
+        # ACR
         - name: VERSION_CHECKER_ACR_REFRESH_TOKEN
           valueFrom:
             secretKeyRef:
@@ -93,10 +93,10 @@ spec:
             secretKeyRef:
               name: {{ $chartname }}
               key: acr.password
-        {{- end }}
+        {{- end -}}
 
-        # ECR
         {{- if .Values.ecr.iamRoleArn }}
+        # ECR
         - name: VERSION_CHECKER_ECR_IAM_ROLE_ARN
           value: {{ .Values.ecr.iamRoleArn }}
         {{- end }}
@@ -106,7 +106,7 @@ spec:
             secretKeyRef:
               name: {{ $chartname }}
               key: ecr.accessKeyID
-        {{- end }}
+        {{- end -}}
         {{- if .Values.ecr.secretAccessKey }}
         - name: VERSION_CHECKER_ECR_SECRET_ACCESS_KEY
           valueFrom:
@@ -120,10 +120,9 @@ spec:
             secretKeyRef:
               name: {{ $chartname }}
               key: ecr.sessionToken
-        {{- end }}
-
-        # Docker
+        {{- end -}}
         {{- if .Values.docker.token }}
+        # Docker
         - name: VERSION_CHECKER_DOCKER_TOKEN
           valueFrom:
             secretKeyRef:
@@ -143,69 +142,65 @@ spec:
             secretKeyRef:
               name: {{ $chartname }}
               key: docker.password
-        {{- end }}
-
-        # GCR
+        {{- end -}}
         {{- if .Values.gcr.token }}
+        # GCR
         - name: VERSION_CHECKER_GCR_TOKEN
           valueFrom:
             secretKeyRef:
               name: {{ $chartname }}
               key: gcr.token
-        {{- end }}
-
-        # GHCR
+        {{- end -}}
         {{- if .Values.ghcr.token }}
+        # GHCR
         - name: VERSION_CHECKER_GHCR_TOKEN
           valueFrom:
             secretKeyRef:
               name: {{ $chartname }}
               key: ghcr.token
-        {{- end }}
-
-        # Quay
+        {{- end -}}
         {{- if .Values.quay.token }}
+        # Quay
         - name: VERSION_CHECKER_QUAY_TOKEN
           valueFrom:
             secretKeyRef:
               name: {{ $chartname }}
               key: quay.token
-        {{- end }}
-
-        # Selfhosted
+        {{- end -}}
         {{range $index, $element := .Values.selfhosted }}
+        # Selfhosted
         {{- if $element.host }}
         - name: VERSION_CHECKER_SELFHOSTED_HOST_{{ $element.name }}
           valueFrom:
             secretKeyRef:
               name: {{ $chartname }}
               key: selfhosted.{{ $element.name }}.host
-        {{- end }}
+        {{- end -}}
         {{- if $element.username }}
         - name: VERSION_CHECKER_SELFHOSTED_USERNAME_{{ $element.name }}
           valueFrom:
             secretKeyRef:
               name: {{ $chartname }}
               key: selfhosted.{{ $element.name }}.username
-        {{- end }}
+        {{- end -}}
         {{- if $element.password }}
         - name: VERSION_CHECKER_SELFHOSTED_PASSWORD_{{ $element.name }}
           valueFrom:
             secretKeyRef:
               name: {{ $chartname }}
               key: selfhosted.{{ $element.name }}.password
-        {{- end }}
+        {{- end -}}
         {{- if $element.token }}
         - name: VERSION_CHECKER_SELFHOSTED_TOKEN_{{ $element.name }}
           valueFrom:
             secretKeyRef:
               name: {{ $chartname }}
               key: selfhosted.{{ $element.name }}.token
-        {{- end }}
-        {{- end }}
+        {{- end -}}
+        {{- end -}}
         {{- if .Values.env }}
         {{- toYaml .Values.env | nindent 8 }}
-        {{- end }}
+        {{- end -}}
       {{- with .Values.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
