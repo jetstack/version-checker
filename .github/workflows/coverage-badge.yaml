@@ -19,7 +19,7 @@ jobs:
           fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
 
       - name: Setup go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
 
@@ -34,7 +34,7 @@ jobs:
           filename: coverage.out
 
       - name: Verify Changed files
-        uses: tj-actions/verify-changed-files@v17
+        uses: tj-actions/verify-changed-files@v20
         id: verify-changed-files
         with:
           files: README.md
