@@ -33,7 +33,8 @@ INSTALL_OPTIONS += -f ./make/config/version-checker-values.yaml
 e2e-setup-deps: | kind-cluster $(NEEDS_KUBECTL)
 	$(KUBECTL) apply -f test/e2e/manifests/docker-credentials.yaml
 	$(KUBECTL) apply -f test/e2e/manifests/gsa-secret.yaml #TODO replace with local hostPath context
-	$(KUBECTL) apply -f test/e2e/manifests/pod-gcs.yaml
+	$(KUBECTL) apply -f test/e2e/manifests/kaniko.yaml
+	$(KUBECTL) wait pod -lapp=e2e-kaniko --for=jsonpath='{.status.containerStatuses[*].state.terminated.reason}'=Completed
 
 is_e2e_test=
 

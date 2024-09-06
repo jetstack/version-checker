@@ -23,6 +23,8 @@ nodes:
   extraMounts:
   - hostPath: {{KIND_IMAGES}}
     containerPath: /mounted_images
+  - hostPath: {{KANIKO_DIR}}
+    containerPath: /workspace
 
 containerdConfigPatches:
 - |-

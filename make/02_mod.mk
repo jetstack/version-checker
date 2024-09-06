@@ -14,8 +14,12 @@
 
 $(kind_cluster_config): make/config/kind/cluster.yaml | $(bin_dir)/scratch
 	cat $< | \
-	sed -e 's|{{KIND_IMAGES}}|$(CURDIR)/$(images_tar_dir)|g' \
+	sed -e 's|{{KIND_IMAGES}}|$(CURDIR)/$(images_tar_dir)|g' -e 's|{{KANIKO_DIR}}|$(CURDIR)/make/config/kaniko|g' \
 	> $@
+
+# cat $< | \
+# sed -e 's|{{KANIKO_DIR}}|$(CURDIR)/make/config/kaniko|g' \
+# > $@
 
 include make/test-e2e.mk
 include make/test-unit.mk
