@@ -12,7 +12,8 @@ spec:
             "--context=dir://workspace",
             "--insecure=true",
             "--destination=docker-registry.registry.svc.cluster.local:5000/my-app:0.0.1",
-            "--insecure-registry=docker-registry.registry.svc.cluster.local:5000"]
+            "--insecure-registry=docker-registry.registry.svc.cluster.local:5000",
+            "--push-retry=10"]
     volumeMounts:
       - name: docker-secret
         mountPath: /kaniko/.docker
@@ -44,7 +45,8 @@ spec:
             "--context=dir://workspace",
             "--insecure=true",
             "--destination=docker-registry.registry.svc.cluster.local:5000/my-app:0.0.2",
-            "--insecure-registry=docker-registry.registry.svc.cluster.local:5000"]
+            "--insecure-registry=docker-registry.registry.svc.cluster.local:5000",
+            "--push-retry=10"]
     volumeMounts:
       - name: docker-secret
         mountPath: /kaniko/.docker

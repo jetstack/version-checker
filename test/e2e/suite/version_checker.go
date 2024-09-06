@@ -13,12 +13,29 @@ import (
 )
 
 var _ = Describe("version-checker", func() {
+	// BeforeEach(func() {
+	// 	cmd := exec.Command("kubectl", "apply", "-f", "./manifests/kaniko.yaml")
+	// 	cmd.Stdout = GinkgoWriter
+	// 	cmd.Stderr = GinkgoWriter
+	// 	Expect(cmd.Run()).NotTo(HaveOccurred())
+	// 	cmd = exec.Command("kubectl", "wait", "pod", "-lapp=e2e-kaniko", "--timeout=30s", "--for=jsonpath='{.status.containerStatuses[*].state.terminated.reason}'=Completed")
+	// 	cmd.Stdout = GinkgoWriter
+	// 	cmd.Stderr = GinkgoWriter
+	// 	Expect(cmd.Run()).NotTo(HaveOccurred())
+	// })
+	// AfterEach(func() {
+	// 	cmd := exec.Command("kubectl", "delete", "-f", "./manifests/kaniko.yaml")
+	// 	cmd.Stdout = GinkgoWriter
+	// 	cmd.Stderr = GinkgoWriter
+	// 	Expect(cmd.Run()).NotTo(HaveOccurred())
+	// })
+
 	JustBeforeEach(func() {
 		cmd := exec.Command("kubectl", "apply", "-f", "./manifests/prom2json.yaml")
 		cmd.Stdout = GinkgoWriter
 		cmd.Stderr = GinkgoWriter
 		Expect(cmd.Run()).NotTo(HaveOccurred())
-		cmd = exec.Command("kubectl", "wait", "--for=condition=Complete", "job", "-ljob-name=prom2json")
+		cmd = exec.Command("kubectl", "wait", "--for=condition=Complete", "--timeout=30s", "job", "-ljob-name=prom2json")
 		cmd.Stdout = GinkgoWriter
 		cmd.Stderr = GinkgoWriter
 		Expect(cmd.Run()).NotTo(HaveOccurred())
