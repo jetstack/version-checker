@@ -52,6 +52,9 @@ spec:
           - "--log-level={{.Values.versionChecker.logLevel}}"
           - "--metrics-serving-address={{.Values.versionChecker.metricsServingAddress}}"
           - "--test-all-containers={{.Values.versionChecker.testAllContainers}}"
+        volumeMounts:
+          - name: docker-config
+            mountPath: /docker
         resources:
           {{- toYaml .Values.resources | nindent 12 }}
         {{- with .Values.securityContext }}
@@ -72,6 +75,8 @@ spec:
               name: {{.Values.existingSecret}}
         {{- end }}
         env:
+        - name: DOCKER_CONFIG
+          value: /docker
         {{- if .Values.acr.refreshToken }}
         # ACR
         - name: VERSION_CHECKER_ACR_REFRESH_TOKEN
@@ -206,6 +211,12 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
+        - name: docker-config
+          secret:
+            secretName: {{ include "version-checker.name" . }}-docker-config
+            items:
+              - key: .dockerconfigjson
+                path: config.json
         {{- if $secretEnabled }}
         - name: {{ include "version-checker.name" . }}
           secret:

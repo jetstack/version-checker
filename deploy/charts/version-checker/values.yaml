@@ -189,3 +189,15 @@ serviceMonitor:
   enabled: false
   # -- Additional labels to add to the ServiceMonitor
   additionalLabels: {}
+
+# -- Provide a raw docker config json. Makes it possible to configure the
+# authentication credentials used by the OCI client.
+dockerconfigjson: "{}"
+#dockerconfigjson: |
+#  {
+#  	"auths": {
+#  		"registry.example.com": {
+#  			"auth": "QXp1cmVEaWFtb25kOmh1bnRlcjI="
+#  		}
+#  	}
+#  }
