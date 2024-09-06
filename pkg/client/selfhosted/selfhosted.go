@@ -248,13 +248,13 @@ func (c *Client) doRequest(ctx context.Context, url, header string, obj interfac
 	req = req.WithContext(ctx)
 	if len(c.Bearer) > 0 {
 		req.Header.Add("Authorization", "Bearer "+c.Bearer)
-	} else {
+	} else if len(c.Username) > 0 && len(c.Password) > 0 {
 		req.SetBasicAuth(c.Username, c.Password)
 	}
 
 	if len(header) > 0 {
 		req.Header.Set("Accept", header)
-		req.Header.Set("Accept", ociV1Header)
+		req.Header.Add("Accept", ociV1Header)
 	}
 
 	resp, err := c.Do(req)

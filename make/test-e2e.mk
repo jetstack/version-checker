@@ -25,22 +25,6 @@ e2e-setup-docker-registry: | kind-cluster $(NEEDS_HELM) $(NEEDS_KUBECTL)
 		-f ./make/config/registry/docker-registry-values.yaml \
 		docker-registry twuni/docker-registry >/dev/null
 
-.PHONY: install-harbor
-e2e-setup-harbor: | kind-cluster $(NEEDS_HELM) $(NEEDS_KUBECTL)
-	$(HELM) repo add harbor https://helm.goharbor.io
-	$(HELM) upgrade \
-		--install \
-		--create-namespace \
-		-n harbor \
-		--wait \
-		--set expose.type=nodePort \
-		--set expose.tls.enabled=false \
-		--set trivy.enabled=false \
-		--set registry.credentials.username="user" \
-		--set registry.credentials.password="password" \
-		--set expose.nodePort.ports.http.nodePort=30443 \
-		harbor harbor/harbor >/dev/null
-
  
 INSTALL_OPTIONS += --set image.repository=$(oci_manager_image_name_development)
 INSTALL_OPTIONS += -f ./make/config/version-checker-values.yaml
@@ -75,16 +59,8 @@ test-e2e-deps: install
 .PHONY: test-e2e
 ## e2e end-to-end tests
 ## @category Testing
-test-e2e: test-e2e-deps | kind-cluster #$(NEEDS_GINKGO) $(NEEDS_KUBECTL)
-# $(GINKGO) \
-# 	--output-dir=$(ARTIFACTS) \
-# 	--focus="$(E2E_FOCUS)" \
-# 	--junit-report=junit-go-e2e.xml \
-# 	$(EXTRA_GINKGO_FLAGS) \
-# 	./test/e2e/ \
-# 	-ldflags $(go_manager_ldflags) \
-# 	-- \
-# 	--istioctl-path $(CURDIR)/$(bin_dir)/scratch/istioctl-$(ISTIO_VERSION) \
-# 	--kubeconfig-path $(CURDIR)/$(kind_kubeconfig) \
-# 	--kubectl-path $(KUBECTL) \
-# 	--runtime-issuance-config-map-name=$(E2E_RUNTIME_CONFIG_MAP_NAME)
+test-e2e: test-e2e-deps | kind-cluster $(NEEDS_GINKGO) $(NEEDS_KUBECTL)
+	$(GINKGO) \
+		-v \
+		--no-color \
+		./test/e2e/

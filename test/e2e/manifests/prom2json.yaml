@@ -1,0 +1,14 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: prom2json
+spec:
+  template:
+    spec:
+      containers:
+      - command:
+        - prom2json
+        - http://version-checker.version-checker:8080/metrics
+        image: prom/prom2json
+        name: prom2json
+      restartPolicy: Never
