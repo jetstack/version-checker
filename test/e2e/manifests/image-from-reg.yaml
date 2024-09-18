@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: image-from-reg
+  annotations:
+    enable.version-checker.io/test: "true" 
+spec:
+  containers:
+    - name: test
+      image: docker-registry.registry.svc.cluster.local:5000/my-app:0.0.1
+      imagePullPolicy: Always
+  imagePullSecrets:
+    - name: regcred

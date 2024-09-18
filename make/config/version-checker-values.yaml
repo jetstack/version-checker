@@ -1,0 +1,7 @@
+versionChecker:
+  testAllContainers: false
+selfhosted:
+  - name: registry
+    host: http://docker-registry.registry.svc.cluster.local:5000
+    username: user
+    password: password

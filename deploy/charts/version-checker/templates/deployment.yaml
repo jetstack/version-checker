@@ -46,7 +46,6 @@ spec:
         ports:
         - name: metrics
           containerPort: 8080
-        command: ["version-checker"]
         args:
           - "--image-cache-timeout={{.Values.versionChecker.imageCacheTimeout}}"
           - "--log-level={{.Values.versionChecker.logLevel}}"
