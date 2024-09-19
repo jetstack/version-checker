@@ -146,6 +146,28 @@ securityContext:
 # -- Set pod-level security context
 podSecurityContext: {}
 
+# -- Set affinity
+affinity: {}
+  # podAntiAffinity:
+  #   requiredDuringSchedulingIgnoredDuringExecution:
+  #   - labelSelector:
+  #       matchLabels:
+  #         app.kubernetes.io/name: version-checker
+  #         app.kubernetes.io/instance: release-name
+  #     topologyKey: kubernetes.io/hostname
+
+
+# -- Set topologySpreadConstraints
+topologySpreadConstraints: []
+  # - labelSelector:
+  #     matchLabels:
+  #       app.kubernetes.io/name: version-checker
+  #       app.kubernetes.io/instance: release-name
+  #   maxSkew: 1
+  #   topologyKey: topology.kubernetes.io/zone
+  #   whenUnsatisfiable: ScheduleAnyway
+
+
 # Configure the readiness probe for version-checker
 readinessProbe:
   # -- Enable/Disable the setting of a readinessProbe
