@@ -55,7 +55,7 @@ jobs:
       - name: Install Helm Docs
         uses: envoy/install-helm-docs@v1.0.0
         with:
-          version: 1.11.0
+          version: 1.14.2
       - name: Update Helm Docs
         run: |
           set -ex
