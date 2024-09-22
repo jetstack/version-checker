@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	versionRegex = regexp.MustCompile(`^v?([0-9]+)(\.[0-9]+)?(\.[0-9]+)?(.*)$`)
+	versionRegex = regexp.MustCompile(`^(\D*)?v?([0-9]+)(\.[0-9]+)?(\.[0-9]+)?(.*)$`)
 )
 
 // SemVer is a struct to contain a SemVer of an image tag.
@@ -36,11 +36,11 @@ func Parse(tag string) *SemVer {
 	}
 
 	for i := 0; i < 3; i++ {
-		if len(match[i+1]) > 0 {
-			s.version[i], _ = strconv.ParseInt(strings.TrimPrefix(match[i+1], "."), 10, 64)
+		if len(match[i+2]) > 0 {
+			s.version[i], _ = strconv.ParseInt(strings.TrimPrefix(match[i+2], "."), 10, 64)
 		}
 	}
-	s.metadata = match[4]
+	s.metadata = match[5]
 
 	return s
 }

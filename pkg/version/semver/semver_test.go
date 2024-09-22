@@ -21,11 +21,6 @@ func TestParse(t *testing.T) {
 			[3]int64{0, 0, 0},
 			"v",
 		},
-		"Not matching semver should no output": {
-			"hello-1.2.3",
-			[3]int64{0, 0, 0},
-			"hello-1.2.3",
-		},
 		"1 -> [1 0 0]": {
 			"1",
 			[3]int64{1, 0, 0},
@@ -60,6 +55,11 @@ func TestParse(t *testing.T) {
 			"v1.0.1-",
 			[3]int64{1, 0, 1},
 			"-",
+		},
+		"develop-version-1.24.1.4740 -> [1 24 1]": {
+			"develop-version-1.24.1.4740",
+			[3]int64{1, 24, 1},
+			".4740",
 		},
 	}
 
@@ -103,6 +103,10 @@ func TestMajorMinorPatch(t *testing.T) {
 		"v1.3.hello1-debian-3.hello-world-12 -> [1 3 1 3 12]": {
 			"v1.3.hello1-debian-3.hello-world-12",
 			[3]int64{1, 3, 0},
+		},
+		"develop-version-1.24.1.4740 -> [1 24 1]": {
+			"develop-version-1.24.1.4740",
+			[3]int64{1, 24, 1},
 		},
 	}
 
@@ -215,6 +219,10 @@ func TestLessThan(t *testing.T) {
 		},
 		"If less with complications for rnumber": {
 			"1.63.0-debian-12-r0", "1.63.0-debian-12-r1",
+			true,
+		},
+		"If less with complications for rnumber with prefix": {
+			"version-1.23.1.4708", "develop-version-1.24.1.4740",
 			true,
 		},
 	}
