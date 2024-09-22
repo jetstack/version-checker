@@ -209,6 +209,14 @@ func TestLessThan(t *testing.T) {
 			"0.21.0-debian-10-r39-hello", "0.21.0-debian-10-r9-hello",
 			false,
 		},
+		"If more with complications for rnumber": {
+			"1.63.0-debian-12-r0", "1.62.0-debian-12-r3",
+			false,
+		},
+		"If less with complications for rnumber": {
+			"1.63.0-debian-12-r0", "1.63.0-debian-12-r1",
+			true,
+		},
 	}
 
 	for name, test := range tests {

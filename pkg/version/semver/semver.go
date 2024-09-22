@@ -63,23 +63,37 @@ func (s *SemVer) LessThan(other *SemVer) bool {
 	}
 
 	// Compare version numbers
-	if s.compareVersionNumbers(other) {
+	less, equal := s.compareVersionNumbers(other)
+	if less {
 		return true
 	}
 
-	// Compare pre-release metadata
-	return s.comparePreReleaseMetadata(other)
+	if equal {
+		// Compare pre-release metadata
+		return s.comparePreReleaseMetadata(other)
+	}
+
+	return false
 }
+
 func (s *SemVer) isInvalidComparison(other *SemVer) bool {
 	return len(other.original) == 0 || len(s.original) == 0
 }
-func (s *SemVer) compareVersionNumbers(other *SemVer) bool {
+
+func (s *SemVer) compareVersionNumbers(other *SemVer) (less bool, equal bool) {
 	for i := 0; i < 3; i++ {
 		if s.version[i] != other.version[i] {
-			return s.version[i] < other.version[i]
+			if s.version[i] < other.version[i] {
+				return true, false
+			}
+
+			if s.version[i] > other.version[i] {
+				return false, false
+			}
 		}
 	}
-	return false
+
+	return false, true
 }
 
 func (s *SemVer) comparePreReleaseMetadata(other *SemVer) bool {
