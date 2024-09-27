@@ -25,3 +25,20 @@ This is required as there's an image `608111629` which is detected as the latest
 | Annotation |
 |-|
 | `match-regex.version-checker.io/cert-manager='v(\d+)\.(\d+)\.(\d+)` |
+
+### Kyverno Policy-Reporter
+
+The Policy-Reporter Kyverno has an image `7127761` which is always detected to be the latest. 
+
+| Annotation |
+|-|
+| `match-regex.version-checker.io/policy-reporter: '(\d+)\.(\d+)\.(\d+)'` |
+
+
+### Velero
+
+Velero contains an image `1220` which is always the latest. 
+
+| Annotation |
+|-|
+| `match-regex.version-checker.io/velero: 'v(\d+)\.(\d+)\.(\d+)'` |
