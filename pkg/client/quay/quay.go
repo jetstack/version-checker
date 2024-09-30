@@ -41,8 +41,8 @@ type responseTagItem struct {
 }
 
 type responseManifest struct {
-	ManifestData string `json:"manifest_data"`
 	Status       *int   `json:"status,omitempty"`
+	ManifestData string `json:"manifest_data"`
 }
 
 type responseManifestData struct {

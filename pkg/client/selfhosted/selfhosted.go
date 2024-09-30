@@ -40,8 +40,8 @@ type Options struct {
 	Password  string
 	Bearer    string
 	TokenPath string
-	Insecure  bool
 	CAPath    string
+	Insecure  bool
 }
 
 type Client struct {

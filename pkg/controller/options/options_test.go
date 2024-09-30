@@ -145,8 +145,8 @@ func TestBuild(t *testing.T) {
 
 func TestIsEnabled(t *testing.T) {
 	tests := map[string]struct {
-		containerName string
 		annotations   map[string]string
+		containerName string
 		defaultAll    bool
 		expEnabled    bool
 	}{
