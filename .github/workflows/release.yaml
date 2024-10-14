@@ -135,7 +135,7 @@ jobs:
 
       - name: Creating PR
         if: startsWith(github.ref, 'refs/tags/')
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.JETSTACK_CHARTS_PAT }}
           title: "Release version-checker ${{github.ref_name }}"
