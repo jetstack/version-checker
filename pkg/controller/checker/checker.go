@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -20,6 +21,7 @@ type Checker struct {
 type Result struct {
 	CurrentVersion string
 	LatestVersion  string
+	Timestamp      time.Time
 	IsLatest       bool
 	ImageURL       string
 }
@@ -100,6 +102,7 @@ func (c *Checker) handleSemver(ctx context.Context, imageURL, statusSHA, current
 	return &Result{
 		CurrentVersion: currentTag,
 		LatestVersion:  latestVersion,
+		Timestamp:      latestImage.Timestamp,
 		IsLatest:       isLatest,
 		ImageURL:       imageURL,
 	}, nil
@@ -168,7 +171,7 @@ func (c *Checker) isLatestSemver(ctx context.Context, imageURL, currentSHA strin
 	return latestImage, isLatest, nil
 }
 
-// isLatestSHA will return the the result of whether the given image is the latest, according to image SHA.
+// isLatestSHA will return the result of whether the given image is the latest, according to image SHA.
 func (c *Checker) isLatestSHA(ctx context.Context, imageURL, currentSHA string, opts *api.Options) (*Result, error) {
 	latestImage, err := c.search.LatestImage(ctx, imageURL, opts)
 	if err != nil {
@@ -184,6 +187,7 @@ func (c *Checker) isLatestSHA(ctx context.Context, imageURL, currentSHA string, 
 	return &Result{
 		CurrentVersion: currentSHA,
 		LatestVersion:  latestVersion,
+		Timestamp:      latestImage.Timestamp,
 		IsLatest:       isLatest,
 		ImageURL:       imageURL,
 	}, nil

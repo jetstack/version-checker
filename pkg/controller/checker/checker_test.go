@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/aws/smithy-go/time"
+
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 
@@ -27,6 +29,23 @@ func TestContainer(t *testing.T) {
 			opts:       nil,
 			searchResp: nil,
 			expResult:  nil,
+		},
+		"use timestamp from image as last-updated": {
+			statusSHA: "localhost:5000/version-checker@sha:123",
+			imageURL:  "localhost:5000/version-checker:v0.2.0",
+			opts:      new(api.Options),
+			searchResp: &api.ImageTag{
+				Tag:       "v0.2.0",
+				SHA:       "sha:456",
+				Timestamp: time.ParseEpochSeconds(12345678),
+			},
+			expResult: &Result{
+				CurrentVersion: "v0.2.0@sha:123",
+				LatestVersion:  "v0.2.0@sha:456",
+				ImageURL:       "localhost:5000/version-checker",
+				IsLatest:       false,
+				Timestamp:      time.ParseEpochSeconds(12345678),
+			},
 		},
 		"if v0.2.0 is latest version, but different sha, then not latest": {
 			statusSHA: "localhost:5000/version-checker@sha:123",

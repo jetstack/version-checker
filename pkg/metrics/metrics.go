@@ -44,7 +44,7 @@ func New(log *logrus.Entry) *Metrics {
 			Help:      "Where the container in use is using the latest upstream registry version",
 		},
 		[]string{
-			"namespace", "pod", "container", "container_type", "image", "current_version", "latest_version",
+			"namespace", "pod", "container", "container_type", "image", "current_version", "latest_version", "last_updated",
 		},
 	)
 
@@ -87,7 +87,7 @@ func (m *Metrics) Run(servingAddress string) error {
 	return nil
 }
 
-func (m *Metrics) AddImage(namespace, pod, container, containerType, imageURL string, isLatest bool, currentVersion, latestVersion string) {
+func (m *Metrics) AddImage(namespace, pod, container, containerType, imageURL string, isLatest bool, currentVersion, latestVersion, lastUpdated string) {
 	// Remove old image url/version if it exists
 	m.RemoveImage(namespace, pod, container, containerType)
 
@@ -100,7 +100,7 @@ func (m *Metrics) AddImage(namespace, pod, container, containerType, imageURL st
 	}
 
 	m.containerImageVersion.With(
-		m.buildLabels(namespace, pod, container, containerType, imageURL, currentVersion, latestVersion),
+		m.buildLabels(namespace, pod, container, containerType, imageURL, currentVersion, latestVersion, lastUpdated),
 	).Set(isLatestF)
 
 	index := m.latestImageIndex(namespace, pod, container, containerType)
@@ -131,7 +131,7 @@ func (m *Metrics) latestImageIndex(namespace, pod, container, containerType stri
 	return strings.Join([]string{namespace, pod, container, containerType}, "")
 }
 
-func (m *Metrics) buildLabels(namespace, pod, container, containerType, imageURL, currentVersion, latestVersion string) prometheus.Labels {
+func (m *Metrics) buildLabels(namespace, pod, container, containerType, imageURL, currentVersion, latestVersion, lastUpdated string) prometheus.Labels {
 	return prometheus.Labels{
 		"namespace":       namespace,
 		"pod":             pod,
@@ -140,6 +140,7 @@ func (m *Metrics) buildLabels(namespace, pod, container, containerType, imageURL
 		"image":           imageURL,
 		"current_version": currentVersion,
 		"latest_version":  latestVersion,
+		"last_updated":    lastUpdated,
 	}
 }
 
