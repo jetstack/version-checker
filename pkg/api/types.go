@@ -37,6 +37,9 @@ const (
 
 	// PinPatchAnnotationKey will pin the patch version to check.
 	PinPatchAnnotationKey = "pin-patch.version-checker.io"
+
+	// PriorityKey will set the priority label on the image metric.
+	PriorityKey = "priority.version-checker.io"
 )
 
 // Options is used to describe what restrictions should be used for determining
@@ -58,6 +61,8 @@ type Options struct {
 	PinPatch *int64 `json:"pin-patch,omitempty"`
 
 	RegexMatcher *regexp.Regexp `json:"-"`
+
+	Priority int
 }
 
 // ImageTag describes a container image tag.
