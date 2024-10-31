@@ -3,23 +3,25 @@ package acr
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"sync"
 	"time"
 
+	"github.com/MicahParks/keyfunc/v3"
+
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/adal"
-	jwt "github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/jetstack/version-checker/pkg/client/util"
 )
 
 const (
-	userAgent = "jetstack/version-checker"
+	userAgent     = "jetstack/version-checker"
+	requiredScope = "repository:*:metadata_read"
 )
 
 type Client struct {
@@ -39,6 +41,7 @@ type Options struct {
 	Username     string
 	Password     string
 	RefreshToken string
+	JWKSURI      string
 }
 
 type AccessTokenResponse struct {
@@ -197,7 +200,7 @@ func (c *Client) getAccessTokenClient(ctx context.Context, host string) (*acrCli
 	formDataParameters := map[string]interface{}{
 		"grant_type":    "refresh_token",
 		"refresh_token": c.RefreshToken,
-		"scope":         "repository:*:*",
+		"scope":         requiredScope,
 		"service":       host,
 	}
 
@@ -225,7 +228,7 @@ func (c *Client) getAccessTokenClient(ctx context.Context, host string) (*acrCli
 			host, err)
 	}
 
-	exp, err := getTokenExpiration(respToken.AccessToken)
+	exp, err := c.getTokenExpiration(respToken.AccessToken)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %s", host, err)
 	}
@@ -243,8 +246,20 @@ func (c *Client) getAccessTokenClient(ctx context.Context, host string) (*acrCli
 	}, nil
 }
 
-func getTokenExpiration(tokenString string) (time.Time, error) {
-	token, err := jwt.Parse(tokenString, nil, jwt.WithoutClaimsValidation())
+func (c *Client) getTokenExpiration(tokenString string) (time.Time, error) {
+	jwtParser := jwt.NewParser(jwt.WithoutClaimsValidation())
+	var token *jwt.Token
+	var err error
+	if c.JWKSURI != "" {
+		var k keyfunc.Keyfunc
+		k, err = keyfunc.NewDefaultCtx(context.TODO(), []string{c.JWKSURI})
+		if err != nil {
+			return time.Time{}, err
+		}
+		token, err = jwtParser.Parse(tokenString, k.Keyfunc)
+	} else {
+		token, _, err = jwtParser.ParseUnverified(tokenString, jwt.MapClaims{})
+	}
 	if err != nil {
 		return time.Time{}, err
 	}
