@@ -3,6 +3,7 @@ package acr
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -163,16 +164,20 @@ func (c *Client) getACRClient(ctx context.Context, host string) (*acrClient, err
 	}
 
 	var (
-		client *acrClient
-		err    error
+		client            *acrClient
+		accessTokenClient *autorest.Client
+		accessTokenReq    *http.Request
+		err               error
 	)
-
 	if len(c.RefreshToken) > 0 {
-		client, err = c.getAccessTokenClient(ctx, host)
+		accessTokenClient, accessTokenReq, err = c.getAccessTokenRequesterForRefreshToken(ctx, host)
 	} else {
-		client, err = c.getBasicAuthClient(host)
+		accessTokenClient, accessTokenReq, err = c.getAccessTokenRequesterForBasicAuth(ctx, host)
 	}
 	if err != nil {
+		return nil, err
+	}
+	if client, err = c.getAuthorizedClient(accessTokenClient, accessTokenReq, host); err != nil {
 		return nil, err
 	}
 
@@ -181,17 +186,30 @@ func (c *Client) getACRClient(ctx context.Context, host string) (*acrClient, err
 	return client, nil
 }
 
-func (c *Client) getBasicAuthClient(_ string) (*acrClient, error) {
+func (c *Client) getAccessTokenRequesterForBasicAuth(ctx context.Context, host string) (*autorest.Client, *http.Request, error) {
 	client := autorest.NewClientWithUserAgent(userAgent)
 	client.Authorizer = autorest.NewBasicAuthorizer(c.Username, c.Password)
+	urlParameters := map[string]interface{}{
+		"url": "https://" + host,
+	}
 
-	return &acrClient{
-		Client:      &client,
-		tokenExpiry: time.Unix(1<<63-1, 0),
-	}, nil
+	preparer := autorest.CreatePreparer(
+		autorest.WithCustomBaseURL("{url}", urlParameters),
+		autorest.WithPath("/oauth2/token"),
+		autorest.WithQueryParameters(map[string]interface{}{
+			"scope":   requiredScope,
+			"service": host,
+		}),
+	)
+	req, err := preparer.Prepare((&http.Request{}).WithContext(ctx))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return &client, req, nil
 }
 
-func (c *Client) getAccessTokenClient(ctx context.Context, host string) (*acrClient, error) {
+func (c *Client) getAccessTokenRequesterForRefreshToken(ctx context.Context, host string) (*autorest.Client, *http.Request, error) {
 	client := autorest.NewClientWithUserAgent(userAgent)
 	urlParameters := map[string]interface{}{
 		"url": "https://" + host,
@@ -211,11 +229,14 @@ func (c *Client) getAccessTokenClient(ctx context.Context, host string) (*acrCli
 		autorest.WithFormData(autorest.MapToValues(formDataParameters)))
 	req, err := preparer.Prepare((&http.Request{}).WithContext(ctx))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+	return &client, req, nil
+}
 
-	resp, err := autorest.SendWithSender(client, req,
-		autorest.DoRetryForStatusCodes(client.RetryAttempts, client.RetryDuration, autorest.StatusCodesForRetry...))
+func (c *Client) getAuthorizedClient(accessTokenClient *autorest.Client, accessTokenReq *http.Request, host string) (*acrClient, error) {
+	resp, err := autorest.SendWithSender(accessTokenClient, accessTokenReq,
+		autorest.DoRetryForStatusCodes(accessTokenClient.RetryAttempts, accessTokenClient.RetryDuration, autorest.StatusCodesForRetry...))
 	if err != nil {
 		return nil, fmt.Errorf("%s: failed to request access token: %s",
 			host, err)
@@ -234,15 +255,15 @@ func (c *Client) getAccessTokenClient(ctx context.Context, host string) (*acrCli
 	}
 
 	token := &adal.Token{
-		RefreshToken: c.RefreshToken,
+		RefreshToken: "", // empty if access_token was retrieved with basic auth. but client is not reused after expiry anyway (see cachedACRClient)
 		AccessToken:  respToken.AccessToken,
 	}
 
-	client.Authorizer = autorest.NewBearerAuthorizer(token)
+	accessTokenClient.Authorizer = autorest.NewBearerAuthorizer(token)
 
 	return &acrClient{
 		tokenExpiry: exp,
-		Client:      &client,
+		Client:      accessTokenClient,
 	}, nil
 }
 
