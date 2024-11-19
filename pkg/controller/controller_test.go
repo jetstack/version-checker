@@ -30,7 +30,7 @@ func TestNewController(t *testing.T) {
 	metrics := &metrics.Metrics{}
 	imageClient := &client.Client{}
 
-	controller := New(5*time.Minute, metrics, imageClient, kubeClient, testLogger, true)
+	controller := New(5*time.Minute, metrics, imageClient, kubeClient, testLogger, true, nil)
 
 	assert.NotNil(t, controller)
 	assert.Equal(t, controller.defaultTestAll, true)
@@ -43,7 +43,7 @@ func TestRun(t *testing.T) {
 	kubeClient := fake.NewSimpleClientset()
 	metrics := &metrics.Metrics{}
 	imageClient := &client.Client{}
-	controller := New(5*time.Minute, metrics, imageClient, kubeClient, testLogger, true)
+	controller := New(5*time.Minute, metrics, imageClient, kubeClient, testLogger, true, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -72,7 +72,7 @@ func TestAddObject(t *testing.T) {
 	kubeClient := fake.NewSimpleClientset()
 	metrics := &metrics.Metrics{}
 	imageClient := &client.Client{}
-	controller := New(5*time.Minute, metrics, imageClient, kubeClient, testLogger, true)
+	controller := New(5*time.Minute, metrics, imageClient, kubeClient, testLogger, true, nil)
 
 	obj := &corev1.Pod{}
 	controller.addObject(obj)
@@ -99,7 +99,7 @@ func TestDeleteObject(t *testing.T) {
 	kubeClient := fake.NewSimpleClientset()
 	metrics := &metrics.Metrics{}
 	imageClient := &client.Client{}
-	controller := New(5*time.Minute, metrics, imageClient, kubeClient, testLogger, true)
+	controller := New(5*time.Minute, metrics, imageClient, kubeClient, testLogger, true, nil)
 
 	pod := &corev1.Pod{
 		Spec: corev1.PodSpec{
@@ -120,7 +120,7 @@ func TestProcessNextWorkItem(t *testing.T) {
 	kubeClient := fake.NewSimpleClientset()
 	metrics := &metrics.Metrics{}
 	imageClient := &client.Client{}
-	controller := New(5*time.Minute, metrics, imageClient, kubeClient, testLogger, true)
+	controller := New(5*time.Minute, metrics, imageClient, kubeClient, testLogger, true, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

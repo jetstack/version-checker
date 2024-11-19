@@ -106,6 +106,7 @@ enrich version checking on image tags:
     used to change the URL for where to lookup where the latest image version
     is. In this example, the current version of `my-container` will be compared
     against the image versions in the `docker.io/bitnami/etcd` registry.
+    (This also overrrides any substitution/replacement from `--image-url-substitution`.)
 
 ## Known configurations
 

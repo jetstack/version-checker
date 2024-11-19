@@ -3,17 +3,17 @@ package app
 import (
 	"context"
 	"fmt"
-	"os"
-
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
-	_ "k8s.io/client-go/plugin/pkg/client/auth" // Load all auth plugins
+	"os"
 
 	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/jetstack/version-checker/pkg/client"
 	"github.com/jetstack/version-checker/pkg/controller"
+	"github.com/jetstack/version-checker/pkg/controller/checker"
 	"github.com/jetstack/version-checker/pkg/metrics"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+	_ "k8s.io/client-go/plugin/pkg/client/auth" // Load all auth plugins
 )
 
 const (
@@ -74,8 +74,14 @@ func NewCommand(ctx context.Context) *cobra.Command {
 
 			log.Infof("flag --test-all-containers=%t %s", opts.DefaultTestAll, defaultTestAllInfoMsg)
 
-			c := controller.New(opts.CacheTimeout, metrics,
-				client, kubeClient, log, opts.DefaultTestAll)
+			var imageURLSubstitution *checker.Substitution
+			if opts.ImageURLSubstitution != "" {
+				if imageURLSubstitution, err = checker.NewSubstitutionFromSedCommand(opts.ImageURLSubstitution); err != nil {
+					return fmt.Errorf("failed to parse --image-url-substitution %q: %s", opts.ImageURLSubstitution, err)
+				}
+			}
+
+			c := controller.New(opts.CacheTimeout, metrics, client, kubeClient, log, opts.DefaultTestAll, imageURLSubstitution)
 
 			return c.Run(ctx, opts.CacheTimeout/2)
 		},
