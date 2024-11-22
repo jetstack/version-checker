@@ -17,6 +17,9 @@ import (
 // Searcher is the interface for Search to facilitate testing.
 type Searcher interface {
 	Run(time.Duration)
+	// Image will get the api.ImageTag given an image URL, tag, sha and whether to only compare by sha.
+	Image(context.Context, string, string, string, bool) (*api.ImageTag, error)
+	// LatestImage will get the latest image given an image URL and options.
 	LatestImage(context.Context, string, *api.Options) (*api.ImageTag, error)
 }
 
@@ -49,8 +52,22 @@ func (s *Search) Fetch(ctx context.Context, imageURL string, opts *api.Options) 
 	return latestImage, nil
 }
 
-// LatestImage will get the latestImage image given an image URL and
-// options. If not found in the cache, or is too old, then will do a fresh
+func (s *Search) Image(ctx context.Context, imageURL, tag, sha string, mustUseSHA bool) (*api.ImageTag, error) {
+	refs, err := s.versionGetter.AllTagsFromImage(ctx, imageURL)
+	if err != nil {
+		return nil, err
+	}
+	for _, ref := range refs {
+		if ref.SHA == sha && sha != "" || // same sha is always fine
+			ref.Tag == tag && !mustUseSHA { // otherwise compare the tag, if sha use is not required
+			return &ref, nil
+		}
+	}
+	return nil, nil
+}
+
+// LatestImage will get the latest image given an image URL and options.
+// If not found in the cache, or is too old, then will do a fresh
 // lookup and commit to the cache.
 func (s *Search) LatestImage(ctx context.Context, imageURL string, opts *api.Options) (*api.ImageTag, error) {
 	hashIndex, err := calculateHashIndex(imageURL, opts)
