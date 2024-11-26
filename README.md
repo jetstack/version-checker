@@ -107,6 +107,9 @@ enrich version checking on image tags:
     is. In this example, the current version of `my-container` will be compared
     against the image versions in the `docker.io/bitnami/etcd` registry.
 
+- `priority.version-checker.io/my-container: 3`: will set the priority label.
+    So you can sort/prioritize better if there are many images in the cluster.
+
 ## Known configurations
 
 From time to time, version-checker may need some of the above options applied to determine the latest version,
