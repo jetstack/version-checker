@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	versionRegex = regexp.MustCompile(`^v?([0-9]+)(\.[0-9]+)?(\.[0-9]+)?(.*)$`)
+	versionRegex = regexp.MustCompile(`^(\D*)?v?([0-9]+)(\.[0-9]+)?(\.[0-9]+)?(.*)$`)
 )
 
 // SemVer is a struct to contain a SemVer of an image tag.
@@ -36,11 +36,11 @@ func Parse(tag string) *SemVer {
 	}
 
 	for i := 0; i < 3; i++ {
-		if len(match[i+1]) > 0 {
-			s.version[i], _ = strconv.ParseInt(strings.TrimPrefix(match[i+1], "."), 10, 64)
+		if len(match[i+2]) > 0 {
+			s.version[i], _ = strconv.ParseInt(strings.TrimPrefix(match[i+2], "."), 10, 64)
 		}
 	}
-	s.metadata = match[4]
+	s.metadata = match[5]
 
 	return s
 }
@@ -63,23 +63,37 @@ func (s *SemVer) LessThan(other *SemVer) bool {
 	}
 
 	// Compare version numbers
-	if s.compareVersionNumbers(other) {
+	less, equal := s.compareVersionNumbers(other)
+	if less {
 		return true
 	}
 
-	// Compare pre-release metadata
-	return s.comparePreReleaseMetadata(other)
+	if equal {
+		// Compare pre-release metadata
+		return s.comparePreReleaseMetadata(other)
+	}
+
+	return false
 }
+
 func (s *SemVer) isInvalidComparison(other *SemVer) bool {
 	return len(other.original) == 0 || len(s.original) == 0
 }
-func (s *SemVer) compareVersionNumbers(other *SemVer) bool {
+
+func (s *SemVer) compareVersionNumbers(other *SemVer) (less bool, equal bool) {
 	for i := 0; i < 3; i++ {
 		if s.version[i] != other.version[i] {
-			return s.version[i] < other.version[i]
+			if s.version[i] < other.version[i] {
+				return true, false
+			}
+
+			if s.version[i] > other.version[i] {
+				return false, false
+			}
 		}
 	}
-	return false
+
+	return false, true
 }
 
 func (s *SemVer) comparePreReleaseMetadata(other *SemVer) bool {
