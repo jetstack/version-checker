@@ -41,14 +41,22 @@ func (v *Version) Run(refreshRate time.Duration) {
 	v.imageCache.StartGarbageCollector(refreshRate)
 }
 
+// AllTagsFromImage will return all tags given an imageURL.
+func (v *Version) AllTagsFromImage(ctx context.Context, imageURL string) ([]api.ImageTag, error) {
+	if tagsI, err := v.imageCache.Get(ctx, imageURL, imageURL, nil); err != nil {
+		return nil, err
+	} else {
+		return tagsI.([]api.ImageTag), err
+	}
+}
+
 // LatestTagFromImage will return the latest tag given an imageURL, according
 // to the given options.
 func (v *Version) LatestTagFromImage(ctx context.Context, imageURL string, opts *api.Options) (*api.ImageTag, error) {
-	tagsI, err := v.imageCache.Get(ctx, imageURL, imageURL, nil)
+	tags, err := v.AllTagsFromImage(ctx, imageURL)
 	if err != nil {
 		return nil, err
 	}
-	tags := tagsI.([]api.ImageTag)
 
 	var tag *api.ImageTag
 
