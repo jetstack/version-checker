@@ -42,6 +42,7 @@ func (b *Builder) Options(name string) (*api.Options, error) {
 		b.handlePinMinorOption,
 		b.handlePinPatchOption,
 		b.handleOverrideURLOption,
+		b.handlePriority,
 	}
 
 	// Execute each handler
@@ -142,6 +143,16 @@ func (b *Builder) handlePinPatchOption(name string, opts *api.Options, setNonSha
 func (b *Builder) handleOverrideURLOption(name string, opts *api.Options, setNonSha *bool, errs *[]string) error {
 	if overrideURL, ok := b.ans[b.index(name, api.OverrideURLAnnotationKey)]; ok {
 		opts.OverrideURL = &overrideURL
+	}
+	return nil
+}
+
+func (b *Builder) handlePriority(name string, opts *api.Options, _ *bool, _ *[]string) error {
+	if priority, ok := b.ans[b.index(name, api.PriorityKey)]; ok {
+		var err error
+		if opts.Priority, err = strconv.Atoi(priority); err != nil {
+			return err
+		}
 	}
 	return nil
 }
