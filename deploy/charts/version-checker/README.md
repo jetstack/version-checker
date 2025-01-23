@@ -31,6 +31,8 @@ A Helm chart for version-checker
 | ecr.sessionToken | string | `nil` | ECR session token for read access to private registries |
 | env | object | `{}` | Can be used to provide custom environment variables e.g. proxy settings |
 | existingSecret | string | `""` | Provide an existing Secret within the cluster to use for authentication and configuration of version-checker |
+| extraVolumeMounts | list | `[]` | Allow for extra Volume Mounts to version-checkers container |
+| extraVolumes | list | `[]` | Allow for extra Volumes to be associated to the pod |
 | gcr.token | string | `nil` | Access token for read access to private GCR registries |
 | ghcr.token | string | `nil` | Personal Access token for read access to GHCR releases |
 | image.imagePullSecret | string | `nil` | Pull secrects - name of existing secret |
