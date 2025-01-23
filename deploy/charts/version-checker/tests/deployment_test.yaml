@@ -263,7 +263,7 @@ tests:
                 name: version-checker
 
   # Self Hosted
-  - it: Self hosted should work
+  - it: "Self hosted: should work"
     set:
       selfhosted:
         - name: bob
@@ -307,8 +307,46 @@ tests:
                 key: selfhosted.bob.password
                 name: version-checker
 
+  - it: "Self hosted: With Insecure"
+    set:
+      selfhosted:
+        - name: bob
+          host: http://example.com
+          username: asgasasf
+          password: hunter1
+          insecure: "true"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          count: 1
+          content:
+            name: VERSION_CHECKER_SELFHOSTED_INSECURE_bob
+            valueFrom:
+              secretKeyRef:
+                key: selfhosted.bob.insecure
+                name: version-checker
+
+  - it: "Self hosted: With CA_PATH Set"
+    set:
+      selfhosted:
+        - name: bob
+          host: http://example.com
+          username: asgasasf
+          password: hunter1
+          ca_path: "/mnt/ca.pam"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          count: 1
+          content:
+            name: VERSION_CHECKER_SELFHOSTED_CA_PATH_bob
+            valueFrom:
+              secretKeyRef:
+                key: selfhosted.bob.ca_path
+                name: version-checker
+
   # Multiple Self Hosted
-  - it: Multiple Self hosted should work
+  - it: "Self hosted: Multiple Self hosted should work"
     set:
       selfhosted:
         - name: bob
@@ -383,7 +421,7 @@ tests:
             secretRef:
               name: preexistingsecret
 
-  - it: SecretEnabled
+  - it: "Volumes: SecretEnabled"
     set:
       acr.refreshToken: asgasga
     asserts:
@@ -393,6 +431,57 @@ tests:
             name: version-checker
             secret:
               secretName: version-checker
+
+  - it: "Volumes: extra Volumes exist"
+    set:
+      extraVolumes:
+        - name: empty-dir
+          emptyDir: {}
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: empty-dir
+            emptyDir: {}
+
+  - it: "Volumes: Secrets Enabled"
+    set:
+      acr.refreshToken: abc
+      extraVolumes:
+        - name: empty-dir
+          emptyDir: {}
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: empty-dir
+            emptyDir: {}
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: version-checker
+            secret:
+              secretName: version-checker
+
+  - it: "VolumeMounts: extra VolumeMounts exist"
+    set:
+      extraVolumeMounts:
+        - name: empty-dir
+          mountPath: /test/mount/path
+      extraVolumes:
+        - name: empty-dir
+          emptyDir: {}
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: empty-dir
+            mountPath: /test/mount/path
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: empty-dir
+            emptyDir: {}
 
   - it: Resources are reflected
     set:

@@ -110,6 +110,8 @@ selfhosted:
   #  username: foo
   #  password: bar
   #  token:
+  #  insecure:
+  #  ca_path:
 
 # -- Provide an existing Secret within the cluster to use for authentication and configuration of version-checker
 existingSecret: ""
@@ -147,7 +149,8 @@ securityContext:
 podSecurityContext: {}
 
 # -- Set affinity
-affinity: {}
+affinity:
+  {}
   # podAntiAffinity:
   #   requiredDuringSchedulingIgnoredDuringExecution:
   #   - labelSelector:
@@ -156,9 +159,9 @@ affinity: {}
   #         app.kubernetes.io/instance: release-name
   #     topologyKey: kubernetes.io/hostname
 
-
 # -- Set topologySpreadConstraints
-topologySpreadConstraints: []
+topologySpreadConstraints:
+  []
   # - labelSelector:
   #     matchLabels:
   #       app.kubernetes.io/name: version-checker
@@ -166,7 +169,6 @@ topologySpreadConstraints: []
   #   maxSkew: 1
   #   topologyKey: topology.kubernetes.io/zone
   #   whenUnsatisfiable: ScheduleAnyway
-
 
 # Configure the readiness probe for version-checker
 readinessProbe:
@@ -211,3 +213,9 @@ serviceMonitor:
   enabled: false
   # -- Additional labels to add to the ServiceMonitor
   additionalLabels: {}
+
+# -- Allow for extra Volume Mounts to version-checkers container
+extraVolumeMounts: []
+
+# -- Allow for extra Volumes to be associated to the pod
+extraVolumes: []
