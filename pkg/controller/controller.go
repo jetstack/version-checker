@@ -51,6 +51,7 @@ func New(
 	kubeClient kubernetes.Interface,
 	log *logrus.Entry,
 	defaultTestAll bool,
+	imageURLSubstitution *checker.Substitution,
 ) *Controller {
 	workqueue := workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[any]())
 	scheduledWorkQueue := scheduler.NewScheduledWorkQueue(clock.RealClock{}, workqueue.Add)
@@ -58,6 +59,7 @@ func New(
 	log = log.WithField("module", "controller")
 	versionGetter := version.New(log, imageClient, cacheTimeout)
 	search := search.New(log, cacheTimeout, versionGetter)
+	checker := checker.New(search, imageURLSubstitution)
 
 	c := &Controller{
 		log:                log,
@@ -65,7 +67,7 @@ func New(
 		workqueue:          workqueue,
 		scheduledWorkQueue: scheduledWorkQueue,
 		metrics:            metrics,
-		checker:            checker.New(search),
+		checker:            checker,
 		defaultTestAll:     defaultTestAll,
 	}
 

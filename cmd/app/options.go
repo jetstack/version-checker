@@ -65,6 +65,7 @@ type Options struct {
 	MetricsServingAddress string
 	DefaultTestAll        bool
 	CacheTimeout          time.Duration
+	ImageURLSubstitution  string
 	LogLevel              string
 
 	kubeConfigFlags *genericclioptions.ConfigFlags
@@ -113,6 +114,14 @@ func (o *Options) addAppFlags(fs *pflag.FlagSet) {
 		"image-cache-timeout", "c", time.Minute*30,
 		"The time for an image version in the cache to be considered fresh. Images "+
 			"will be rechecked after this interval.")
+
+	fs.StringVarP(&o.ImageURLSubstitution,
+		"image-url-substitution", "", "",
+		"Image URL substitution. In case you want to apply a replacement to all image URLs. "+
+			"E.g. when you mirrored them and want to check the originals. "+
+			"The format follows the sed substitution command syntax. "+
+			"E.g. s#myacr.azurecr.io/mirror/##g to remove your registry from: myacr.azurecr.io/mirror/docker.io/alpine:3"+
+			"(Any override-url.version-checker.io/my-container annotation would still override everything afterwards.)")
 
 	fs.StringVarP(&o.LogLevel,
 		"log-level", "v", "info",
