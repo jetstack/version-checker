@@ -72,9 +72,9 @@ spec:
         {{- include "version-checker.pod.envs.ghcr" . | nindent 8 }}
         {{- include "version-checker.pod.envs.quay" . | nindent 8 }}
         {{- include "version-checker.pod.envs.selfhosted" . | nindent 6 }}
-        # Extra Envs
+          # Extra Envs
         {{- if .Values.env }}
-        {{- toYaml .Values.env | nindent 8 }}
+          {{- toYaml .Values.env | nindent 10 }}
         {{- end }}
         volumeMounts:
         {{- with .Values.extraVolumeMounts }}
