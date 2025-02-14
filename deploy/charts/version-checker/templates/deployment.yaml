@@ -76,8 +76,8 @@ spec:
         {{- if .Values.env }}
           {{- toYaml .Values.env | nindent 10 }}
         {{- end }}
-        volumeMounts:
         {{- with .Values.extraVolumeMounts }}
+        volumeMounts:
           {{- toYaml . | nindent 10 }}
         {{- end }}
       {{- with .Values.podSecurityContext }}
