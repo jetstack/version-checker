@@ -95,7 +95,10 @@ quay:
   token:
 
 # -- Can be used to provide custom environment variables e.g. proxy settings
-env: {}
+env:
+  []
+  # - name: MY_VAR
+  #   value: MY_VAR_VALUE
 
 # -- ([]{name: "", host: "", username:"", password:"", token:""}]) Setup a number of SelfHosted Repositories and their credentials
 selfhosted:
