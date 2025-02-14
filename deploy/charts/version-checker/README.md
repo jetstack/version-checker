@@ -1,6 +1,6 @@
 # version-checker
 
-![Version: v0.8.5](https://img.shields.io/badge/Version-v0.8.5-informational?style=flat-square) ![AppVersion: v0.8.5](https://img.shields.io/badge/AppVersion-v0.8.5-informational?style=flat-square)
+![Version: v0.8.6](https://img.shields.io/badge/Version-v0.8.6-informational?style=flat-square) ![AppVersion: v0.8.6](https://img.shields.io/badge/AppVersion-v0.8.6-informational?style=flat-square)
 
 A Helm chart for version-checker
 
@@ -29,7 +29,7 @@ A Helm chart for version-checker
 | ecr.iamRoleArn | string | `nil` | Provide AWS EKS Iam Role ARN following: [Specify A ServiceAccount Role](https://docs.aws.amazon.com/eks/latest/userguide/specify-service-account-role.html) |
 | ecr.secretAccessKey | string | `nil` | ECR secret access key for read access to private registries |
 | ecr.sessionToken | string | `nil` | ECR session token for read access to private registries |
-| env | object | `{}` | Can be used to provide custom environment variables e.g. proxy settings |
+| env | list | `[]` | Can be used to provide custom environment variables e.g. proxy settings |
 | existingSecret | string | `""` | Provide an existing Secret within the cluster to use for authentication and configuration of version-checker |
 | extraVolumeMounts | list | `[]` | Allow for extra Volume Mounts to version-checkers container |
 | extraVolumes | list | `[]` | Allow for extra Volumes to be associated to the pod |
