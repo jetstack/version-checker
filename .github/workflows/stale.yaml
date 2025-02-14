@@ -25,8 +25,11 @@ jobs:
 
         stale-pr-message: |-
           This Pull Request is stale because it has been open for 60 days with
-          no activity. It will be closed in 7 days if no further activity.
+          no activity. It will be closed in 31 days if no further activity.
         stale-pr-label: 'stale'
 
         days-before-stale: 90
-        days-before-close: 7
+        days-before-close: 31
+        exempt-all-milestones: true
+        ignore-updates: false
+        exempt-draft-pr: true

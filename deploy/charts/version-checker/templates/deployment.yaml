@@ -1,14 +1,10 @@
-{{- $secretEnabled := false }}
-{{- if or .Values.acr.refreshToken .Values.acr.username .Values.acr.password .Values.docker.token .Values.docker.username .Values.docker.password .Values.ecr.accessKeyID .Values.ecr.secretAccessKey .Values.ecr.sessionToken .Values.gcr.token .Values.quay.token (not (eq (len .Values.selfhosted) 0)) }}
-{{- $secretEnabled = true }}
-{{- end }}
 {{ $chartname := include "version-checker.name" . }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ $chartname }}
   labels:
-    {{ include "version-checker.labels" . | nindent 4 }}
+    {{- include "version-checker.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
@@ -48,10 +44,7 @@ spec:
           containerPort: 8080
         command: ["version-checker"]
         args:
-          - "--image-cache-timeout={{.Values.versionChecker.imageCacheTimeout}}"
-          - "--log-level={{.Values.versionChecker.logLevel}}"
-          - "--metrics-serving-address={{.Values.versionChecker.metricsServingAddress}}"
-          - "--test-all-containers={{.Values.versionChecker.testAllContainers}}"
+        {{- include "version-checker.pod.args" . | nindent 8 }}
         resources:
           {{- toYaml .Values.resources | nindent 12 }}
         {{- with .Values.securityContext }}
@@ -72,147 +65,32 @@ spec:
               name: {{.Values.existingSecret}}
         {{- end }}
         env:
-        # ACR
-        {{- if .Values.acr.refreshToken }}
-        - name: VERSION_CHECKER_ACR_REFRESH_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: {{ $chartname }}
-              key: acr.refreshToken
-        {{- end }}
-        {{- if .Values.acr.username }}
-        - name: VERSION_CHECKER_ACR_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: {{ $chartname }}
-              key: acr.username
-        {{- end }}
-        {{- if .Values.acr.password }}
-        - name: VERSION_CHECKER_ACR_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: {{ $chartname }}
-              key: acr.password
-        {{- end }}
-
-        # ECR
-        {{- if .Values.ecr.iamRoleArn }}
-        - name: VERSION_CHECKER_ECR_IAM_ROLE_ARN
-          value: {{ .Values.ecr.iamRoleArn }}
-        {{- end }}
-        {{- if .Values.ecr.accessKeyID }}
-        - name: VERSION_CHECKER_ECR_ACCESS_KEY_ID
-          valueFrom:
-            secretKeyRef:
-              name: {{ $chartname }}
-              key: ecr.accessKeyID
-        {{- end }}
-        {{- if .Values.ecr.secretAccessKey }}
-        - name: VERSION_CHECKER_ECR_SECRET_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              name: {{ $chartname }}
-              key: ecr.secretAccessKey
-        {{- end }}
-        {{- if .Values.ecr.sessionToken }}
-        - name: VERSION_CHECKER_ECR_SESSION_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: {{ $chartname }}
-              key: ecr.sessionToken
-        {{- end }}
-
-        # Docker
-        {{- if .Values.docker.token }}
-        - name: VERSION_CHECKER_DOCKER_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: {{ $chartname }}
-              key: docker.token
-        {{- end }}
-        {{- if .Values.docker.username }}
-        - name: VERSION_CHECKER_DOCKER_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: {{ $chartname }}
-              key: docker.username
-        {{- end }}
-        {{- if .Values.docker.password }}
-        - name: VERSION_CHECKER_DOCKER_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: {{ $chartname }}
-              key: docker.password
-        {{- end }}
-
-        # GCR
-        {{- if .Values.gcr.token }}
-        - name: VERSION_CHECKER_GCR_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: {{ $chartname }}
-              key: gcr.token
-        {{- end }}
-
-        # GHCR
-        {{- if .Values.ghcr.token }}
-        - name: VERSION_CHECKER_GHCR_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: {{ $chartname }}
-              key: ghcr.token
-        {{- end }}
-
-        # Quay
-        {{- if .Values.quay.token }}
-        - name: VERSION_CHECKER_QUAY_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: {{ $chartname }}
-              key: quay.token
-        {{- end }}
-
-        # Selfhosted
-        {{range $index, $element := .Values.selfhosted }}
-        {{- if $element.host }}
-        - name: VERSION_CHECKER_SELFHOSTED_HOST_{{ $element.name }}
-          valueFrom:
-            secretKeyRef:
-              name: {{ $chartname }}
-              key: selfhosted.{{ $element.name }}.host
-        {{- end }}
-        {{- if $element.username }}
-        - name: VERSION_CHECKER_SELFHOSTED_USERNAME_{{ $element.name }}
-          valueFrom:
-            secretKeyRef:
-              name: {{ $chartname }}
-              key: selfhosted.{{ $element.name }}.username
-        {{- end }}
-        {{- if $element.password }}
-        - name: VERSION_CHECKER_SELFHOSTED_PASSWORD_{{ $element.name }}
-          valueFrom:
-            secretKeyRef:
-              name: {{ $chartname }}
-              key: selfhosted.{{ $element.name }}.password
-        {{- end }}
-        {{- if $element.token }}
-        - name: VERSION_CHECKER_SELFHOSTED_TOKEN_{{ $element.name }}
-          valueFrom:
-            secretKeyRef:
-              name: {{ $chartname }}
-              key: selfhosted.{{ $element.name }}.token
-        {{- end }}
-        {{- end }}
+        {{ include "version-checker.pod.envs.acr" . | nindent 8 }}
+        {{ include "version-checker.pod.envs.ecr" . | nindent 8 }}
+        {{ include "version-checker.pod.envs.docker" . | nindent 6 }}
+        {{- include "version-checker.pod.envs.gcr" . | nindent 8 }}
+        {{- include "version-checker.pod.envs.ghcr" . | nindent 8 }}
+        {{- include "version-checker.pod.envs.quay" . | nindent 8 }}
+        {{- include "version-checker.pod.envs.selfhosted" . | nindent 6 }}
+          # Extra Envs
         {{- if .Values.env }}
-        {{- toYaml .Values.env | nindent 8 }}
+          {{- toYaml .Values.env | nindent 10 }}
+        {{- end }}
+        {{- with .Values.extraVolumeMounts }}
+        volumeMounts:
+          {{- toYaml . | nindent 10 }}
         {{- end }}
       {{- with .Values.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
-        {{- if $secretEnabled }}
-        - name: {{ include "version-checker.name" . }}
-          secret:
-            secretName: {{ include "version-checker.name" . }}
-        {{ end }}
+        {{- include "version-checker.pod.volumes" . | nindent 8 }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -26,7 +26,7 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@aaa42aa0628b4ae2578232a66b541047968fac86      # v6.1.0
+        uses: golangci/golangci-lint-action@2e788936b09dd82dc280e845628a40d2ba6b204c      # v6.3.1
         with:
           version: v1.54
           args: --timeout 10m --exclude SA5011 --verbose --issues-exit-code=0
@@ -109,7 +109,7 @@ jobs:
         cache-to: type=gha,mode=max
 
     - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@0.24.0
+      uses: aquasecurity/trivy-action@0.29.0
       with:
         image-ref: 'quay.io/jetstack/version-checker:${{github.sha}}'
         format: 'table'
