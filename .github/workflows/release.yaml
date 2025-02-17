@@ -94,7 +94,7 @@ jobs:
         uses: mikepenz/release-changelog-builder-action@v5
 
       - name: Create Release PR
-        uses: devops-infra/action-pull-request@v0.5.5
+        uses: devops-infra/action-pull-request@v0.6.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           target_branch: main
