@@ -25,7 +25,7 @@ func TestController_Sync(t *testing.T) {
 	metrics := &metrics.Metrics{}
 	imageClient := &client.Client{}
 	searcher := search.New(log, 5*time.Minute, version.New(log, imageClient, 5*time.Minute))
-	checker := checker.New(searcher)
+	checker := checker.New(searcher, nil)
 
 	controller := &Controller{
 		log:            log,
@@ -59,7 +59,7 @@ func TestController_SyncContainer(t *testing.T) {
 	metrics := &metrics.Metrics{}
 	imageClient := &client.Client{}
 	searcher := search.New(log, 5*time.Minute, version.New(log, imageClient, 5*time.Minute))
-	checker := checker.New(searcher)
+	checker := checker.New(searcher, nil)
 
 	controller := &Controller{
 		log:            log,
@@ -90,7 +90,7 @@ func TestController_CheckContainer(t *testing.T) {
 	metrics := &metrics.Metrics{}
 	imageClient := &client.Client{}
 	searcher := search.New(log, 5*time.Minute, version.New(log, imageClient, 5*time.Minute))
-	checker := checker.New(searcher)
+	checker := checker.New(searcher, nil)
 
 	controller := &Controller{
 		log:            log,
@@ -118,7 +118,7 @@ func TestController_SyncContainer_NoVersionFound(t *testing.T) {
 	metrics := &metrics.Metrics{}
 	imageClient := &client.Client{}
 	searcher := search.New(log, 5*time.Minute, version.New(log, imageClient, 5*time.Minute))
-	checker := checker.New(searcher)
+	checker := checker.New(searcher, nil)
 
 	controller := &Controller{
 		log:            log,
