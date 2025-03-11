@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/sirupsen/logrus"
@@ -97,6 +98,7 @@ func (c *Controller) checkContainer(ctx context.Context, log *logrus.Entry, pod 
 		container.Name, containerType,
 		result.ImageURL, result.IsLatest,
 		result.CurrentVersion, result.LatestVersion,
+		strconv.Itoa(result.Priority),
 	)
 
 	return nil
