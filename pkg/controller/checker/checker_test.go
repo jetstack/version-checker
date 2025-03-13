@@ -2,6 +2,7 @@ package checker
 
 import (
 	"context"
+	"github.com/stretchr/testify/require"
 	"reflect"
 	"testing"
 
@@ -15,11 +16,12 @@ import (
 
 func TestContainer(t *testing.T) {
 	tests := map[string]struct {
-		statusSHA  string
-		imageURL   string
-		opts       *api.Options
-		searchResp *api.ImageTag
-		expResult  *Result
+		statusSHA            string
+		imageURL             string
+		opts                 *api.Options
+		imageURLSubstitution string
+		searchResp           *api.ImageTag
+		expResult            *Result
 	}{
 		"no status sha should return nil, nil": {
 			statusSHA:  "",
@@ -165,6 +167,22 @@ func TestContainer(t *testing.T) {
 				IsLatest:       true,
 			},
 		},
+		"if latest is latest version, and imageURLSubstitution is set, then return true": {
+			statusSHA:            "myregistry.example.com/mirrored/quay.io/jetstack/version-checker:latest@sha:123",
+			imageURL:             "myregistry.example.com/mirrored/quay.io/jetstack/version-checker:latest",
+			opts:                 new(api.Options),
+			imageURLSubstitution: "s/myregistry.example.com\\/mirrored\\///g",
+			searchResp: &api.ImageTag{
+				Tag: "",
+				SHA: "sha:123",
+			},
+			expResult: &Result{
+				CurrentVersion: "sha:123",
+				LatestVersion:  "sha:123",
+				ImageURL:       "quay.io/jetstack/version-checker",
+				IsLatest:       true,
+			},
+		},
 		"if using v0.2.0 with use sha, but not latest, return false": {
 			statusSHA: "localhost:5000/version-checker@sha:123",
 			imageURL:  "localhost:5000/version-checker:v0.2.0",
@@ -263,7 +281,13 @@ func TestContainer(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			checker := New(search.New().With(test.searchResp, nil))
+			var err error
+			var imageURLSubstitution *Substitution
+			if test.imageURLSubstitution != "" {
+				imageURLSubstitution, err = NewSubstitutionFromSedCommand(test.imageURLSubstitution)
+				require.NoError(t, err)
+			}
+			checker := New(search.New().With(test.searchResp, nil), imageURLSubstitution)
 			pod := &corev1.Pod{
 				Status: corev1.PodStatus{
 					ContainerStatuses: []corev1.ContainerStatus{
@@ -398,7 +422,7 @@ func TestIsLatestOrEmptyTag(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			checker := New(search.New())
+			checker := New(search.New(), nil)
 			if is := checker.isLatestOrEmptyTag(test.tag); is != test.expIs {
 				t.Errorf("unexpected isLatestOrEmptyTag exp=%t got=%t",
 					test.expIs, is)
@@ -475,7 +499,7 @@ func TestIsLatestSemver(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			checker := New(search.New().With(test.searchResp, nil))
+			checker := New(search.New().With(test.searchResp, nil), nil)
 			latestImage, isLatest, err := checker.isLatestSemver(context.TODO(), test.imageURL, test.currentSHA, test.currentImage, nil)
 			if err != nil {
 				t.Fatal(err)
@@ -530,7 +554,7 @@ func TestIsLatestSHA(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			checker := New(search.New().With(test.searchResp, nil))
+			checker := New(search.New().With(test.searchResp, nil), nil)
 			result, err := checker.isLatestSHA(context.TODO(), test.imageURL, test.currentSHA, nil)
 			if err != nil {
 				t.Fatal(err)
