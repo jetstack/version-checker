@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -18,10 +19,12 @@ type Checker struct {
 }
 
 type Result struct {
-	CurrentVersion string
-	LatestVersion  string
-	IsLatest       bool
-	ImageURL       string
+	CurrentVersion   string
+	CurrentTimestamp time.Time
+	LatestVersion    string
+	LatestTimestamp  time.Time
+	IsLatest         bool
+	ImageURL         string
 }
 
 func New(search search.Searcher) *Checker {
@@ -47,12 +50,31 @@ func (c *Checker) Container(ctx context.Context, log *logrus.Entry, pod *corev1.
 	}
 
 	imageURL = c.overrideImageURL(log, imageURL, opts)
-
-	if opts.UseSHA {
-		return c.handleSHA(ctx, imageURL, statusSHA, opts, usingTag, currentTag)
+	timestamp, err := c.getTimestamp(ctx, imageURL, currentTag, currentSHA, opts.UseSHA)
+	if err != nil {
+		return nil, err
 	}
 
-	return c.handleSemver(ctx, imageURL, statusSHA, currentTag, usingSHA, opts)
+	var result *Result
+	if opts.UseSHA {
+		result, err = c.handleSHA(ctx, imageURL, statusSHA, currentTag, usingTag, opts)
+	} else {
+		result, err = c.handleSemver(ctx, imageURL, statusSHA, currentTag, usingSHA, opts)
+	}
+	if err != nil {
+		return result, err
+	}
+	result.CurrentTimestamp = timestamp
+	return result, err
+}
+
+func (c *Checker) getTimestamp(ctx context.Context, imageURL string, tag string, sha string, useSHA bool) (time.Time, error) {
+	currentImage, err := c.search.Image(ctx, imageURL, tag, sha, useSHA)
+	var timestamp time.Time
+	if currentImage != nil {
+		timestamp = currentImage.Timestamp
+	}
+	return timestamp, err
 }
 
 func (c *Checker) handleLatestOrEmptyTag(log *logrus.Entry, currentTag, currentSHA string, opts *api.Options) {
@@ -68,7 +90,7 @@ func (c *Checker) overrideImageURL(log *logrus.Entry, imageURL string, opts *api
 	return imageURL
 }
 
-func (c *Checker) handleSHA(ctx context.Context, imageURL, statusSHA string, opts *api.Options, usingTag bool, currentTag string) (*Result, error) {
+func (c *Checker) handleSHA(ctx context.Context, imageURL, statusSHA string, currentTag string, usingTag bool, opts *api.Options) (*Result, error) {
 	result, err := c.isLatestSHA(ctx, imageURL, statusSHA, opts)
 	if err != nil {
 		return nil, err
@@ -98,10 +120,11 @@ func (c *Checker) handleSemver(ctx context.Context, imageURL, statusSHA, current
 	}
 
 	return &Result{
-		CurrentVersion: currentTag,
-		LatestVersion:  latestVersion,
-		IsLatest:       isLatest,
-		ImageURL:       imageURL,
+		CurrentVersion:  currentTag,
+		LatestVersion:   latestVersion,
+		LatestTimestamp: latestImage.Timestamp,
+		IsLatest:        isLatest,
+		ImageURL:        imageURL,
 	}, nil
 }
 
@@ -168,7 +191,7 @@ func (c *Checker) isLatestSemver(ctx context.Context, imageURL, currentSHA strin
 	return latestImage, isLatest, nil
 }
 
-// isLatestSHA will return the the result of whether the given image is the latest, according to image SHA.
+// isLatestSHA will return the result of whether the given image is the latest, according to image SHA.
 func (c *Checker) isLatestSHA(ctx context.Context, imageURL, currentSHA string, opts *api.Options) (*Result, error) {
 	latestImage, err := c.search.LatestImage(ctx, imageURL, opts)
 	if err != nil {
@@ -182,10 +205,11 @@ func (c *Checker) isLatestSHA(ctx context.Context, imageURL, currentSHA string, 
 	}
 
 	return &Result{
-		CurrentVersion: currentSHA,
-		LatestVersion:  latestVersion,
-		IsLatest:       isLatest,
-		ImageURL:       imageURL,
+		CurrentVersion:  currentSHA,
+		LatestVersion:   latestVersion,
+		LatestTimestamp: latestImage.Timestamp,
+		IsLatest:        isLatest,
+		ImageURL:        imageURL,
 	}, nil
 }
 
