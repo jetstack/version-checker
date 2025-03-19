@@ -7,7 +7,7 @@ This document serves as a reference for annotations required to be applied to va
 ### GKE Managed Images (kube-proxy, etc..)
 
 | Annotation | Reason |
-|-|
+|-|-|
 | `use-metadata.version-checker.io/kube-proxy="true"` | This is because many GKE images are suffixed as `v.1.26.5-gke.2700` for example. By Default, version-checker removes tags with metadata (`-XXXX`) as these traditionally relate to an Alpha or pre-release image. |
 
 ### Grafana: docker.io/grafana/grafana
