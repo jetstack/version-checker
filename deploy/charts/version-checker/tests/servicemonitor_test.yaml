@@ -1,15 +1,12 @@
 suite: test ServiceMonitor
 templates:
   - servicemonitor.yaml
+capabilities:
+  apiVersions:
+    - "monitoring.coreos.com/v1"
+    - "monitoring.coreos.com/v1/ServiceMonitor"
 tests:
-  - it: should work (defaults)
-    asserts:
-      - hasDocuments:
-          count: 0
-
-  - it: works (when enabled)
-    set:
-      serviceMonitor.enabled: true
+  - it: Should deploy (defaults)
     asserts:
       - hasDocuments:
           count: 1
@@ -18,7 +15,19 @@ tests:
           apiVersion: monitoring.coreos.com/v1
           name: version-checker
 
-  - it: able to provide custom labels
+  - it: Not Deploy when disabled
+    capabilities:
+      apiVersions: []
+    set:
+      serviceMonitor.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: Able to provide custom labels
+    capabilities:
+      apiVersions:
+        - "monitoring.coreos.com/v1/ServiceMonitor"
     set:
       serviceMonitor.enabled: true
       serviceMonitor.additionalLabels:
