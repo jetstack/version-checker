@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/jetstack/version-checker/pkg/client/oci"
@@ -47,8 +48,12 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) (tags []api
 	// Check if we have a cached client for the host
 	if client, found := c.hostCache.Get(host); found {
 		c.log.Infof("Found client for host %s in cache", host)
-		if tags, err := client.Tags(ctx, host, repo, image); err == nil {
-			return tags, nil
+		if client, ok := client.(api.ImageClient); ok {
+			if tags, err := client.Tags(ctx, host, repo, image); err == nil {
+				return tags, nil
+			}
+		} else {
+			c.log.Errorf("Unable to fetch from cache for host %s...", host)
 		}
 	}
 	c.log.Debugf("no client for host %s in cache, continuing fallback", host)

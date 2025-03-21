@@ -20,30 +20,11 @@ import (
 	"github.com/jetstack/version-checker/pkg/client/selfhosted"
 )
 
-// ImageClient represents a image registry client that can list available tags
-// for image URLs.
-type ImageClient interface {
-	// Returns the name of the client
-	Name() string
-
-	// IsHost will return true if this client is appropriate for the given
-	// host.
-	IsHost(host string) bool
-
-	// RepoImage will return the registries repository and image, from a given
-	// URL path.
-	RepoImageFromPath(path string) (string, string)
-
-	// Tags will return the available tags for the given host, repo, and image
-	// using that client.
-	Tags(ctx context.Context, host, repo, image string) ([]api.ImageTag, error)
-}
-
 // Client is a container image registry client to list tags of given image
 // URLs.
 type Client struct {
-	clients        []ImageClient
-	fallbackClient ImageClient
+	clients        []api.ImageClient
+	fallbackClient api.ImageClient
 	log            *logrus.Entry
 }
 
@@ -70,7 +51,7 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 		return nil, fmt.Errorf("failed to create docker client: %w", err)
 	}
 
-	var selfhostedClients []ImageClient
+	var selfhostedClients []api.ImageClient
 	for _, sOpts := range opts.Selfhosted {
 		sClient, err := selfhosted.New(ctx, log, sOpts)
 		if err != nil {
@@ -119,7 +100,7 @@ func (c *Client) Tags(ctx context.Context, imageURL string) ([]api.ImageTag, err
 
 // fromImageURL will return the appropriate registry client for a given
 // image URL, and the host + path to search.
-func (c *Client) fromImageURL(imageURL string) (ImageClient, string, string) {
+func (c *Client) fromImageURL(imageURL string) (api.ImageClient, string, string) {
 	var host, path string
 
 	if strings.Contains(imageURL, ".") || strings.Contains(imageURL, ":") {
