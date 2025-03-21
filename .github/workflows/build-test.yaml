@@ -65,6 +65,7 @@ jobs:
 
       - name: Trigger Coverage update
         uses: ./.github/workflows/coverage-badge.yaml
+        continue-on-error: true
 
       - name: Generate code coverage artifacts
         uses: actions/upload-artifact@v4
