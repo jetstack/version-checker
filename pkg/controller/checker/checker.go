@@ -22,6 +22,7 @@ type Result struct {
 	LatestVersion  string
 	IsLatest       bool
 	ImageURL       string
+	Priority       int
 }
 
 func New(search search.Searcher) *Checker {
@@ -48,11 +49,18 @@ func (c *Checker) Container(ctx context.Context, log *logrus.Entry, pod *corev1.
 
 	imageURL = c.overrideImageURL(log, imageURL, opts)
 
+	var result *Result
+	var err error
 	if opts.UseSHA {
-		return c.handleSHA(ctx, imageURL, statusSHA, opts, usingTag, currentTag)
+		result, err = c.handleSHA(ctx, imageURL, statusSHA, opts, usingTag, currentTag)
+	} else {
+		result, err = c.handleSemver(ctx, imageURL, statusSHA, currentTag, usingSHA, opts)
 	}
-
-	return c.handleSemver(ctx, imageURL, statusSHA, currentTag, usingSHA, opts)
+	if err != nil {
+		return result, err
+	}
+	result.Priority = opts.Priority
+	return result, err
 }
 
 func (c *Checker) handleLatestOrEmptyTag(log *logrus.Entry, currentTag, currentSHA string, opts *api.Options) {
