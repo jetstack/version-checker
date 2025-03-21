@@ -7,6 +7,10 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+
+	"github.com/go-chi/transport"
+	"github.com/hashicorp/go-cleanhttp"
+
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth" // Load all auth plugins
 
@@ -57,7 +61,7 @@ func NewCommand(ctx context.Context) *cobra.Command {
 			}
 
 			opts.Client.Transport = transport.Chain(
-				http.DefaultTransport,
+				cleanhttp.DefaultTransport(),
 				metrics.RoundTripper,
 			)
 
