@@ -27,6 +27,18 @@ func TestIsHost(t *testing.T) {
 			host:  "versionchecker.azurecr.io",
 			expIs: true,
 		},
+		"azurecr.cn with random sub domains should be true": {
+			host:  "versionchecker.azurecr.cn",
+			expIs: true,
+		},
+		"azurecr.de with random sub domains should be true": {
+			host:  "versionchecker.azurecr.de",
+			expIs: true,
+		},
+		"azurecr.us with random sub domains should be true": {
+			host:  "versionchecker.azurecr.us",
+			expIs: true,
+		},
 		"foodazurecr.io should be false": {
 			host:  "fooazurecr.io",
 			expIs: false,
