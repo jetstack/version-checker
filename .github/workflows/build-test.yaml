@@ -2,9 +2,7 @@ name: Test & Build
 on:
   pull_request:
     branches:
-      - 'main'
-    paths:
-      - "!README.md"
+      - "main"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -13,9 +11,9 @@ concurrency:
 jobs:
   lint:
     permissions:
-      contents: read  # for actions/checkout to fetch code
-      pull-requests: read  # for golangci/golangci-lint-action to fetch pull requests
-      checks: write  # for golangci/golangci-lint-action to annotate Pull Requests
+      contents: read # for actions/checkout to fetch code
+      pull-requests: read # for golangci/golangci-lint-action to fetch pull requests
+      checks: write # for golangci/golangci-lint-action to annotate Pull Requests
     name: Lint Go code
     runs-on: ubuntu-latest
     steps:
@@ -26,7 +24,7 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@2226d7cb06a077cd73e56eedd38eecad18e5d837      # v6.5.0
+        uses: golangci/golangci-lint-action@2226d7cb06a077cd73e56eedd38eecad18e5d837 # v6.5.0
         with:
           version: v1.54
           args: --timeout 10m --exclude SA5011 --verbose --issues-exit-code=0
@@ -39,40 +37,40 @@ jobs:
       - id: govulncheck
         uses: golang/govulncheck-action@v1
         with:
-           go-version-file: go.mod
-           go-package: ./...
+          go-version-file: go.mod
+          go-package: ./...
 
   test:
     name: Run unit tests for Go packages
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4 # v3.5.3
-    - name: Setup Go
-      uses: actions/setup-go@v5
-      with:
-        go-version-file: go.mod
+      - name: Checkout code
+        uses: actions/checkout@v4 # v3.5.3
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
 
-    - name: Download and required packages
-      run: |
-        make deps
+      - name: Download and required packages
+        run: |
+          make deps
 
-    - name: Run all unit tests
-      run: make test
+      - name: Run all unit tests
+        run: make test
 
-    - name: check test coverage
-      uses: vladopajic/go-test-coverage@v2
-      with:
-        config: ./.testcoverage.yml
+      - name: check test coverage
+        uses: vladopajic/go-test-coverage@v2
+        with:
+          config: ./.testcoverage.yml
 
-    - name: Trigger Coverage update
-      uses: ./coverage-badge.yaml
+      - name: Trigger Coverage update
+        uses: ./coverage-badge.yaml
 
-    - name: Generate code coverage artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: code-coverage
-        path: coverage.out
+      - name: Generate code coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-coverage
+          path: coverage.out
 
   build:
     needs:
@@ -87,33 +85,33 @@ jobs:
           - linux/arm64
     name: Build Images
     steps:
-    - name: Checkout code
-      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v3
+      - name: Checkout code
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-      with:
-        platforms: ${{ matrix.platform }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          platforms: ${{ matrix.platform }}
 
-    - name: Build Images
-      uses: docker/build-push-action@v6
-      with:
-        context: .
-        platforms: ${{ matrix.platform }}
-        load: true
-        push: false
-        tags: quay.io/jetstack/version-checker:${{github.sha}}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+      - name: Build Images
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          load: true
+          push: false
+          tags: quay.io/jetstack/version-checker:${{github.sha}}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-    - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@0.29.0
-      with:
-        image-ref: 'quay.io/jetstack/version-checker:${{github.sha}}'
-        format: 'table'
-        exit-code: '1'
-        ignore-unfixed: true
-        vuln-type: 'os,library'
-        severity: 'CRITICAL,HIGH'
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.29.0
+        with:
+          image-ref: "quay.io/jetstack/version-checker:${{github.sha}}"
+          format: "table"
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: "os,library"
+          severity: "CRITICAL,HIGH"
