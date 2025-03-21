@@ -16,6 +16,9 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/go-chi/transport"
+	"github.com/hashicorp/go-cleanhttp"
+
 	"github.com/jetstack/version-checker/pkg/api"
 	selfhostederrors "github.com/jetstack/version-checker/pkg/client/selfhosted/errors"
 	"github.com/jetstack/version-checker/pkg/client/util"

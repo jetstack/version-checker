@@ -63,18 +63,18 @@ type Options struct {
 func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) {
 	acrClient, err := acr.New(opts.ACR)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create acr client: %s", err)
+		return nil, fmt.Errorf("failed to create acr client: %w", err)
 	}
 	dockerClient, err := docker.New(ctx, opts.Docker)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create docker client: %s", err)
+		return nil, fmt.Errorf("failed to create docker client: %w", err)
 	}
 
 	var selfhostedClients []ImageClient
 	for _, sOpts := range opts.Selfhosted {
 		sClient, err := selfhosted.New(ctx, log, sOpts)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create selfhosted client %q: %s",
+			return nil, fmt.Errorf("failed to create selfhosted client %q: %w",
 				sOpts.Host, err)
 		}
 
@@ -83,7 +83,7 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 
 	fallbackClient, err := fallback.New(ctx, log, opts.Transport)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create fallback client: %s", err)
+		return nil, fmt.Errorf("failed to create fallback client: %w", err)
 	}
 
 	c := &Client{
