@@ -44,6 +44,7 @@ type ImageClient interface {
 type Client struct {
 	clients        []ImageClient
 	fallbackClient ImageClient
+	log            *logrus.Entry
 }
 
 // Options used to configure client authentication.
@@ -69,7 +70,7 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 		return nil, fmt.Errorf("failed to create docker client: %s", err)
 	}
 
-	var selfhostedClients []api.ImageClient
+	var selfhostedClients []ImageClient
 	for _, sOpts := range opts.Selfhosted {
 		sClient, err := selfhosted.New(ctx, log, sOpts)
 		if err != nil {
