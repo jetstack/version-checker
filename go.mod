@@ -32,9 +32,9 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.59
 	github.com/aws/aws-sdk-go-v2/service/ecr v1.41.0
 	github.com/gofri/go-github-ratelimit v1.1.0
-	github.com/google/go-cmp v0.6.0
+	github.com/google/go-cmp v0.7.0
 	github.com/google/go-containerregistry v0.20.3
-	github.com/google/go-github/v62 v62.0.0
+	github.com/google/go-github/v70 v70.0.0
 	github.com/jarcoal/httpmock v1.3.1
 	github.com/stretchr/testify v1.10.0
 )

@@ -4,9 +4,10 @@ import "testing"
 
 func TestIsHost(t *testing.T) {
 	tests := map[string]struct {
-		token string
-		host  string
-		expIs bool
+		token      string
+		host       string
+		customhost *string
+		expIs      bool
 	}{
 		"an empty token should be false": {
 			token: "test-token",
@@ -53,6 +54,24 @@ func TestIsHost(t *testing.T) {
 			host:  "ghcr.iofoo",
 			expIs: false,
 		},
+
+		// Support for GHE Cloud
+		"containers.yourdomain.ghe.com should be true": {
+			token: "test-token",
+			host:  "containers.yourdomain.ghe.com",
+			expIs: true,
+		},
+		"containers.jetstack.ghe.com should be true": {
+			token: "test-token",
+			host:  "containers.jetstack.ghe.com",
+			expIs: true,
+		},
+		"customhostname.ghe.internal should be true": {
+			token:      "test-token",
+			host:       "customhostname.ghe.internal",
+			customhost: strPtr("customhostname.ghe.internal"),
+			expIs:      true,
+		},
 	}
 
 	handler := new(Client)
@@ -61,12 +80,19 @@ func TestIsHost(t *testing.T) {
 			if test.token != "" {
 				handler.opts.Token = test.token
 			}
+			if test.customhost != nil {
+				handler.opts.Hostname = *test.customhost
+			}
 			if isHost := handler.IsHost(test.host); isHost != test.expIs {
 				t.Errorf("%s: unexpected IsHost, exp=%t got=%t",
 					test.host, test.expIs, isHost)
 			}
 		})
 	}
+}
+
+func strPtr(str string) *string {
+	return &str
 }
 
 func TestRepoImage(t *testing.T) {
