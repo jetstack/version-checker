@@ -51,10 +51,15 @@ func NewCommand(ctx context.Context) *cobra.Command {
 				return fmt.Errorf("failed to build kubernetes client: %s", err)
 			}
 
-			metrics := metrics.New(log)
-			if err := metrics.Run(opts.MetricsServingAddress); err != nil {
+			metricsServer := metrics.NewServer(log)
+			if err := metricsServer.Run(opts.MetricsServingAddress); err != nil {
 				return fmt.Errorf("failed to start metrics server: %s", err)
 			}
+
+			opts.Client.Transport = transport.Chain(
+				http.DefaultTransport,
+				metrics.RoundTripper,
+			)
 
 			client, err := client.New(ctx, log, opts.Client)
 			if err != nil {
@@ -62,7 +67,7 @@ func NewCommand(ctx context.Context) *cobra.Command {
 			}
 
 			defer func() {
-				if err := metrics.Shutdown(); err != nil {
+				if err := metricsServer.Shutdown(); err != nil {
 					log.Error(err)
 				}
 			}()
@@ -74,7 +79,7 @@ func NewCommand(ctx context.Context) *cobra.Command {
 
 			log.Infof("flag --test-all-containers=%t %s", opts.DefaultTestAll, defaultTestAllInfoMsg)
 
-			c := controller.New(opts.CacheTimeout, metrics,
+			c := controller.New(opts.CacheTimeout, metricsServer,
 				client, kubeClient, log, opts.DefaultTestAll)
 
 			return c.Run(ctx, opts.CacheTimeout/2)

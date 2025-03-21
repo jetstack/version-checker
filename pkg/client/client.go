@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/sirupsen/logrus"
@@ -14,6 +15,7 @@ import (
 	"github.com/jetstack/version-checker/pkg/client/fallback"
 	"github.com/jetstack/version-checker/pkg/client/gcr"
 	"github.com/jetstack/version-checker/pkg/client/ghcr"
+	"github.com/jetstack/version-checker/pkg/client/oci"
 	"github.com/jetstack/version-checker/pkg/client/quay"
 	"github.com/jetstack/version-checker/pkg/client/selfhosted"
 )
@@ -52,7 +54,9 @@ type Options struct {
 	GHCR       ghcr.Options
 	Docker     docker.Options
 	Quay       quay.Options
+	OCI        oci.Options
 	Selfhosted map[string]*selfhosted.Options
+	Transport  http.RoundTripper
 }
 
 func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) {
@@ -65,7 +69,7 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 		return nil, fmt.Errorf("failed to create docker client: %s", err)
 	}
 
-	var selfhostedClients []ImageClient
+	var selfhostedClients []api.ImageClient
 	for _, sOpts := range opts.Selfhosted {
 		sClient, err := selfhosted.New(ctx, log, sOpts)
 		if err != nil {
@@ -76,7 +80,7 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 		selfhostedClients = append(selfhostedClients, sClient)
 	}
 
-	fallbackClient, err := fallback.New(ctx, log)
+	fallbackClient, err := fallback.New(ctx, log, opts.Transport)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create fallback client: %s", err)
 	}
@@ -89,13 +93,14 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 			dockerClient,
 			gcr.New(opts.GCR),
 			ghcr.New(opts.GHCR),
-			quay.New(opts.Quay),
+			quay.New(opts.Quay, log),
 		),
 		fallbackClient: fallbackClient,
+		log:            log.WithField("client", "registry"),
 	}
 
 	for _, client := range append(c.clients, fallbackClient) {
-		log.Debugf("registered client %q", client.Name())
+		log.WithField("client", client.Name()).Debugf("registered client")
 	}
 
 	return c, nil
@@ -104,7 +109,10 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 // Tags returns the full list of image tags available, for a given image URL.
 func (c *Client) Tags(ctx context.Context, imageURL string) ([]api.ImageTag, error) {
 	client, host, path := c.fromImageURL(imageURL)
+
+	c.log.Debugf("using client %q for image URL %q", client.Name(), imageURL)
 	repo, image := client.RepoImageFromPath(path)
+
 	return client.Tags(ctx, host, repo, image)
 }
 

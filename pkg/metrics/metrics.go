@@ -21,8 +21,9 @@ import (
 type Metrics struct {
 	*http.Server
 
-	containerImageVersion *prometheus.GaugeVec
-	log                   *logrus.Entry
+	containerImageVersion  *prometheus.GaugeVec
+	containerImageDuration *prometheus.GaugeVec
+	log                    *logrus.Entry
 
 	// container cache stores a cache of a container's current image, version,
 	// and the latest
@@ -36,7 +37,7 @@ type cacheItem struct {
 	latestVersion  string
 }
 
-func New(log *logrus.Entry) *Metrics {
+func NewServer(log *logrus.Entry) *Metrics {
 	containerImageVersion := promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: "version_checker",
@@ -47,11 +48,20 @@ func New(log *logrus.Entry) *Metrics {
 			"namespace", "pod", "container", "container_type", "image", "current_version", "latest_version",
 		},
 	)
+	containerImageDuration := promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "version_checker",
+			Name:      "image_lookup_duration",
+			Help:      "Time taken to lookup version.",
+		},
+		[]string{"namespace", "pod", "container", "image"},
+	)
 
 	return &Metrics{
-		log:                   log.WithField("module", "metrics"),
-		containerImageVersion: containerImageVersion,
-		containerCache:        make(map[string]cacheItem),
+		log:                    log.WithField("module", "metrics"),
+		containerImageVersion:  containerImageVersion,
+		containerImageDuration: containerImageDuration,
+		containerCache:         make(map[string]cacheItem),
 	}
 }
 
@@ -124,7 +134,18 @@ func (m *Metrics) RemoveImage(namespace, pod, container, containerType string) {
 	m.containerImageVersion.DeletePartialMatch(
 		m.buildPartialLabels(namespace, pod),
 	)
+	m.containerImageDuration.DeletePartialMatch(
+		m.buildPartialLabels(namespace, pod),
+	)
 	delete(m.containerCache, index)
+}
+
+func (m *Metrics) RegisterImageDuration(namespace, pod, container, image string, startTime time.Time) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.containerImageDuration.WithLabelValues(namespace, pod, container, image).
+		Set(time.Since(startTime).Seconds())
 }
 
 func (m *Metrics) latestImageIndex(namespace, pod, container, containerType string) string {

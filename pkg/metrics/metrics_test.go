@@ -9,7 +9,7 @@ import (
 )
 
 func TestCache(t *testing.T) {
-	m := New(logrus.NewEntry(logrus.New()))
+	m := NewServer(logrus.NewEntry(logrus.New()))
 
 	for i, typ := range []string{"init", "container"} {
 		version := fmt.Sprintf("0.1.%d", i)
