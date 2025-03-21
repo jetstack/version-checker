@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
+	"github.com/sirupsen/logrus"
 
 	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/jetstack/version-checker/pkg/client/util"
@@ -57,10 +58,10 @@ type responseManifestDataItem struct {
 	} `json:"platform"`
 }
 
-func New(opts Options) *Client {
+func New(opts Options, log *logrus.Entry) *Client {
 	client := retryablehttp.NewClient()
 	client.RetryMax = 10
-	client.Logger = nil
+	client.Logger = log.WithField("client", "quay")
 
 	return &Client{
 		Options: opts,
