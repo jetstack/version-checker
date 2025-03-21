@@ -34,6 +34,7 @@ A Helm chart for version-checker
 | extraVolumeMounts | list | `[]` | Allow for extra Volume Mounts to version-checkers container |
 | extraVolumes | list | `[]` | Allow for extra Volumes to be associated to the pod |
 | gcr.token | string | `nil` | Access token for read access to private GCR registries |
+| ghcr.hostname | string | `nil` | Hostname for Github Enterprise to override the default ghcr domains. |
 | ghcr.token | string | `nil` | Personal Access token for read access to GHCR releases |
 | image.imagePullSecret | string | `nil` | Pull secrects - name of existing secret |
 | image.pullPolicy | string | `"IfNotPresent"` | Set the Image Pull Policy |

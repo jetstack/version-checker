@@ -58,7 +58,7 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 
 	resp, err := c.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get docker image: %w", err)
+		return nil, fmt.Errorf("failed to get %q image: %w", c.Name(), err)
 	}
 	defer resp.Body.Close()
 
