@@ -149,8 +149,9 @@ func (c *Controller) deleteObject(obj interface{}) {
 	}
 
 	for _, container := range pod.Spec.Containers {
-		c.log.Debugf("removing deleted pod containers from metrics: %s/%s/%s",
-			pod.Namespace, pod.Name, container.Name)
+		c.log.WithFields(
+			logrus.Fields{"pod": pod.Name, "container": container.Name, "namespace": pod.Namespace},
+		).Debug("removing deleted pod containers from metrics")
 		c.metrics.RemoveImage(pod.Namespace, pod.Name, container.Name, "init")
 		c.metrics.RemoveImage(pod.Namespace, pod.Name, container.Name, "container")
 	}
