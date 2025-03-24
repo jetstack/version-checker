@@ -20,10 +20,14 @@ import (
 // metrics.
 type Metrics struct {
 	*http.Server
+	log *logrus.Entry
 
+	registry               *prometheus.Registry
 	containerImageVersion  *prometheus.GaugeVec
 	containerImageDuration *prometheus.GaugeVec
-	log                    *logrus.Entry
+
+	// Contains all metrics for the roundtripper
+	roundTripper *RoundTripper
 
 	// container cache stores a cache of a container's current image, version,
 	// and the latest
@@ -38,7 +42,9 @@ type cacheItem struct {
 }
 
 func NewServer(log *logrus.Entry) *Metrics {
-	containerImageVersion := promauto.NewGaugeVec(
+	// Reset the prometheus registry
+	reg := prometheus.NewRegistry()
+	containerImageVersion := promauto.With(reg).NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: "version_checker",
 			Name:      "is_latest_version",
@@ -48,7 +54,7 @@ func NewServer(log *logrus.Entry) *Metrics {
 			"namespace", "pod", "container", "container_type", "image", "current_version", "latest_version",
 		},
 	)
-	containerImageDuration := promauto.NewGaugeVec(
+	containerImageDuration := promauto.With(reg).NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: "version_checker",
 			Name:      "image_lookup_duration",
@@ -59,16 +65,18 @@ func NewServer(log *logrus.Entry) *Metrics {
 
 	return &Metrics{
 		log:                    log.WithField("module", "metrics"),
+		registry:               reg,
 		containerImageVersion:  containerImageVersion,
 		containerImageDuration: containerImageDuration,
 		containerCache:         make(map[string]cacheItem),
+		roundTripper:           NewRoundTripper(reg),
 	}
 }
 
 // Run will run the metrics server.
 func (m *Metrics) Run(servingAddress string) error {
 	router := http.NewServeMux()
-	router.Handle("/metrics", promhttp.Handler())
+	router.Handle("/metrics", promhttp.HandlerFor(m.registry, promhttp.HandlerOpts{}))
 	router.Handle("/healthz", http.HandlerFunc(m.healthzAndReadyzHandler))
 	router.Handle("/readyz", http.HandlerFunc(m.healthzAndReadyzHandler))
 

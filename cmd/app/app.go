@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -39,11 +38,7 @@ func NewCommand(ctx context.Context) *cobra.Command {
 				return fmt.Errorf("failed to parse --log-level %q: %s",
 					opts.LogLevel, err)
 			}
-
-			nlog := logrus.New()
-			nlog.SetOutput(os.Stdout)
-			nlog.SetLevel(logLevel)
-			log := logrus.NewEntry(nlog)
+			log := newLogger(logLevel)
 
 			restConfig, err := opts.kubeConfigFlags.ToRESTConfig()
 			if err != nil {
@@ -62,7 +57,7 @@ func NewCommand(ctx context.Context) *cobra.Command {
 
 			opts.Client.Transport = transport.Chain(
 				cleanhttp.DefaultTransport(),
-				metrics.RoundTripper,
+				metricsServer.RoundTripper,
 			)
 
 			client, err := client.New(ctx, log, opts.Client)

@@ -118,6 +118,7 @@ func TestController_CheckContainer(t *testing.T) {
 // Example of testing syncContainer when version is not found.
 func TestController_SyncContainer_NoVersionFound(t *testing.T) {
 	t.Parallel()
+
 	log := logrus.NewEntry(logrus.New())
 	metrics := metrics.NewServer(log)
 	imageClient := &client.Client{}
