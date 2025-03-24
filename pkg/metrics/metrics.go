@@ -48,7 +48,7 @@ func NewServer(log *logrus.Entry) *Metrics {
 	containerImageVersion := promauto.With(reg).NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: "version_checker",
-			Name:      "version_checker_is_latest_version",
+			Name:      "is_latest_version",
 			Help:      "Where the container in use is using the latest upstream registry version",
 		},
 		[]string{
@@ -66,7 +66,7 @@ func NewServer(log *logrus.Entry) *Metrics {
 	containerImageErrors := promauto.With(reg).NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "version_checker",
-			Name:      "version_checker_image_failures_total",
+			Name:      "image_failures_total",
 			Help:      "Total number of errors where the version-checker was unable to get the latest upstream registry version",
 		},
 		[]string{
