@@ -19,9 +19,10 @@ const (
 )
 
 type Options struct {
-	Username string
-	Password string
-	Token    string
+	Username    string
+	Password    string
+	Token       string
+	Transporter http.RoundTripper
 }
 
 type Client struct {
@@ -52,7 +53,8 @@ type Image struct {
 
 func New(ctx context.Context, opts Options) (*Client, error) {
 	client := &http.Client{
-		Timeout: time.Second * 10,
+		Timeout:   time.Second * 10,
+		Transport: opts.Transporter,
 	}
 
 	// Setup Auth if username and password used.
@@ -138,7 +140,7 @@ func (c *Client) doRequest(ctx context.Context, url string) (*TagResponse, error
 
 	resp, err := c.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get docker image: %s", err)
+		return nil, fmt.Errorf("failed to get %q image: %s", c.Name(), err)
 	}
 	defer resp.Body.Close()
 

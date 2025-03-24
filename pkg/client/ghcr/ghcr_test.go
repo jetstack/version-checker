@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/google/go-github/v62/github"
+	"github.com/google/go-github/v70/github"
 	"github.com/jarcoal/httpmock"
 	"github.com/stretchr/testify/assert"
 )

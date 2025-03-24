@@ -88,6 +88,8 @@ gcr:
 ghcr:
   # -- (string) Personal Access token for read access to GHCR releases
   token:
+  # -- (string) Hostname for Github Enterprise to override the default ghcr domains.
+  hostname:
 
 # Quay.io Registry Credentials Configuration
 quay:

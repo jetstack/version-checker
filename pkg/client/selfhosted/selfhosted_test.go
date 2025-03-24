@@ -106,7 +106,7 @@ func TestName(t *testing.T) {
 	assert.Equal(t, "testhost", client.Name())
 
 	client.Options.Host = ""
-	assert.Equal(t, "dockerapi", client.Name())
+	assert.Equal(t, "selfhosted", client.Name())
 }
 
 func TestTags(t *testing.T) {
