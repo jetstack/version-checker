@@ -35,9 +35,12 @@ type Client struct {
 
 // New returns a new client
 func New(opts *Options) (*Client, error) {
-	puller, err := remote.NewPuller(
-		remote.WithTransport(opts.Transporter),
-	)
+	pullOpts := []remote.Option{}
+	if opts.Transporter != nil {
+		pullOpts = append(pullOpts, remote.WithTransport(opts.Transporter))
+	}
+
+	puller, err := remote.NewPuller(pullOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("creating puller: %w", err)
 	}
