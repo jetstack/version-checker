@@ -252,7 +252,7 @@ func (c *Client) doRequest(ctx context.Context, url, header string, obj interfac
 
 	resp, err := c.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get docker image: %s", err)
+		return nil, fmt.Errorf("failed to get %q image: %s", c.Name(), err)
 	}
 	defer resp.Body.Close()
 

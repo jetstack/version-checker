@@ -1,8 +1,15 @@
 package ghcr
 
 import (
+	"regexp"
 	"strings"
 )
+
+const (
+	HostRegTempl = `^(containers\.[a-zA-Z0-9-]+\.ghe\.com|ghcr\.io)$`
+)
+
+var HostReg = regexp.MustCompile(HostRegTempl)
 
 func (c *Client) IsHost(host string) bool {
 	// Package API requires Authentication
@@ -10,7 +17,11 @@ func (c *Client) IsHost(host string) bool {
 	if c.opts.Token == "" {
 		return false
 	}
-	return host == "ghcr.io"
+	// If we're using a custom hostname.
+	if c.opts.Hostname != "" && c.opts.Hostname == host {
+		return true
+	}
+	return HostReg.MatchString(host)
 }
 
 func (c *Client) RepoImageFromPath(path string) (string, string) {

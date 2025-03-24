@@ -37,6 +37,7 @@ const (
 	envGCRAccessToken = "GCR_TOKEN"
 
 	envGHCRAccessToken = "GHCR_TOKEN"
+	envGHCRHostname    = "GHCR_HOSTNAME"
 
 	envQuayToken = "QUAY_TOKEN"
 
@@ -207,6 +208,12 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 			"Personal Access token for read access to GHCR releases (%s_%s).",
 			envPrefix, envGHCRAccessToken,
 		))
+	fs.StringVar(&o.Client.GHCR.Hostname,
+		"gchr-hostname", "",
+		fmt.Sprintf(
+			"Override hostname for Github Enterprise instances (%s_%s).",
+			envPrefix, envGHCRHostname,
+		))
 	///
 
 	/// Quay
@@ -291,6 +298,7 @@ func (o *Options) complete() {
 		{envGCRAccessToken, &o.Client.GCR.Token},
 
 		{envGHCRAccessToken, &o.Client.GHCR.Token},
+		{envGHCRHostname, &o.Client.GHCR.Hostname},
 
 		{envQuayToken, &o.Client.Quay.Token},
 	} {
