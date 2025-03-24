@@ -20,9 +20,14 @@ import (
 // metrics.
 type Metrics struct {
 	*http.Server
+	log *logrus.Entry
 
-	containerImageVersion *prometheus.GaugeVec
-	log                   *logrus.Entry
+	registry               *prometheus.Registry
+	containerImageVersion  *prometheus.GaugeVec
+	containerImageDuration *prometheus.GaugeVec
+
+	// Contains all metrics for the roundtripper
+	roundTripper *RoundTripper
 
 	// container cache stores a cache of a container's current image, version,
 	// and the latest
@@ -36,8 +41,10 @@ type cacheItem struct {
 	latestVersion  string
 }
 
-func New(log *logrus.Entry) *Metrics {
-	containerImageVersion := promauto.NewGaugeVec(
+func NewServer(log *logrus.Entry) *Metrics {
+	// Reset the prometheus registry
+	reg := prometheus.NewRegistry()
+	containerImageVersion := promauto.With(reg).NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: "version_checker",
 			Name:      "is_latest_version",
@@ -47,18 +54,29 @@ func New(log *logrus.Entry) *Metrics {
 			"namespace", "pod", "container", "container_type", "image", "current_version", "latest_version",
 		},
 	)
+	containerImageDuration := promauto.With(reg).NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "version_checker",
+			Name:      "image_lookup_duration",
+			Help:      "Time taken to lookup version.",
+		},
+		[]string{"namespace", "pod", "container", "image"},
+	)
 
 	return &Metrics{
-		log:                   log.WithField("module", "metrics"),
-		containerImageVersion: containerImageVersion,
-		containerCache:        make(map[string]cacheItem),
+		log:                    log.WithField("module", "metrics"),
+		registry:               reg,
+		containerImageVersion:  containerImageVersion,
+		containerImageDuration: containerImageDuration,
+		containerCache:         make(map[string]cacheItem),
+		roundTripper:           NewRoundTripper(reg),
 	}
 }
 
 // Run will run the metrics server.
 func (m *Metrics) Run(servingAddress string) error {
 	router := http.NewServeMux()
-	router.Handle("/metrics", promhttp.Handler())
+	router.Handle("/metrics", promhttp.HandlerFor(m.registry, promhttp.HandlerOpts{}))
 	router.Handle("/healthz", http.HandlerFunc(m.healthzAndReadyzHandler))
 	router.Handle("/readyz", http.HandlerFunc(m.healthzAndReadyzHandler))
 
@@ -124,7 +142,18 @@ func (m *Metrics) RemoveImage(namespace, pod, container, containerType string) {
 	m.containerImageVersion.DeletePartialMatch(
 		m.buildPartialLabels(namespace, pod),
 	)
+	m.containerImageDuration.DeletePartialMatch(
+		m.buildPartialLabels(namespace, pod),
+	)
 	delete(m.containerCache, index)
+}
+
+func (m *Metrics) RegisterImageDuration(namespace, pod, container, image string, startTime time.Time) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.containerImageDuration.WithLabelValues(namespace, pod, container, image).
+		Set(time.Since(startTime).Seconds())
 }
 
 func (m *Metrics) latestImageIndex(namespace, pod, container, containerType string) string {

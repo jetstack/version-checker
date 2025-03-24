@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/sirupsen/logrus"
@@ -14,34 +15,17 @@ import (
 	"github.com/jetstack/version-checker/pkg/client/fallback"
 	"github.com/jetstack/version-checker/pkg/client/gcr"
 	"github.com/jetstack/version-checker/pkg/client/ghcr"
+	"github.com/jetstack/version-checker/pkg/client/oci"
 	"github.com/jetstack/version-checker/pkg/client/quay"
 	"github.com/jetstack/version-checker/pkg/client/selfhosted"
 )
 
-// ImageClient represents a image registry client that can list available tags
-// for image URLs.
-type ImageClient interface {
-	// Returns the name of the client
-	Name() string
-
-	// IsHost will return true if this client is appropriate for the given
-	// host.
-	IsHost(host string) bool
-
-	// RepoImage will return the registries repository and image, from a given
-	// URL path.
-	RepoImageFromPath(path string) (string, string)
-
-	// Tags will return the available tags for the given host, repo, and image
-	// using that client.
-	Tags(ctx context.Context, host, repo, image string) ([]api.ImageTag, error)
-}
-
 // Client is a container image registry client to list tags of given image
 // URLs.
 type Client struct {
-	clients        []ImageClient
-	fallbackClient ImageClient
+	clients        []api.ImageClient
+	fallbackClient api.ImageClient
+	log            *logrus.Entry
 }
 
 // Options used to configure client authentication.
@@ -52,33 +36,35 @@ type Options struct {
 	GHCR       ghcr.Options
 	Docker     docker.Options
 	Quay       quay.Options
+	OCI        oci.Options
 	Selfhosted map[string]*selfhosted.Options
+	Transport  http.RoundTripper
 }
 
 func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) {
 	acrClient, err := acr.New(opts.ACR)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create acr client: %s", err)
+		return nil, fmt.Errorf("failed to create acr client: %w", err)
 	}
 	dockerClient, err := docker.New(ctx, opts.Docker)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create docker client: %s", err)
+		return nil, fmt.Errorf("failed to create docker client: %w", err)
 	}
 
-	var selfhostedClients []ImageClient
+	var selfhostedClients []api.ImageClient
 	for _, sOpts := range opts.Selfhosted {
 		sClient, err := selfhosted.New(ctx, log, sOpts)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create selfhosted client %q: %s",
+			return nil, fmt.Errorf("failed to create selfhosted client %q: %w",
 				sOpts.Host, err)
 		}
 
 		selfhostedClients = append(selfhostedClients, sClient)
 	}
 
-	fallbackClient, err := fallback.New(ctx, log)
+	fallbackClient, err := fallback.New(ctx, log, opts.Transport)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create fallback client: %s", err)
+		return nil, fmt.Errorf("failed to create fallback client: %w", err)
 	}
 
 	c := &Client{
@@ -89,13 +75,14 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 			dockerClient,
 			gcr.New(opts.GCR),
 			ghcr.New(opts.GHCR),
-			quay.New(opts.Quay),
+			quay.New(opts.Quay, log),
 		),
 		fallbackClient: fallbackClient,
+		log:            log.WithField("client", "registry"),
 	}
 
 	for _, client := range append(c.clients, fallbackClient) {
-		log.Debugf("registered client %q", client.Name())
+		log.WithField("client", client.Name()).Debugf("registered client")
 	}
 
 	return c, nil
@@ -104,13 +91,16 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 // Tags returns the full list of image tags available, for a given image URL.
 func (c *Client) Tags(ctx context.Context, imageURL string) ([]api.ImageTag, error) {
 	client, host, path := c.fromImageURL(imageURL)
+
+	c.log.Debugf("using client %q for image URL %q", client.Name(), imageURL)
 	repo, image := client.RepoImageFromPath(path)
+
 	return client.Tags(ctx, host, repo, image)
 }
 
 // fromImageURL will return the appropriate registry client for a given
 // image URL, and the host + path to search.
-func (c *Client) fromImageURL(imageURL string) (ImageClient, string, string) {
+func (c *Client) fromImageURL(imageURL string) (api.ImageClient, string, string) {
 	var host, path string
 
 	if strings.Contains(imageURL, ".") || strings.Contains(imageURL, ":") {

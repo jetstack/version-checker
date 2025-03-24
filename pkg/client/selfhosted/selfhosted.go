@@ -16,6 +16,9 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/go-chi/transport"
+	"github.com/hashicorp/go-cleanhttp"
+
 	"github.com/jetstack/version-checker/pkg/api"
 	selfhostederrors "github.com/jetstack/version-checker/pkg/client/selfhosted/errors"
 	"github.com/jetstack/version-checker/pkg/client/util"
@@ -35,13 +38,14 @@ const (
 )
 
 type Options struct {
-	Host      string
-	Username  string
-	Password  string
-	Bearer    string
-	TokenPath string
-	Insecure  bool
-	CAPath    string
+	Host        string
+	Username    string
+	Password    string
+	Bearer      string
+	TokenPath   string
+	Insecure    bool
+	CAPath      string
+	Transporter http.RoundTripper
 }
 
 type Client struct {
@@ -79,17 +83,18 @@ type V1Compatibility struct {
 func New(ctx context.Context, log *logrus.Entry, opts *Options) (*Client, error) {
 	client := &Client{
 		Client: &http.Client{
-			Timeout: time.Second * 10,
+			Timeout:   time.Second * 10,
+			Transport: cleanhttp.DefaultTransport(),
 		},
 		Options: opts,
-		log:     log.WithField("client", opts.Host),
+		log:     log.WithField("client", "selfhosted-"+opts.Host),
 	}
 
 	if err := configureHost(ctx, client, opts); err != nil {
 		return nil, err
 	}
 
-	if err := configureTLS(client, opts); err != nil {
+	if err := configureTransport(client, opts); err != nil {
 		return nil, err
 	}
 
@@ -142,30 +147,31 @@ func configureAuth(ctx context.Context, client *Client, opts *Options) error {
 	return nil
 }
 
-func configureTLS(client *Client, opts *Options) error {
+func configureTransport(client *Client, opts *Options) error {
 	if client.httpScheme == "" {
 		client.httpScheme = "https"
 	}
+	baseTransport := cleanhttp.DefaultTransport()
+	baseTransport.Proxy = http.ProxyFromEnvironment
 
 	if client.httpScheme == "https" {
 		tlsConfig, err := newTLSConfig(opts.Insecure, opts.CAPath)
 		if err != nil {
 			return err
 		}
-
-		client.Client.Transport = &http.Transport{
-			TLSClientConfig: tlsConfig,
-			Proxy:           http.ProxyFromEnvironment,
-		}
+		baseTransport.TLSClientConfig = tlsConfig
 	}
 
+	client.Transport = transport.Chain(baseTransport,
+		transport.If(logrus.IsLevelEnabled(logrus.DebugLevel), transport.LogRequests(transport.LogOptions{Concise: true})),
+		transport.If(opts.Transporter != nil, func(rt http.RoundTripper) http.RoundTripper { return opts.Transporter }))
 	return nil
 }
 
 // Name returns the name of the host URL for the selfhosted client
 func (c *Client) Name() string {
 	if len(c.Host) == 0 {
-		return "dockerapi"
+		return "selfhosted"
 	}
 
 	return c.Host
@@ -330,7 +336,8 @@ func newTLSConfig(insecure bool, CAPath string) (*tls.Config, error) {
 	}
 
 	return &tls.Config{
-		InsecureSkipVerify: insecure,
+		Renegotiation:      tls.RenegotiateOnceAsClient,
+		InsecureSkipVerify: insecure, // #nosec G402
 		RootCAs:            rootCAs,
 	}, nil
 }

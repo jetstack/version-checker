@@ -129,7 +129,7 @@ func TestClientTags(t *testing.T) {
 		t.Run(testName, func(t *testing.T) {
 			host := setupRegistry(t)
 
-			c, err := New()
+			c, err := New(new(Options))
 			if err != nil {
 				t.Fatalf("unexpected error creating client: %s", err)
 			}
@@ -146,7 +146,6 @@ func TestClientTags(t *testing.T) {
 			if diff := cmp.Diff(tc.wantTags, gotTags); diff != "" {
 				t.Errorf("unexpected tags:\n%s", diff)
 			}
-
 		})
 	}
 }
@@ -178,7 +177,7 @@ func TestClientRepoImageFromPath(t *testing.T) {
 		},
 	}
 
-	c, err := New()
+	c, err := New(new(Options))
 	if err != nil {
 		t.Fatalf("unexpected error creating client: %s", err)
 	}

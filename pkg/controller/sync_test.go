@@ -21,8 +21,9 @@ import (
 
 // Test for the sync method.
 func TestController_Sync(t *testing.T) {
+	t.Parallel()
 	log := logrus.NewEntry(logrus.New())
-	metrics := &metrics.Metrics{}
+	metrics := metrics.NewServer(log)
 	imageClient := &client.Client{}
 	searcher := search.New(log, 5*time.Minute, version.New(log, imageClient, 5*time.Minute))
 	checker := checker.New(searcher)
@@ -55,8 +56,9 @@ func TestController_Sync(t *testing.T) {
 
 // Test for the syncContainer method.
 func TestController_SyncContainer(t *testing.T) {
+	t.Parallel()
 	log := logrus.NewEntry(logrus.New())
-	metrics := &metrics.Metrics{}
+	metrics := metrics.NewServer(log)
 	imageClient := &client.Client{}
 	searcher := search.New(log, 5*time.Minute, version.New(log, imageClient, 5*time.Minute))
 	checker := checker.New(searcher)
@@ -86,8 +88,9 @@ func TestController_SyncContainer(t *testing.T) {
 
 // Test for the checkContainer method.
 func TestController_CheckContainer(t *testing.T) {
+	t.Parallel()
 	log := logrus.NewEntry(logrus.New())
-	metrics := &metrics.Metrics{}
+	metrics := metrics.NewServer(log)
 	imageClient := &client.Client{}
 	searcher := search.New(log, 5*time.Minute, version.New(log, imageClient, 5*time.Minute))
 	checker := checker.New(searcher)
@@ -114,8 +117,10 @@ func TestController_CheckContainer(t *testing.T) {
 
 // Example of testing syncContainer when version is not found.
 func TestController_SyncContainer_NoVersionFound(t *testing.T) {
+	t.Parallel()
+
 	log := logrus.NewEntry(logrus.New())
-	metrics := &metrics.Metrics{}
+	metrics := metrics.NewServer(log)
 	imageClient := &client.Client{}
 	searcher := search.New(log, 5*time.Minute, version.New(log, imageClient, 5*time.Minute))
 	checker := checker.New(searcher)

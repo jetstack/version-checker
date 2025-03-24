@@ -3,10 +3,13 @@ package app
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+
+	"github.com/go-chi/transport"
+	"github.com/hashicorp/go-cleanhttp"
+
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth" // Load all auth plugins
 
@@ -35,11 +38,7 @@ func NewCommand(ctx context.Context) *cobra.Command {
 				return fmt.Errorf("failed to parse --log-level %q: %s",
 					opts.LogLevel, err)
 			}
-
-			nlog := logrus.New()
-			nlog.SetOutput(os.Stdout)
-			nlog.SetLevel(logLevel)
-			log := logrus.NewEntry(nlog)
+			log := newLogger(logLevel)
 
 			restConfig, err := opts.kubeConfigFlags.ToRESTConfig()
 			if err != nil {
@@ -51,10 +50,15 @@ func NewCommand(ctx context.Context) *cobra.Command {
 				return fmt.Errorf("failed to build kubernetes client: %s", err)
 			}
 
-			metrics := metrics.New(log)
-			if err := metrics.Run(opts.MetricsServingAddress); err != nil {
+			metricsServer := metrics.NewServer(log)
+			if err := metricsServer.Run(opts.MetricsServingAddress); err != nil {
 				return fmt.Errorf("failed to start metrics server: %s", err)
 			}
+
+			opts.Client.Transport = transport.Chain(
+				cleanhttp.DefaultTransport(),
+				metricsServer.RoundTripper,
+			)
 
 			client, err := client.New(ctx, log, opts.Client)
 			if err != nil {
@@ -62,7 +66,7 @@ func NewCommand(ctx context.Context) *cobra.Command {
 			}
 
 			defer func() {
-				if err := metrics.Shutdown(); err != nil {
+				if err := metricsServer.Shutdown(); err != nil {
 					log.Error(err)
 				}
 			}()
@@ -74,7 +78,7 @@ func NewCommand(ctx context.Context) *cobra.Command {
 
 			log.Infof("flag --test-all-containers=%t %s", opts.DefaultTestAll, defaultTestAllInfoMsg)
 
-			c := controller.New(opts.CacheTimeout, metrics,
+			c := controller.New(opts.CacheTimeout, metricsServer,
 				client, kubeClient, log, opts.DefaultTestAll)
 
 			return c.Run(ctx, opts.CacheTimeout/2)
