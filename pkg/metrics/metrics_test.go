@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -64,10 +65,12 @@ func TestErrorsReporting(t *testing.T) {
 			m.ErrorsReporting(tc.namespace, tc.pod, tc.container, tc.image)
 
 			// Retrieve metric
-			metric, err := m.containerImageErrors.GetMetricWith(m.buildPartialLabels(
-				tc.namespace,
-				tc.pod,
-			))
+			metric, err := m.containerImageErrors.GetMetricWith(prometheus.Labels{
+				"namespace": tc.namespace,
+				"pod":       tc.pod,
+				"container": tc.container,
+				"image":     tc.image,
+			})
 			assert.NoError(t, err, "Failed to get metric with labels")
 
 			// Validate metric count

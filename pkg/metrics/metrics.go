@@ -63,7 +63,7 @@ func NewServer(log *logrus.Entry) *Metrics {
 		},
 		[]string{"namespace", "pod", "container", "image"},
 	)
-	containerImageErrors := promauto.NewCounterVec(
+	containerImageErrors := promauto.With(reg).NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "version_checker",
 			Name:      "version_checker_image_failures_total",
