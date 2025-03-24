@@ -57,6 +57,11 @@ func (c *Controller) syncContainer(ctx context.Context, log *logrus.Entry, build
 	log = log.WithField("container", container.Name)
 	log.Debug("processing container image")
 
+	result, err := c.checker.Container(ctx, log, pod, container, opts)
+	if err != nil {
+		return err
+	}
+
 	err = c.checkContainer(ctx, log, pod, container, containerType, opts)
 	// Don't re-sync, if no version found meeting search criteria
 	if versionerrors.IsNoVersionFound(err) {
@@ -64,6 +69,9 @@ func (c *Controller) syncContainer(ctx context.Context, log *logrus.Entry, build
 		return nil
 	}
 	if err != nil {
+		c.metrics.ErrorsReporting(pod.Namespace, pod.Name,
+			container.Name, result.ImageURL,
+		)
 		return fmt.Errorf("failed to check container image %q: %s",
 			container.Name, err)
 	}

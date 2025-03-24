@@ -22,6 +22,7 @@ type Metrics struct {
 	*http.Server
 
 	containerImageVersion *prometheus.GaugeVec
+	containerImageErrors  *prometheus.CounterVec
 	log                   *logrus.Entry
 
 	// container cache stores a cache of a container's current image, version,
@@ -40,17 +41,28 @@ func New(log *logrus.Entry) *Metrics {
 	containerImageVersion := promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: "version_checker",
-			Name:      "is_latest_version",
+			Name:      "version_checker_is_latest_version",
 			Help:      "Where the container in use is using the latest upstream registry version",
 		},
 		[]string{
 			"namespace", "pod", "container", "container_type", "image", "current_version", "latest_version",
 		},
 	)
+	containerImageErrors := promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "version_checker",
+			Name:      "version_checker_image_failures_total",
+			Help:      "Total number of errors where the version-checker was unable to get the latest upstream registry version",
+		},
+		[]string{
+			"namespace", "pod", "container", "image",
+		},
+	)
 
 	return &Metrics{
 		log:                   log.WithField("module", "metrics"),
 		containerImageVersion: containerImageVersion,
+		containerImageErrors:  containerImageErrors,
 		containerCache:        make(map[string]cacheItem),
 	}
 }
@@ -129,6 +141,11 @@ func (m *Metrics) RemoveImage(namespace, pod, container, containerType string) {
 
 func (m *Metrics) latestImageIndex(namespace, pod, container, containerType string) string {
 	return strings.Join([]string{namespace, pod, container, containerType}, "")
+}
+
+func (m *Metrics) ErrorsReporting(namespace, pod, container, imageURL string) {
+
+	m.containerImageErrors.WithLabelValues(namespace, pod, container, imageURL).Inc()
 }
 
 func (m *Metrics) buildLabels(namespace, pod, container, containerType, imageURL, currentVersion, latestVersion string) prometheus.Labels {
