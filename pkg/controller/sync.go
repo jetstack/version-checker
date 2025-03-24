@@ -93,6 +93,8 @@ func (c *Controller) checkContainer(ctx context.Context, log *logrus.Entry,
 
 	result, err := c.checker.Container(ctx, log, pod, container, opts)
 	if err != nil {
+		// Report the error using ErrorsReporting
+		c.metrics.ErrorsReporting(pod.Namespace, pod.Name, container.Name, container.Image)
 		return err
 	}
 

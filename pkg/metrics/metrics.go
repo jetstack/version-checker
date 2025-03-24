@@ -26,6 +26,7 @@ type Metrics struct {
 	containerImageVersion  *prometheus.GaugeVec
 	containerImageUpdated  *prometheus.GaugeVec
 	containerImageDuration *prometheus.GaugeVec
+	containerImageErrors   *prometheus.CounterVec
 
 	// Contains all metrics for the roundtripper
 	roundTripper *RoundTripper
@@ -73,6 +74,16 @@ func NewServer(log *logrus.Entry) *Metrics {
 		},
 		[]string{"namespace", "pod", "container", "image"},
 	)
+	containerImageErrors := promauto.With(reg).NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "version_checker",
+			Name:      "image_failures_total",
+			Help:      "Total number of errors where the version-checker was unable to get the latest upstream registry version",
+		},
+		[]string{
+			"namespace", "pod", "container", "image",
+		},
+	)
 
 	return &Metrics{
 		log:                    log.WithField("module", "metrics"),
@@ -80,6 +91,7 @@ func NewServer(log *logrus.Entry) *Metrics {
 		containerImageVersion:  containerImageVersion,
 		containerImageDuration: containerImageDuration,
 		containerImageUpdated:  containerImageUpdated,
+		containerImageErrors:   containerImageErrors,
 		containerCache:         make(map[string]cacheItem),
 		roundTripper:           NewRoundTripper(reg),
 	}
@@ -178,6 +190,10 @@ func (m *Metrics) RegisterImageDuration(namespace, pod, container, image string,
 
 func (m *Metrics) latestImageIndex(namespace, pod, container, containerType string) string {
 	return strings.Join([]string{namespace, pod, container, containerType}, "")
+}
+
+func (m *Metrics) ErrorsReporting(namespace, pod, container, imageURL string) {
+	m.containerImageErrors.WithLabelValues(namespace, pod, container, imageURL).Inc()
 }
 
 func (m *Metrics) buildFullLabels(namespace, pod, container, containerType, imageURL, currentVersion, latestVersion string) prometheus.Labels {

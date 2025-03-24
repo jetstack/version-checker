@@ -5,10 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/sirupsen/logrus"
-
+  
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCache(t *testing.T) {
@@ -26,7 +28,7 @@ func TestCache(t *testing.T) {
 		mt, err := m.containerImageVersion.GetMetricWith(m.buildFullLabels("namespace", "pod", "container", typ, "url", version, version))
 		require.NoError(t, err)
 		count := testutil.ToFloat64(mt)
-		require.Equal(t, count, float64(1))
+		assert.Equal(t, count, float64(1))
 	}
 
 	// as well as the lastUpdated...
@@ -34,7 +36,7 @@ func TestCache(t *testing.T) {
 		mt, err := m.containerImageUpdated.GetMetricWith(m.buildLastUpdatedLabels("namespace", "pod", "container", typ, "url"))
 		require.NoError(t, err)
 		count := testutil.ToFloat64(mt)
-		require.GreaterOrEqual(t, count, float64(time.Now().Unix()))
+		assert.GreaterOrEqual(t, count, float64(time.Now().Unix()))
 	}
 
 	// Remove said metrics...
@@ -47,13 +49,53 @@ func TestCache(t *testing.T) {
 		mt, err := m.containerImageVersion.GetMetricWith(m.buildFullLabels("namespace", "pod", "container", typ, "url", version, version))
 		require.NoError(t, err)
 		count := testutil.ToFloat64(mt)
-		require.Equal(t, count, float64(0))
+		assert.Equal(t, count, float64(0))
 	}
 	// And the Last Updated is removed too
 	for _, typ := range []string{"init", "container"} {
 		mt, err := m.containerImageUpdated.GetMetricWith(m.buildLastUpdatedLabels("namespace", "pod", "container", typ, "url"))
 		require.NoError(t, err)
 		count := testutil.ToFloat64(mt)
-		require.Equal(t, count, float64(0))
+		assert.Equal(t, count, float64(0))
+	}
+}
+
+// TestErrorsReporting verifies that the error metric increments correctly
+func TestErrorsReporting(t *testing.T) {
+	m := NewServer(logrus.NewEntry(logrus.New()))
+
+	// Reset the metrics before testing
+	m.containerImageErrors.Reset()
+
+	testCases := []struct {
+		namespace string
+		pod       string
+		container string
+		image     string
+		expected  int
+	}{
+		{"namespace", "pod", "container", "url", 1},
+		{"namespace", "pod", "container", "url", 2},
+		{"namespace2", "pod2", "container2", "url2", 1},
+	}
+
+	for i, tc := range testCases {
+		t.Run(fmt.Sprintf("Case %d", i+1), func(t *testing.T) {
+			// Report an error
+			m.ErrorsReporting(tc.namespace, tc.pod, tc.container, tc.image)
+
+			// Retrieve metric
+			metric, err := m.containerImageErrors.GetMetricWith(prometheus.Labels{
+				"namespace": tc.namespace,
+				"pod":       tc.pod,
+				"container": tc.container,
+				"image":     tc.image,
+			})
+			require.NoError(t, err, "Failed to get metric with labels")
+
+			// Validate metric count
+			fetchErrorCount := testutil.ToFloat64(metric)
+			assert.Equal(t, float64(tc.expected), fetchErrorCount, "Expected error count to increment correctly")
+		})
 	}
 }
