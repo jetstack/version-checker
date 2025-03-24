@@ -7,6 +7,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/jetstack/version-checker/pkg/client/acr"
 	"github.com/jetstack/version-checker/pkg/client/docker"
 	"github.com/jetstack/version-checker/pkg/client/ecr"
@@ -34,7 +35,7 @@ func TestFromImageURL(t *testing.T) {
 
 	tests := map[string]struct {
 		url       string
-		expClient ImageClient
+		expClient api.ImageClient
 		expHost   string
 		expPath   string
 	}{

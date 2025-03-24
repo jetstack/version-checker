@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -40,8 +41,13 @@ func (c *Controller) sync(ctx context.Context, pod *corev1.Pod) error {
 }
 
 // syncContainer will enqueue a given container to check the version.
-func (c *Controller) syncContainer(ctx context.Context, log *logrus.Entry, builder *options.Builder, pod *corev1.Pod,
-	container *corev1.Container, containerType string) error {
+func (c *Controller) syncContainer(ctx context.Context, log *logrus.Entry,
+	builder *options.Builder,
+	pod *corev1.Pod,
+	container *corev1.Container,
+	containerType string,
+) error {
+
 	// If not enabled, exit early
 	if !builder.IsEnabled(c.defaultTestAll, container.Name) {
 		c.metrics.RemoveImage(pod.Namespace, pod.Name, container.Name, containerType)
@@ -73,10 +79,22 @@ func (c *Controller) syncContainer(ctx context.Context, log *logrus.Entry, build
 
 // checkContainer will check the given container and options, and update
 // metrics according to the result.
-func (c *Controller) checkContainer(ctx context.Context, log *logrus.Entry, pod *corev1.Pod,
-	container *corev1.Container, containerType string, opts *api.Options) error {
+func (c *Controller) checkContainer(ctx context.Context, log *logrus.Entry,
+	pod *corev1.Pod,
+	container *corev1.Container,
+	containerType string,
+	opts *api.Options,
+) error {
+
+	startTime := time.Now()
+	defer func() {
+		c.metrics.RegisterImageDuration(pod.Namespace, pod.Name, container.Name, container.Image, startTime)
+	}()
+
 	result, err := c.checker.Container(ctx, log, pod, container, opts)
 	if err != nil {
+		// Report the error using ErrorsReporting
+		c.metrics.ErrorsReporting(pod.Namespace, pod.Name, container.Name, container.Image)
 		return err
 	}
 

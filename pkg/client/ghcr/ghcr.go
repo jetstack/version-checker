@@ -6,13 +6,15 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/gofri/go-github-ratelimit/github_ratelimit"
-	"github.com/google/go-github/v62/github"
 	"github.com/jetstack/version-checker/pkg/api"
+
+	"github.com/gofri/go-github-ratelimit/github_ratelimit"
+	"github.com/google/go-github/v70/github"
 )
 
 type Options struct {
-	Token string
+	Token    string
+	Hostname string
 }
 
 type Client struct {
@@ -32,6 +34,12 @@ func New(opts Options) *Client {
 		panic(err)
 	}
 	client := github.NewClient(ghRateLimiter).WithAuthToken(opts.Token)
+	if opts.Hostname != "" {
+		client, err = client.WithEnterpriseURLs(fmt.Sprintf("https://%s/", opts.Hostname), fmt.Sprintf("https://%s/api/uploads/", opts.Hostname))
+		if err != nil {
+			panic(fmt.Errorf("setting enterprise URLs: %w", err))
+		}
+	}
 
 	return &Client{
 		client:     client,
@@ -87,8 +95,8 @@ func (c *Client) determineGetAllVersionsFunc(ctx context.Context, owner, repo st
 
 func (c *Client) buildPackageListOptions() *github.PackageListOptions {
 	return &github.PackageListOptions{
-		PackageType: github.String("container"),
-		State:       github.String("active"),
+		PackageType: github.Ptr("container"),
+		State:       github.Ptr("active"),
 		ListOptions: github.ListOptions{
 			PerPage: 100,
 		},
@@ -98,25 +106,28 @@ func (c *Client) buildPackageListOptions() *github.PackageListOptions {
 func (c *Client) extractImageTags(versions []*github.PackageVersion) []api.ImageTag {
 	var tags []api.ImageTag
 	for _, ver := range versions {
-		if len(ver.Metadata.Container.Tags) == 0 {
-			continue
-		}
+		if meta, ok := ver.GetMetadata(); ok {
 
-		sha := ""
-		if strings.HasPrefix(*ver.Name, "sha") {
-			sha = *ver.Name
-		}
-
-		for _, tag := range ver.Metadata.Container.Tags {
-			if c.shouldSkipTag(tag) {
+			if len(meta.Container.Tags) == 0 {
 				continue
 			}
 
-			tags = append(tags, api.ImageTag{
-				Tag:       tag,
-				SHA:       sha,
-				Timestamp: ver.CreatedAt.Time,
-			})
+			sha := ""
+			if strings.HasPrefix(*ver.Name, "sha") {
+				sha = *ver.Name
+			}
+
+			for _, tag := range meta.Container.Tags {
+				if c.shouldSkipTag(tag) {
+					continue
+				}
+
+				tags = append(tags, api.ImageTag{
+					Tag:       tag,
+					SHA:       sha,
+					Timestamp: ver.CreatedAt.Time,
+				})
+			}
 		}
 	}
 	return tags

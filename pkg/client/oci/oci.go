@@ -3,6 +3,7 @@ package oci
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/google/go-containerregistry/pkg/name"
@@ -10,20 +11,43 @@ import (
 	"github.com/jetstack/version-checker/pkg/api"
 )
 
+type CredentialsMode int
+
+const (
+	Auto CredentialsMode = iota
+	Multi
+	Single
+	Manual
+)
+
+type Options struct {
+	// CredentailsMode         CredentialsMode
+	// ServiceAccountName      string
+	// ServiceAccountNamespace string
+	Transporter http.RoundTripper
+}
+
 // Client is a client for a registry compatible with the OCI Distribution Spec
 type Client struct {
+	*Options
 	puller *remote.Puller
 }
 
 // New returns a new client
-func New() (*Client, error) {
-	puller, err := remote.NewPuller()
+func New(opts *Options) (*Client, error) {
+	pullOpts := []remote.Option{}
+	if opts.Transporter != nil {
+		pullOpts = append(pullOpts, remote.WithTransport(opts.Transporter))
+	}
+
+	puller, err := remote.NewPuller(pullOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("creating puller: %w", err)
 	}
 
 	return &Client{
-		puller: puller,
+		puller:  puller,
+		Options: opts,
 	}, nil
 }
 
