@@ -33,7 +33,7 @@ func TestCache(t *testing.T) {
 
 	// as well as the lastUpdated...
 	for _, typ := range []string{"init", "container"} {
-		mt, err := m.containerImageUpdated.GetMetricWith(m.buildLastUpdatedLabels("namespace", "pod", "container", typ, "url"))
+		mt, err := m.containerImageChecked.GetMetricWith(m.buildLastUpdatedLabels("namespace", "pod", "container", typ, "url"))
 		require.NoError(t, err)
 		count := testutil.ToFloat64(mt)
 		assert.GreaterOrEqual(t, count, float64(time.Now().Unix()))
@@ -53,7 +53,7 @@ func TestCache(t *testing.T) {
 	}
 	// And the Last Updated is removed too
 	for _, typ := range []string{"init", "container"} {
-		mt, err := m.containerImageUpdated.GetMetricWith(m.buildLastUpdatedLabels("namespace", "pod", "container", typ, "url"))
+		mt, err := m.containerImageChecked.GetMetricWith(m.buildLastUpdatedLabels("namespace", "pod", "container", typ, "url"))
 		require.NoError(t, err)
 		count := testutil.ToFloat64(mt)
 		assert.Equal(t, count, float64(0))

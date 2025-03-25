@@ -24,7 +24,7 @@ type Metrics struct {
 
 	registry               *prometheus.Registry
 	containerImageVersion  *prometheus.GaugeVec
-	containerImageUpdated  *prometheus.GaugeVec
+	containerImageChecked  *prometheus.GaugeVec
 	containerImageDuration *prometheus.GaugeVec
 	containerImageErrors   *prometheus.CounterVec
 
@@ -56,11 +56,11 @@ func NewServer(log *logrus.Entry) *Metrics {
 			"namespace", "pod", "container", "container_type", "image", "current_version", "latest_version",
 		},
 	)
-	containerImageUpdated := promauto.With(reg).NewGaugeVec(
+	containerImageChecked := promauto.With(reg).NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: "version_checker",
-			Name:      "last_updated",
-			Help:      "Timestamp when the image was updated",
+			Name:      "last_checked",
+			Help:      "Timestamp when the image was checked",
 		},
 		[]string{
 			"namespace", "pod", "container", "container_type", "image",
@@ -90,7 +90,7 @@ func NewServer(log *logrus.Entry) *Metrics {
 		registry:               reg,
 		containerImageVersion:  containerImageVersion,
 		containerImageDuration: containerImageDuration,
-		containerImageUpdated:  containerImageUpdated,
+		containerImageChecked:  containerImageChecked,
 		containerImageErrors:   containerImageErrors,
 		containerCache:         make(map[string]cacheItem),
 		roundTripper:           NewRoundTripper(reg),
@@ -146,7 +146,7 @@ func (m *Metrics) AddImage(namespace, pod, container, containerType, imageURL st
 	).Set(isLatestF)
 
 	// Bump last updated timestamp
-	m.containerImageUpdated.With(
+	m.containerImageChecked.With(
 		m.buildLastUpdatedLabels(namespace, pod, container, containerType, imageURL),
 	).Set(float64(time.Now().Unix()))
 
@@ -174,7 +174,7 @@ func (m *Metrics) RemoveImage(namespace, pod, container, containerType string) {
 	m.containerImageDuration.DeletePartialMatch(
 		m.buildPartialLabels(namespace, pod),
 	)
-	m.containerImageUpdated.DeletePartialMatch(
+	m.containerImageChecked.DeletePartialMatch(
 		m.buildPartialLabels(namespace, pod),
 	)
 	delete(m.containerCache, index)
