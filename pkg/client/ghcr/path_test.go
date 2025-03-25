@@ -72,6 +72,12 @@ func TestIsHost(t *testing.T) {
 			customhost: strPtr("customhostname.ghe.internal"),
 			expIs:      true,
 		},
+		"not-my-customhostname.ghe.internal should be false": {
+			token:      "test-token",
+			host:       "not-my-customhostname.ghe.internal",
+			customhost: strPtr("customhostname.ghe.internal"),
+			expIs:      false,
+		},
 	}
 
 	handler := new(Client)
