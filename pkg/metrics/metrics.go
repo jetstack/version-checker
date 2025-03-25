@@ -12,6 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -45,6 +46,10 @@ type cacheItem struct {
 func NewServer(log *logrus.Entry) *Metrics {
 	// Reset the prometheus registry
 	reg := prometheus.NewRegistry()
+
+	reg.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
+	reg.MustRegister(collectors.NewGoCollector())
+
 	containerImageVersion := promauto.With(reg).NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: "version_checker",
