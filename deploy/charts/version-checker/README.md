@@ -71,7 +71,7 @@ A Helm chart for version-checker
 | service.labels | object | `{}` | Additional labels to add to the service |
 | service.port | int | `8080` | Port to expose within the service |
 | serviceMonitor.additionalLabels | object | `{}` | Additional labels to add to the ServiceMonitor |
-| serviceMonitor.enabled | bool | `false` | Disable/Enable ServiceMonitor Object |
+| serviceMonitor.enabled | bool | `true` | Disable/Enable ServiceMonitor Object |
 | tolerations | list | `[]` | Configure tolerations |
 | topologySpreadConstraints | list | `[]` | Set topologySpreadConstraints |
 | versionChecker.imageCacheTimeout | string | `"30m"` | How long to hold on to image tags and their versions |

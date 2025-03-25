@@ -215,7 +215,7 @@ prometheus:
 # Configure a Prometheus-Operator ServiceMonitor object
 serviceMonitor:
   # -- Disable/Enable ServiceMonitor Object
-  enabled: false
+  enabled: true
   # -- Additional labels to add to the ServiceMonitor
   additionalLabels: {}
 
