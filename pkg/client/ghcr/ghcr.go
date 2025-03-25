@@ -37,7 +37,7 @@ func New(opts Options) *Client {
 	if opts.Hostname != "" {
 		client, err = client.WithEnterpriseURLs(fmt.Sprintf("https://%s/", opts.Hostname), fmt.Sprintf("https://%s/api/uploads/", opts.Hostname))
 		if err != nil {
-			panic(fmt.Errorf("setting enterprise URLs: %w", err))
+			panic(fmt.Errorf("failed setting enterprise URLs: %w", err))
 		}
 	}
 
