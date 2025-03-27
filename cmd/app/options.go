@@ -22,30 +22,30 @@ const (
 	envPrefix = "VERSION_CHECKER"
 
 	envACRUsername     = "ACR_USERNAME"
-	envACRPassword     = "ACR_PASSWORD"
-	envACRRefreshToken = "ACR_REFRESH_TOKEN"
+	envACRPassword     = "ACR_PASSWORD"      // #nosec G101
+	envACRRefreshToken = "ACR_REFRESH_TOKEN" // #nosec G101
 
 	envDockerUsername = "DOCKER_USERNAME"
-	envDockerPassword = "DOCKER_PASSWORD"
-	envDockerToken    = "DOCKER_TOKEN"
+	envDockerPassword = "DOCKER_PASSWORD" // #nosec G101
+	envDockerToken    = "DOCKER_TOKEN"    // #nosec G101
 
 	envECRIamRoleArn      = "ECR_IAM_ROLE_ARN"
-	envECRAccessKeyID     = "ECR_ACCESS_KEY_ID"
-	envECRSecretAccessKey = "ECR_SECRET_ACCESS_KEY"
-	envECRSessionToken    = "ECR_SESSION_TOKEN"
+	envECRAccessKeyID     = "ECR_ACCESS_KEY_ID"     // #nosec G101
+	envECRSecretAccessKey = "ECR_SECRET_ACCESS_KEY" // #nosec G101
+	envECRSessionToken    = "ECR_SESSION_TOKEN"     // #nosec G101
 
-	envGCRAccessToken = "GCR_TOKEN"
+	envGCRAccessToken = "GCR_TOKEN" // #nosec G101
 
-	envGHCRAccessToken = "GHCR_TOKEN"
+	envGHCRAccessToken = "GHCR_TOKEN" // #nosec G101
 	envGHCRHostname    = "GHCR_HOSTNAME"
 
-	envQuayToken = "QUAY_TOKEN"
+	envQuayToken = "QUAY_TOKEN" // #nosec G101
 
 	envSelfhostedPrefix    = "SELFHOSTED"
 	envSelfhostedUsername  = "USERNAME"
 	envSelfhostedPassword  = "PASSWORD"
 	envSelfhostedHost      = "HOST"
-	envSelfhostedBearer    = "TOKEN"
+	envSelfhostedBearer    = "TOKEN" // #nosec G101
 	envSelfhostedTokenPath = "TOKEN_PATH"
 	envSelfhostedInsecure  = "INSECURE"
 	envSelfhostedCAPath    = "CA_PATH"
@@ -67,6 +67,9 @@ type Options struct {
 	DefaultTestAll        bool
 	CacheTimeout          time.Duration
 	LogLevel              string
+
+	GracefulShutdownTimeout time.Duration
+	CacheSyncPeriod         time.Duration
 
 	kubeConfigFlags *genericclioptions.ConfigFlags
 	selfhosted      selfhosted.Options
@@ -118,6 +121,14 @@ func (o *Options) addAppFlags(fs *pflag.FlagSet) {
 	fs.StringVarP(&o.LogLevel,
 		"log-level", "v", "info",
 		"Log level (debug, info, warn, error, fatal, panic).")
+
+	fs.DurationVarP(&o.GracefulShutdownTimeout,
+		"graceful-shutdown-timeout", "", 10*time.Second,
+		"Time that the manager should wait for all controller to shutdown.")
+
+	fs.DurationVarP(&o.CacheSyncPeriod,
+		"cache-sync-period", "", 5*time.Hour,
+		"The time in which all resources should be updated.")
 }
 
 func (o *Options) addAuthFlags(fs *pflag.FlagSet) {

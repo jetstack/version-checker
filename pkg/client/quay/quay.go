@@ -20,7 +20,8 @@ const (
 )
 
 type Options struct {
-	Token string
+	Token       string
+	Transporter http.RoundTripper
 }
 
 type Client struct {
@@ -62,6 +63,9 @@ func New(opts Options, log *logrus.Entry) *Client {
 	client := retryablehttp.NewClient()
 	client.RetryMax = 10
 	client.Logger = log.WithField("client", "quay")
+	if opts.Transporter != nil {
+		client.HTTPClient.Transport = opts.Transporter
+	}
 
 	return &Client{
 		Options: opts,

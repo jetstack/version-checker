@@ -11,7 +11,7 @@ import (
 )
 
 func TestCache(t *testing.T) {
-	m := NewServer(logrus.NewEntry(logrus.New()))
+	m := New(logrus.NewEntry(logrus.New()), prometheus.NewRegistry())
 
 	for i, typ := range []string{"init", "container"} {
 		version := fmt.Sprintf("0.1.%d", i)
@@ -22,9 +22,7 @@ func TestCache(t *testing.T) {
 		version := fmt.Sprintf("0.1.%d", i)
 		mt, _ := m.containerImageVersion.GetMetricWith(m.buildLabels("namespace", "pod", "container", typ, "url", version, version))
 		count := testutil.ToFloat64(mt)
-		if count != 1 {
-			t.Error("Should have added metric")
-		}
+		assert.Equal(t, count, float64(1), "Expected to get a metric for containerImageVersion")
 	}
 
 	for _, typ := range []string{"init", "container"} {
@@ -34,15 +32,13 @@ func TestCache(t *testing.T) {
 		version := fmt.Sprintf("0.1.%d", i)
 		mt, _ := m.containerImageVersion.GetMetricWith(m.buildLabels("namespace", "pod", "container", typ, "url", version, version))
 		count := testutil.ToFloat64(mt)
-		if count != 0 {
-			t.Error("Should have removed metric")
-		}
+		assert.Equal(t, count, float64(0), "Expected to get a metric for containerImageVersion")
 	}
 }
 
 // TestErrorsReporting verifies that the error metric increments correctly
 func TestErrorsReporting(t *testing.T) {
-	m := NewServer(logrus.NewEntry(logrus.New()))
+	m := New(logrus.NewEntry(logrus.New()), prometheus.NewRegistry())
 
 	// Reset the metrics before testing
 	m.containerImageErrors.Reset()
@@ -62,7 +58,7 @@ func TestErrorsReporting(t *testing.T) {
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("Case %d", i+1), func(t *testing.T) {
 			// Report an error
-			m.ErrorsReporting(tc.namespace, tc.pod, tc.container, tc.image)
+			m.ReportError(tc.namespace, tc.pod, tc.container, tc.image)
 
 			// Retrieve metric
 			metric, err := m.containerImageErrors.GetMetricWith(prometheus.Labels{
