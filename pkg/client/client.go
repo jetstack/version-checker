@@ -44,6 +44,7 @@ type Options struct {
 }
 
 func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) {
+	log = log.WithField("component", "client")
 	// Setup Transporters for all remaining clients (if one is set)
 	if opts.Transport != nil {
 		opts.Quay.Transporter = opts.Transport
@@ -106,7 +107,7 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 			quay.New(opts.Quay, log),
 		),
 		fallbackClient: fallbackClient,
-		log:            log.WithField("client", "registry"),
+		log:            log,
 	}
 
 	for _, client := range append(c.clients, fallbackClient) {

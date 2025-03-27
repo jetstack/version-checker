@@ -68,6 +68,7 @@ type Options struct {
 	CacheTimeout          time.Duration
 	LogLevel              string
 
+	PprofBindAddress        string
 	GracefulShutdownTimeout time.Duration
 	CacheSyncPeriod         time.Duration
 
@@ -107,6 +108,10 @@ func (o *Options) addAppFlags(fs *pflag.FlagSet) {
 	fs.StringVarP(&o.MetricsServingAddress,
 		"metrics-serving-address", "m", "0.0.0.0:8080",
 		"Address to serve metrics on at the /metrics path.")
+
+	fs.StringVarP(&o.PprofBindAddress,
+		"pprof-serving-address", "", "",
+		"Address to serve pprof on for profiling.")
 
 	fs.BoolVarP(&o.DefaultTestAll,
 		"test-all-containers", "a", false,

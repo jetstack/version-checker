@@ -7,8 +7,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
-
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -68,12 +66,6 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	// Fetch the Pod instance
 	pod := &corev1.Pod{}
-	// Because we're using builder.OnlyMetadata and caching only metadata
-	pod.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "",
-		Version: "v1",
-		Kind:    "Pod",
-	})
 	err := r.Get(ctx, req.NamespacedName, pod)
 	if apierrors.IsNotFound(err) {
 		// Pod deleted, remove from metrics

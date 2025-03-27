@@ -40,7 +40,13 @@ func NewCommand(ctx context.Context) *cobra.Command {
 		RunE: func(_ *cobra.Command, _ []string) error {
 			opts.complete()
 
-			log := logrus.New().WithField("component", "controller")
+			logLevel, err := logrus.ParseLevel(opts.LogLevel)
+			if err != nil {
+				return fmt.Errorf("failed to parse --log-level %q: %s",
+					opts.LogLevel, err)
+			}
+
+			log := newLogger(logLevel).WithField("component", "controller")
 
 			defaultTestAllInfoMsg := fmt.Sprintf(`only containers with the annotation "%s/${my-container}=true" will be parsed`, api.EnableAnnotationKey)
 			if opts.DefaultTestAll {
@@ -57,13 +63,13 @@ func NewCommand(ctx context.Context) *cobra.Command {
 			mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 				Logger:         logrusr.New(log.WithField("controller", "manager").Logger),
 				LeaderElection: false,
-				// TODO: See if we can get newer/better solution
 				Metrics: server.Options{
 					BindAddress:   opts.MetricsServingAddress,
 					SecureServing: false,
 				},
 				GracefulShutdownTimeout: &opts.GracefulShutdownTimeout,
 				Cache:                   cache.Options{SyncPeriod: &opts.CacheSyncPeriod},
+				PprofBindAddress:        opts.PprofBindAddress,
 			})
 			if err != nil {
 				return err
@@ -98,10 +104,6 @@ func NewCommand(ctx context.Context) *cobra.Command {
 				cleanhttp.DefaultTransport(),
 				metricsServer.RoundTripper,
 			)
-
-			// nodeController := controller.NewNodeReconciler(log, mgr.GetClient())
-			// if err := nodeController.SetupWithManager(mgr); err != nil {
-			// }
 
 			client, err := client.New(ctx, log, opts.Client)
 			if err != nil {
