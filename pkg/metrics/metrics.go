@@ -106,31 +106,43 @@ func (m *Metrics) AddImage(namespace, pod, container, containerType, imageURL st
 func (m *Metrics) RemoveImage(namespace, pod, container, containerType string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	total := 0
 
-	m.containerImageVersion.DeletePartialMatch(
+	total += m.containerImageVersion.DeletePartialMatch(
 		m.buildPartialLabels(namespace, pod),
 	)
-	m.containerImageDuration.DeletePartialMatch(
+	total += m.containerImageDuration.DeletePartialMatch(
 		m.buildPartialLabels(namespace, pod),
 	)
-	m.containerImageChecked.DeletePartialMatch(
+
+	total += m.containerImageChecked.DeletePartialMatch(
 		m.buildPartialLabels(namespace, pod),
 	)
+	total += m.containerImageErrors.DeletePartialMatch(
+		m.buildPartialLabels(namespace, pod),
+	)
+	m.log.Infof("Removed %d metrics for image %s/%s/%s", total, namespace, pod, container)
 }
 
 func (m *Metrics) RemovePod(namespace, pod string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.containerImageVersion.DeletePartialMatch(
+	total := 0
+	total += m.containerImageVersion.DeletePartialMatch(
 		m.buildPartialLabels(namespace, pod),
 	)
-	m.containerImageDuration.DeletePartialMatch(
+	total += m.containerImageDuration.DeletePartialMatch(
 		m.buildPartialLabels(namespace, pod),
 	)
-	m.containerImageChecked.DeletePartialMatch(
+	total += m.containerImageChecked.DeletePartialMatch(
 		m.buildPartialLabels(namespace, pod),
 	)
+	total += m.containerImageErrors.DeletePartialMatch(
+		m.buildPartialLabels(namespace, pod),
+	)
+
+	m.log.Infof("Removed %d metrics for pod %s/%s", total, namespace, pod)
 }
 
 func (m *Metrics) RegisterImageDuration(namespace, pod, container, image string, startTime time.Time) {
