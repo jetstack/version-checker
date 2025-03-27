@@ -47,6 +47,7 @@ func NewCommand(ctx context.Context) *cobra.Command {
 			}
 
 			log := newLogger(logLevel).WithField("component", "controller")
+			ctrl.SetLogger(logrusr.New(log.WithField("controller", "manager").Logger))
 
 			defaultTestAllInfoMsg := fmt.Sprintf(`only containers with the annotation "%s/${my-container}=true" will be parsed`, api.EnableAnnotationKey)
 			if opts.DefaultTestAll {
@@ -61,7 +62,6 @@ func NewCommand(ctx context.Context) *cobra.Command {
 			log.Infof("flag --test-all-containers=%t %s", opts.DefaultTestAll, defaultTestAllInfoMsg)
 
 			mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
-				Logger:         logrusr.New(log.WithField("controller", "manager").Logger),
 				LeaderElection: false,
 				Metrics: server.Options{
 					BindAddress:   opts.MetricsServingAddress,
