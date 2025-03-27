@@ -33,7 +33,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ecr v1.43.0
 	github.com/bombsimon/logrusr/v4 v4.1.0
 	github.com/go-chi/transport v0.5.0
-	github.com/go-logr/logr v1.4.2
 	github.com/gofri/go-github-ratelimit v1.1.1
 	github.com/google/go-cmp v0.7.0
 	github.com/google/go-containerregistry v0.20.3
@@ -43,7 +42,6 @@ require (
 	github.com/jarcoal/httpmock v1.3.1
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/stretchr/testify v1.10.0
-	go.uber.org/goleak v1.3.0
 	sigs.k8s.io/controller-runtime v0.20.4
 )
 
@@ -84,6 +82,7 @@ require (
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
 	github.com/go-errors/errors v1.5.1 // indirect
+	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-openapi/jsonpointer v0.21.1 // indirect
 	github.com/go-openapi/jsonreference v0.21.0 // indirect
 	github.com/go-openapi/swag v0.23.1 // indirect
