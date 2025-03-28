@@ -34,7 +34,11 @@ func init() {
 
 func TestNewController(t *testing.T) {
 	kubeClient := fake.NewFakeClient()
-	metrics := &metrics.Metrics{}
+	metrics := metrics.New(
+		logrus.NewEntry(logrus.StandardLogger()),
+		prometheus.NewRegistry(),
+		kubeClient,
+	)
 	imageClient := &client.Client{}
 
 	controller := NewPodReconciler(5*time.Minute, metrics, imageClient, kubeClient, testLogger, true)
@@ -78,6 +82,7 @@ func TestReconcile(t *testing.T) {
 			metrics := metrics.New(
 				logrus.NewEntry(logrus.StandardLogger()),
 				prometheus.NewRegistry(),
+				kubeClient,
 			)
 			controller := NewPodReconciler(5*time.Minute, metrics, imageClient, kubeClient, testLogger, true)
 			controller.RequeueDuration = 5 * time.Minute
@@ -110,7 +115,11 @@ func TestReconcile(t *testing.T) {
 }
 func TestSetupWithManager(t *testing.T) {
 	kubeClient := fake.NewClientBuilder().Build()
-	metrics := &metrics.Metrics{}
+	metrics := metrics.New(
+		logrus.NewEntry(logrus.StandardLogger()),
+		prometheus.NewRegistry(),
+		kubeClient,
+	)
 	imageClient := &client.Client{}
 	controller := NewPodReconciler(5*time.Minute, metrics, imageClient, kubeClient, testLogger, true)
 
