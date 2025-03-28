@@ -23,7 +23,6 @@ const (
 )
 
 type Client struct {
-	*http.Client
 	Options
 
 	cacheMu         sync.Mutex
@@ -54,10 +53,6 @@ type ManifestResponse struct {
 }
 
 func New(opts Options) (*Client, error) {
-	client := &http.Client{
-		Timeout: time.Second * 5,
-	}
-
 	if len(opts.RefreshToken) > 0 &&
 		(len(opts.Username) > 0 || len(opts.Password) > 0) {
 		return nil, errors.New("cannot specify refresh token as well as username/password")
@@ -65,7 +60,6 @@ func New(opts Options) (*Client, error) {
 
 	return &Client{
 		Options:         opts,
-		Client:          client,
 		cachedACRClient: make(map[string]*acrClient),
 	}, nil
 }
@@ -212,7 +206,8 @@ func (c *Client) getAccessTokenClient(ctx context.Context, host string) (*acrCli
 	}
 
 	resp, err := autorest.SendWithSender(client, req,
-		autorest.DoRetryForStatusCodes(client.RetryAttempts, client.RetryDuration, autorest.StatusCodesForRetry...))
+		autorest.DoRetryForStatusCodes(client.RetryAttempts, client.RetryDuration, autorest.StatusCodesForRetry...),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("%s: failed to request access token: %s",
 			host, err)

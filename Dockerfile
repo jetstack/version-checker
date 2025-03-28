@@ -3,7 +3,7 @@ FROM --platform=$BUILDPLATFORM golang:1.24-alpine AS builder
 COPY . /app/
 WORKDIR /app/
 
-RUN go mod download
+RUN go mod download -x
 
 ARG TARGETOS TARGETARCH
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -o ./bin/version-checker ./cmd/.

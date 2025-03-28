@@ -3,6 +3,7 @@ package ghcr
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
 
@@ -13,8 +14,9 @@ import (
 )
 
 type Options struct {
-	Token    string
-	Hostname string
+	Token       string
+	Hostname    string
+	Transporter http.RoundTripper
 }
 
 type Client struct {
@@ -29,7 +31,7 @@ func New(opts Options) *Client {
 	}
 
 	ghRatelimitOpts := github_ratelimit.WithLimitDetectedCallback(rateLimitDetection)
-	ghRateLimiter, err := github_ratelimit.NewRateLimitWaiterClient(nil, ghRatelimitOpts)
+	ghRateLimiter, err := github_ratelimit.NewRateLimitWaiterClient(opts.Transporter, ghRatelimitOpts)
 	if err != nil {
 		panic(err)
 	}
@@ -107,7 +109,6 @@ func (c *Client) extractImageTags(versions []*github.PackageVersion) []api.Image
 	var tags []api.ImageTag
 	for _, ver := range versions {
 		if meta, ok := ver.GetMetadata(); ok {
-
 			if len(meta.Container.Tags) == 0 {
 				continue
 			}

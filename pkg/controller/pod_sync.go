@@ -15,8 +15,8 @@ import (
 )
 
 // sync will enqueue a given pod to run against the version checker.
-func (c *Controller) sync(ctx context.Context, pod *corev1.Pod) error {
-	log := c.log.WithField("name", pod.Name).WithField("namespace", pod.Namespace)
+func (c *PodReconciler) sync(ctx context.Context, pod *corev1.Pod) error {
+	log := c.Log.WithFields(logrus.Fields{"name": pod.Name, "namespace": pod.Namespace})
 
 	builder := options.New(pod.Annotations)
 
@@ -41,16 +41,16 @@ func (c *Controller) sync(ctx context.Context, pod *corev1.Pod) error {
 }
 
 // syncContainer will enqueue a given container to check the version.
-func (c *Controller) syncContainer(ctx context.Context, log *logrus.Entry,
+func (c *PodReconciler) syncContainer(ctx context.Context,
+	log *logrus.Entry,
 	builder *options.Builder,
 	pod *corev1.Pod,
 	container *corev1.Container,
 	containerType string,
 ) error {
-
 	// If not enabled, exit early
 	if !builder.IsEnabled(c.defaultTestAll, container.Name) {
-		c.metrics.RemoveImage(pod.Namespace, pod.Name, container.Name, containerType)
+		c.Metrics.RemoveImage(pod.Namespace, pod.Name, container.Name, containerType)
 		return nil
 	}
 
@@ -79,22 +79,21 @@ func (c *Controller) syncContainer(ctx context.Context, log *logrus.Entry,
 
 // checkContainer will check the given container and options, and update
 // metrics according to the result.
-func (c *Controller) checkContainer(ctx context.Context, log *logrus.Entry,
+func (c *PodReconciler) checkContainer(ctx context.Context, log *logrus.Entry,
 	pod *corev1.Pod,
 	container *corev1.Container,
 	containerType string,
 	opts *api.Options,
 ) error {
-
 	startTime := time.Now()
 	defer func() {
-		c.metrics.RegisterImageDuration(pod.Namespace, pod.Name, container.Name, container.Image, startTime)
+		c.Metrics.RegisterImageDuration(pod.Namespace, pod.Name, container.Name, container.Image, startTime)
 	}()
 
-	result, err := c.checker.Container(ctx, log, pod, container, opts)
+	result, err := c.VersionChecker.Container(ctx, log, pod, container, opts)
 	if err != nil {
 		// Report the error using ErrorsReporting
-		c.metrics.ErrorsReporting(pod.Namespace, pod.Name, container.Name, container.Image)
+		c.Metrics.ReportError(pod.Namespace, pod.Name, container.Name, container.Image)
 		return err
 	}
 
@@ -111,7 +110,7 @@ func (c *Controller) checkContainer(ctx context.Context, log *logrus.Entry,
 			result.ImageURL, result.CurrentVersion, result.LatestVersion)
 	}
 
-	c.metrics.AddImage(pod.Namespace, pod.Name,
+	c.Metrics.AddImage(pod.Namespace, pod.Name,
 		container.Name, containerType,
 		result.ImageURL, result.IsLatest,
 		result.CurrentVersion, result.LatestVersion,

@@ -36,11 +36,6 @@ func New(log *logrus.Entry, client *client.Client, cacheTimeout time.Duration) *
 	return v
 }
 
-// Run is a blocking func that will start the image cache garbage collector.
-func (v *Version) Run(refreshRate time.Duration) {
-	v.imageCache.StartGarbageCollector(refreshRate)
-}
-
 // LatestTagFromImage will return the latest tag given an imageURL, according
 // to the given options.
 func (v *Version) LatestTagFromImage(ctx context.Context, imageURL string, opts *api.Options) (*api.ImageTag, error) {

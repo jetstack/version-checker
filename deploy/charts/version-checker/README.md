@@ -22,6 +22,9 @@ A Helm chart for version-checker
 | additionalAnnotations | object | `{}` | Additional Annotations to apply to Service and Deployment/Pod Objects |
 | additionalLabels | object | `{}` | Additional Labels to apply to Service and Deployment/Pod Objects |
 | affinity | object | `{}` | Set affinity |
+| dashboards.enabled | bool | `false` | Deploy Grafana Dashboard(s) for version-checker |
+| dashboards.grafana | string | `""` | Grafana instance to associate the Dashboard with when using GrafanaOperator |
+| dashboards.labels | object | `{}` | Additional labels to add to the Grafana Dashboard |
 | docker.password | string | `nil` | Password to authenticate with docker registry |
 | docker.token | string | `nil` | Token to authenticate with docker registry. Cannot be used with `docker.username` / `docker.password`. |
 | docker.username | string | `nil` | Username to authenticate with docker registry |

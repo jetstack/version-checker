@@ -36,7 +36,6 @@ func (c *Checker) Container(ctx context.Context, log *logrus.Entry,
 	container *corev1.Container,
 	opts *api.Options,
 ) (*Result, error) {
-
 	statusSHA := containerStatusImageSHA(pod, container.Name)
 	if len(statusSHA) == 0 {
 		return nil, nil
@@ -108,7 +107,6 @@ func (c *Checker) handleSemver(ctx context.Context, imageURL, statusSHA, current
 		ImageURL:       imageURL,
 	}, nil
 }
-
 
 // isLatestOrEmptyTag will return true if the given tag is "" or "latest".
 func (c *Checker) isLatestOrEmptyTag(tag string) bool {

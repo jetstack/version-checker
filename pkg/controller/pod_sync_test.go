@@ -9,6 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/jetstack/version-checker/pkg/client"
@@ -22,16 +25,21 @@ import (
 // Test for the sync method.
 func TestController_Sync(t *testing.T) {
 	t.Parallel()
+
 	log := logrus.NewEntry(logrus.New())
-	metrics := metrics.NewServer(log)
+	metrics := metrics.New(
+		logrus.NewEntry(logrus.StandardLogger()),
+		prometheus.NewRegistry(),
+		fake.NewFakeClient(),
+	)
 	imageClient := &client.Client{}
 	searcher := search.New(log, 5*time.Minute, version.New(log, imageClient, 5*time.Minute))
 	checker := checker.New(searcher)
 
-	controller := &Controller{
-		log:            log,
-		checker:        checker,
-		metrics:        metrics,
+	controller := &PodReconciler{
+		Log:            log,
+		VersionChecker: checker,
+		Metrics:        metrics,
 		defaultTestAll: true,
 	}
 
@@ -58,15 +66,15 @@ func TestController_Sync(t *testing.T) {
 func TestController_SyncContainer(t *testing.T) {
 	t.Parallel()
 	log := logrus.NewEntry(logrus.New())
-	metrics := metrics.NewServer(log)
+	metrics := metrics.New(log, prometheus.NewRegistry(), fake.NewFakeClient())
 	imageClient := &client.Client{}
 	searcher := search.New(log, 5*time.Minute, version.New(log, imageClient, 5*time.Minute))
 	checker := checker.New(searcher)
 
-	controller := &Controller{
-		log:            log,
-		checker:        checker,
-		metrics:        metrics,
+	controller := &PodReconciler{
+		Log:            log,
+		VersionChecker: checker,
+		Metrics:        metrics,
 		defaultTestAll: true,
 	}
 
@@ -90,15 +98,15 @@ func TestController_SyncContainer(t *testing.T) {
 func TestController_CheckContainer(t *testing.T) {
 	t.Parallel()
 	log := logrus.NewEntry(logrus.New())
-	metrics := metrics.NewServer(log)
+	metrics := metrics.New(log, prometheus.NewRegistry(), fake.NewFakeClient())
 	imageClient := &client.Client{}
 	searcher := search.New(log, 5*time.Minute, version.New(log, imageClient, 5*time.Minute))
 	checker := checker.New(searcher)
 
-	controller := &Controller{
-		log:            log,
-		checker:        checker,
-		metrics:        metrics,
+	controller := &PodReconciler{
+		Log:            log,
+		VersionChecker: checker,
+		Metrics:        metrics,
 		defaultTestAll: true,
 	}
 
@@ -120,15 +128,16 @@ func TestController_SyncContainer_NoVersionFound(t *testing.T) {
 	t.Parallel()
 
 	log := logrus.NewEntry(logrus.New())
-	metrics := metrics.NewServer(log)
+	metrics := metrics.New(log, prometheus.NewRegistry(), fake.NewFakeClient())
 	imageClient := &client.Client{}
 	searcher := search.New(log, 5*time.Minute, version.New(log, imageClient, 5*time.Minute))
 	checker := checker.New(searcher)
 
-	controller := &Controller{
-		log:            log,
-		checker:        checker,
-		metrics:        metrics,
+	controller := &PodReconciler{
+		Log:            log,
+		VersionChecker: checker,
+		Metrics:        metrics,
+
 		defaultTestAll: true,
 	}
 

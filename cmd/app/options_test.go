@@ -170,8 +170,9 @@ func TestComplete(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			os.Clearenv()
 			for _, env := range test.envs {
-				os.Setenv(env[0], env[1])
+				t.Setenv(env[0], env[1])
 			}
 			o := new(Options)
 			o.complete()

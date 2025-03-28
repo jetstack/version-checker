@@ -1,0 +1,56 @@
+{{ if .Values.dashboards.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "version-checker.name" . }}-dashboards
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "version-checker.labels" . | nindent 4 }}
+    {{- if .Values.dashboards.labels }}
+    {{- .Values.dashboards.labels | toYaml }}
+    {{- end }}
+data:
+  internal.json: |-
+    {{- .Files.Get "dashboards/internal.json" | nindent 4 }}
+  general-overview.json: |-
+    {{- .Files.Get "dashboards/general-overview.json" | nindent 4 }}
+---
+{{ if (.Capabilities.APIVersions.Has "grafana.integreatly.org/v1beta1/GrafanaDashboard") }}
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: {{ include "version-checker.name" . }}-general
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "version-checker.labels" . | nindent 4 }}
+    {{- if .Values.dashboards.labels }}
+    {{- .Values.dashboards.labels | toYaml }}
+    {{- end }}
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: "{{ .Values.dashboards.grafana | default "grafana" }}"
+  configMapRef:
+    name: {{ include "version-checker.name" . }}-dashboards
+    key: general-overview.json
+---
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: {{ include "version-checker.name" . }}-internal
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "version-checker.labels" . | nindent 4 }}
+    {{- if .Values.dashboards.labels }}
+    {{- .Values.dashboards.labels | toYaml }}
+    {{- end }}
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: "{{ .Values.dashboards.grafana | default "grafana" }}"
+  configMapRef:
+    name: {{ include "version-checker.name" . }}-dashboards
+    key: internal.json
+{{- end -}}
+{{- end -}}

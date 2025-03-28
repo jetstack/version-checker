@@ -3,12 +3,9 @@ package fallback
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/jetstack/version-checker/pkg/api"
-	"github.com/jetstack/version-checker/pkg/client/oci"
-	"github.com/jetstack/version-checker/pkg/client/selfhosted"
 
 	"github.com/patrickmn/go-cache"
 
@@ -16,27 +13,17 @@ import (
 )
 
 type Client struct {
-	SelfHosted *selfhosted.Client
-	OCI        *oci.Client
-	log        *logrus.Entry
-	hostCache  *cache.Cache
+	clients []api.ImageClient
+
+	log       *logrus.Entry
+	hostCache *cache.Cache
 }
 
-func New(ctx context.Context, log *logrus.Entry, transporter http.RoundTripper) (*Client, error) {
-	sh, err := selfhosted.New(ctx, log, &selfhosted.Options{Transporter: transporter})
-	if err != nil {
-		return nil, err
-	}
-	oci, err := oci.New(&oci.Options{Transporter: transporter})
-	if err != nil {
-		return nil, err
-	}
-
+func New(ctx context.Context, log *logrus.Entry, clients []api.ImageClient) (*Client, error) {
 	return &Client{
-		SelfHosted: sh,
-		OCI:        oci,
-		hostCache:  cache.New(5*time.Hour, 10*time.Hour),
-		log:        log.WithField("client", "fallback"),
+		clients:   clients,
+		hostCache: cache.New(5*time.Hour, 10*time.Hour),
+		log:       log.WithField("client", "fallback"),
 	}, nil
 }
 
@@ -58,17 +45,19 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) (tags []api
 	}
 	c.log.Debugf("no client for host %s in cache, continuing fallback", host)
 
-	// Try selfhosted client first
-	if tags, err := c.SelfHosted.Tags(ctx, host, repo, image); err == nil {
-		c.hostCache.SetDefault(host, c.SelfHosted)
-		return tags, nil
-	}
-	c.log.Debug("failed to lookup via SelfHosted, looking up via OCI")
+	// Try clients, one by one until we have none left..
+	for i, client := range c.clients {
+		if tags, err := client.Tags(ctx, host, repo, image); err == nil {
+			c.hostCache.SetDefault(host, client)
+			return tags, nil
+		}
 
-	// Fallback to OCI client
-	if tags, err := c.OCI.Tags(ctx, host, repo, image); err == nil {
-		c.hostCache.SetDefault(host, c.OCI)
-		return tags, nil
+		remaining := len(c.clients) - i - 1
+		if remaining == 0 {
+			c.log.Debugf("failed to lookup via %q, Giving up, no more clients", client.Name())
+		} else {
+			c.log.Debugf("failed to lookup via %q, continuing to search with %v clients remaining", client.Name(), remaining)
+		}
 	}
 
 	// If both clients fail, return an error
@@ -79,6 +68,7 @@ func (c *Client) IsHost(_ string) bool {
 	return true
 }
 
+// Function only added to match ImageClient Interface
 func (c *Client) RepoImageFromPath(path string) (string, string) {
-	return c.SelfHosted.RepoImageFromPath(path)
+	return "", ""
 }

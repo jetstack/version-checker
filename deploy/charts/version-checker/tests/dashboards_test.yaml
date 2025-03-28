@@ -1,0 +1,64 @@
+suite: Grafana Dashboard
+templates:
+  - dashboards.yaml
+release:
+  name: version-checker
+  namespace: monitoring
+set:
+  dashboards.enabled: true
+tests:
+  - it: works
+    asserts:
+      - isKind:
+          of: ConfigMap
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.name
+          value: version-checker-dashboards
+      - isNotEmpty:
+          path: .data["general-overview.json"]
+      - isNotEmpty:
+          path: .data["internal.json"]
+
+  - it: Works w/ GrafanaDashboard
+    capabilities:
+      apiVersions:
+        - grafana.integreatly.org/v1beta1/GrafanaDashboard
+    documentSelector:
+      matchMany: true
+      path: kind
+      value: GrafanaDashboard
+    asserts:
+      - hasDocuments:
+          count: 3
+      - containsDocument:
+          any: true
+          name: version-checker-internal
+          namespace: monitoring
+          kind: GrafanaDashboard
+          apiVersion: grafana.integreatly.org/v1beta1
+      - containsDocument:
+          any: true
+          name: version-checker-general
+          kind: GrafanaDashboard
+          apiVersion: grafana.integreatly.org/v1beta1
+      - equal:
+          path: spec.instanceSelector.matchLabels.dashboards
+          value: grafana
+      - equal:
+          path: spec.configMapRef.name
+          value: version-checker-dashboards
+
+      - documentSelector:
+          path: metadata.name
+          value: version-checker-internal
+        equal:
+          path: spec.configMapRef.key
+          value: internal.json
+      - documentSelector:
+          path: metadata.name
+          value: version-checker-general
+        equal:
+          path: spec.configMapRef.key
+          value: general-overview.json

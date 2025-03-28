@@ -16,7 +16,6 @@ import (
 
 // Searcher is the interface for Search to facilitate testing.
 type Searcher interface {
-	Run(time.Duration)
 	LatestImage(context.Context, string, *api.Options) (*api.ImageTag, error)
 }
 
@@ -64,12 +63,6 @@ func (s *Search) LatestImage(ctx context.Context, imageURL string, opts *api.Opt
 	}
 
 	return lastestImage.(*api.ImageTag), nil
-}
-
-// Run will run the search and image cache garbage collectors.
-func (s *Search) Run(refreshRate time.Duration) {
-	go s.versionGetter.Run(refreshRate)
-	s.searchCache.StartGarbageCollector(refreshRate)
 }
 
 // calculateHashIndex returns a hash index given an imageURL and options.
