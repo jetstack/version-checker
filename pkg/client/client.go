@@ -20,6 +20,11 @@ import (
 	"github.com/jetstack/version-checker/pkg/client/selfhosted"
 )
 
+// Used for testing/mocking purposes
+type ClientHandler interface {
+	Tags(ctx context.Context, imageURL string) ([]api.ImageTag, error)
+}
+
 // Client is a container image registry client to list tags of given image
 // URLs.
 type Client struct {
