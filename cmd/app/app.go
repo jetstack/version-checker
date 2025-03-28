@@ -98,7 +98,7 @@ func NewCommand(ctx context.Context) *cobra.Command {
 				log.Fatal("Unable to set up ready check:", err)
 			}
 
-			metricsServer := metrics.New(log, ctrmetrics.Registry)
+			metricsServer := metrics.New(log, ctrmetrics.Registry, mgr.GetCache())
 
 			opts.Client.Transport = transport.Chain(
 				cleanhttp.DefaultTransport(),

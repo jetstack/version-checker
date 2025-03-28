@@ -1,10 +1,15 @@
 package metrics
 
 import (
+	"context"
 	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
+
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
+	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -22,13 +27,16 @@ type Metrics struct {
 	containerImageDuration *prometheus.GaugeVec
 	containerImageErrors   *prometheus.CounterVec
 
+	cache k8sclient.Reader
+
 	// Contains all metrics for the roundtripper
 	roundTripper *RoundTripper
 
 	mu sync.Mutex
 }
 
-func New(log *logrus.Entry, reg ctrmetrics.RegistererGatherer) *Metrics {
+// func New(log *logrus.Entry, reg ctrmetrics.RegistererGatherer, kubeClient k8sclient.Client) *Metrics {
+func New(log *logrus.Entry, reg ctrmetrics.RegistererGatherer, cache k8sclient.Reader) *Metrics {
 	// Attempt to register, but ignore errors
 	_ = reg.Register(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
 	_ = reg.Register(collectors.NewGoCollector())
@@ -63,7 +71,9 @@ func New(log *logrus.Entry, reg ctrmetrics.RegistererGatherer) *Metrics {
 	)
 
 	return &Metrics{
-		log:                    log.WithField("module", "metrics"),
+		log:   log.WithField("module", "metrics"),
+		cache: cache,
+
 		registry:               reg,
 		containerImageVersion:  containerImageVersion,
 		containerImageDuration: containerImageDuration,
@@ -125,6 +135,11 @@ func (m *Metrics) RegisterImageDuration(namespace, pod, container, image string,
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	if !m.PodExists(context.Background(), namespace, pod) {
+		m.log.WithField("metric", "RegisterImageDuration").Warnf("pod %s/%s not found, not registering error", namespace, pod)
+		return
+	}
+
 	m.containerImageDuration.WithLabelValues(
 		namespace, pod, container, image,
 	).Set(time.Since(startTime).Seconds())
@@ -133,6 +148,11 @@ func (m *Metrics) RegisterImageDuration(namespace, pod, container, image string,
 func (m *Metrics) ReportError(namespace, pod, container, imageURL string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	if !m.PodExists(context.Background(), namespace, pod) {
+		m.log.WithField("metric", "ReportError").Warnf("pod %s/%s not found, not registering error", namespace, pod)
+		return
+	}
 
 	m.containerImageErrors.WithLabelValues(
 		namespace, pod, container, imageURL,
@@ -156,4 +176,11 @@ func (m *Metrics) buildPartialLabels(namespace, pod string) prometheus.Labels {
 		"namespace": namespace,
 		"pod":       pod,
 	}
+}
+
+// This _should_ leverage the Controllers Cache
+func (m *Metrics) PodExists(ctx context.Context, ns, name string) bool {
+	pod := &corev1.Pod{}
+	err := m.cache.Get(ctx, types.NamespacedName{Name: name, Namespace: ns}, pod)
+	return err == nil && pod.GetDeletionTimestamp() == nil
 }

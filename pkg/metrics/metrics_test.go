@@ -1,17 +1,30 @@
 package metrics
 
 import (
+	"context"
 	"fmt"
 	"testing"
+	"time"
+
+	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
-	"github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/assert"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	types "k8s.io/apimachinery/pkg/types"
 )
 
+var fakek8s = fake.NewFakeClient()
+
 func TestCache(t *testing.T) {
-	m := New(logrus.NewEntry(logrus.New()), prometheus.NewRegistry())
+	m := New(logrus.NewEntry(logrus.New()), prometheus.NewRegistry(), fakek8s)
 
 	for i, typ := range []string{"init", "container"} {
 		version := fmt.Sprintf("0.1.%d", i)
@@ -20,7 +33,9 @@ func TestCache(t *testing.T) {
 
 	for i, typ := range []string{"init", "container"} {
 		version := fmt.Sprintf("0.1.%d", i)
-		mt, _ := m.containerImageVersion.GetMetricWith(m.buildLabels("namespace", "pod", "container", typ, "url", version, version))
+		mt, _ := m.containerImageVersion.GetMetricWith(
+			m.buildLabels("namespace", "pod", "container", typ, "url", version, version),
+		)
 		count := testutil.ToFloat64(mt)
 		assert.Equal(t, count, float64(1), "Expected to get a metric for containerImageVersion")
 	}
@@ -30,15 +45,17 @@ func TestCache(t *testing.T) {
 	}
 	for i, typ := range []string{"init", "container"} {
 		version := fmt.Sprintf("0.1.%d", i)
-		mt, _ := m.containerImageVersion.GetMetricWith(m.buildLabels("namespace", "pod", "container", typ, "url", version, version))
+		mt, _ := m.containerImageVersion.GetMetricWith(
+			m.buildLabels("namespace", "pod", "container", typ, "url", version, version),
+		)
 		count := testutil.ToFloat64(mt)
-		assert.Equal(t, count, float64(0), "Expected to get a metric for containerImageVersion")
+		assert.Equal(t, count, float64(0), "Expected NOT to get a metric for containerImageVersion")
 	}
 }
 
 // TestErrorsReporting verifies that the error metric increments correctly
 func TestErrorsReporting(t *testing.T) {
-	m := New(logrus.NewEntry(logrus.New()), prometheus.NewRegistry())
+	m := New(logrus.NewEntry(logrus.New()), prometheus.NewRegistry(), fakek8s)
 
 	// Reset the metrics before testing
 	m.containerImageErrors.Reset()
@@ -57,6 +74,16 @@ func TestErrorsReporting(t *testing.T) {
 
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("Case %d", i+1), func(t *testing.T) {
+			err := fakek8s.DeleteAllOf(context.Background(), &corev1.Pod{})
+			require.NoError(t, err)
+
+			// We need to ensure that the pod Exists!
+			err = fakek8s.Create(context.Background(), &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{Name: tc.pod, Namespace: tc.namespace},
+				Spec:       corev1.PodSpec{Containers: []corev1.Container{{Name: tc.container, Image: tc.image}}},
+			})
+			require.NoError(t, err)
+
 			// Report an error
 			m.ReportError(tc.namespace, tc.pod, tc.container, tc.image)
 
@@ -73,5 +100,68 @@ func TestErrorsReporting(t *testing.T) {
 			fetchErrorCount := testutil.ToFloat64(metric)
 			assert.Equal(t, float64(tc.expected), fetchErrorCount, "Expected error count to increment correctly")
 		})
+	}
+}
+
+func Test_Metrics_SkipOnDeletedPod(t *testing.T) {
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	// Step 1: Create fake client with Pod
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mypod",
+			Namespace: "default",
+			UID:       types.UID("test-uid"),
+		},
+	}
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(pod).Build()
+
+	// Step 2: Create Metrics with fake registry
+	reg := prometheus.NewRegistry()
+	log := logrus.NewEntry(logrus.New())
+	metrics := New(log, reg, client)
+
+	// verify Pod exists!
+	require.True(t,
+		metrics.PodExists(context.Background(), "default", "mypod"),
+		"Pod should exist at this point!",
+	)
+
+	// Register some metrics....
+	metrics.RegisterImageDuration("default", "mypod", "mycontainer", "nginx:latest", time.Now())
+
+	// Step 3: Simulate a Delete occuring, Whilst still Reconciling...
+	_ = client.Delete(context.Background(), pod)
+	metrics.RemovePod("default", "mypod")
+
+	// Step 4: Validate that all metrics have been removed...
+	metricFamilies, err := reg.Gather()
+	assert.NoError(t, err)
+	for _, mf := range metricFamilies {
+		assert.NotContains(t, *mf.Name, "is_latest_version", "Should not have been found: %+v", mf)
+		assert.NotContains(t, *mf.Name, "image_lookup_duration", "Should not have been found: %+v", mf)
+		assert.NotContains(t, *mf.Name, "image_failures_total", "Should not have been found: %+v", mf)
+	}
+
+	// Register Error _after_ sync has completed!
+	metrics.ReportError("default", "mypod", "mycontianer", "nginx:latest")
+
+	// Step 5: Attempt to register metrics (should not register anything)
+	require.False(t,
+		metrics.PodExists(context.Background(), "default", "mypod"),
+		"Pod should NOT exist at this point!",
+	)
+
+	metrics.RegisterImageDuration("default", "mypod", "mycontainer", "nginx:latest", time.Now())
+	metrics.ReportError("default", "mypod", "mycontianer", "nginx:latest")
+
+	// Step 6: Gather metrics and assert none were registered
+	metricFamilies, err = reg.Gather()
+	assert.NoError(t, err)
+	for _, mf := range metricFamilies {
+		assert.NotContains(t, *mf.Name, "is_latest_version", "Should not have been found: %+v", mf)
+		assert.NotContains(t, *mf.Name, "image_lookup_duration", "Should not have been found: %+v", mf)
+		assert.NotContains(t, *mf.Name, "image_failures_total", "Should not have been found: %+v", mf)
 	}
 }

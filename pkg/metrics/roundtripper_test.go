@@ -164,7 +164,7 @@ func TestRoundTripper(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			metricsServer := New(log, prometheus.NewRegistry())
+			metricsServer := New(log, prometheus.NewRegistry(), fakek8s)
 			server := httptest.NewServer(tt.handler)
 			defer server.Close()
 
