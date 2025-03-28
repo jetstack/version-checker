@@ -17,6 +17,8 @@ func NewVersionErrorNotFound(format string, a ...interface{}) *ErrorVersionNotFo
 	return &ErrorVersionNotFound{fmt.Errorf(format, a...)}
 }
 
+// The function IsNoVersionFound checks if the error is of type
+// ErrorVersionNotFound.
 func IsNoVersionFound(err error) bool {
 	var notFound *ErrorVersionNotFound
 	return errors.As(err, &notFound)
