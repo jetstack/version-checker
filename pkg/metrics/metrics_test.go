@@ -14,7 +14,7 @@ import (
 )
 
 func TestCache(t *testing.T) {
-	m := NewServer(logrus.NewEntry(logrus.New()))
+	m := New(logrus.NewEntry(logrus.New()), prometheus.NewRegistry())
 
 	// Lets add some Images/Metrics...
 	for i, typ := range []string{"init", "container"} {
@@ -28,7 +28,7 @@ func TestCache(t *testing.T) {
 		mt, err := m.containerImageVersion.GetMetricWith(m.buildFullLabels("namespace", "pod", "container", typ, "url", version, version))
 		require.NoError(t, err)
 		count := testutil.ToFloat64(mt)
-		assert.Equal(t, count, float64(1))
+		assert.Equal(t, count, float64(1), "Expected to get a metric for containerImageVersion")
 	}
 
 	// as well as the lastUpdated...
@@ -49,20 +49,20 @@ func TestCache(t *testing.T) {
 		mt, err := m.containerImageVersion.GetMetricWith(m.buildFullLabels("namespace", "pod", "container", typ, "url", version, version))
 		require.NoError(t, err)
 		count := testutil.ToFloat64(mt)
-		assert.Equal(t, count, float64(0))
+		assert.Equal(t, count, float64(0), "Expected to get a metric for containerImageVersion")
 	}
 	// And the Last Updated is removed too
 	for _, typ := range []string{"init", "container"} {
 		mt, err := m.containerImageChecked.GetMetricWith(m.buildLastUpdatedLabels("namespace", "pod", "container", typ, "url"))
 		require.NoError(t, err)
 		count := testutil.ToFloat64(mt)
-		assert.Equal(t, count, float64(0))
+		assert.Equal(t, count, float64(0), "Expected to get a metric for containerImageChecked")
 	}
 }
 
 // TestErrorsReporting verifies that the error metric increments correctly
 func TestErrorsReporting(t *testing.T) {
-	m := NewServer(logrus.NewEntry(logrus.New()))
+	m := New(logrus.NewEntry(logrus.New()), prometheus.NewRegistry())
 
 	// Reset the metrics before testing
 	m.containerImageErrors.Reset()
@@ -82,7 +82,7 @@ func TestErrorsReporting(t *testing.T) {
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("Case %d", i+1), func(t *testing.T) {
 			// Report an error
-			m.ErrorsReporting(tc.namespace, tc.pod, tc.container, tc.image)
+			m.ReportError(tc.namespace, tc.pod, tc.container, tc.image)
 
 			// Retrieve metric
 			metric, err := m.containerImageErrors.GetMetricWith(prometheus.Labels{
