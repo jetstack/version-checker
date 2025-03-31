@@ -25,7 +25,8 @@ import (
 type Client struct {
 	clients        []api.ImageClient
 	fallbackClient api.ImageClient
-	log            *logrus.Entry
+
+	log *logrus.Entry
 }
 
 // Options used to configure client authentication.
@@ -38,15 +39,25 @@ type Options struct {
 	Quay       quay.Options
 	OCI        oci.Options
 	Selfhosted map[string]*selfhosted.Options
-	Transport  http.RoundTripper
+
+	Transport http.RoundTripper
 }
 
 func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) {
+	log = log.WithField("component", "client")
+	// Setup Transporters for all remaining clients (if one is set)
+	if opts.Transport != nil {
+		opts.Quay.Transporter = opts.Transport
+		opts.ECR.Transporter = opts.Transport
+		opts.GHCR.Transporter = opts.Transport
+		opts.GCR.Transporter = opts.Transport
+	}
+
 	acrClient, err := acr.New(opts.ACR)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create acr client: %w", err)
 	}
-	dockerClient, err := docker.New(ctx, opts.Docker)
+	dockerClient, err := docker.New(opts.Docker, log)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create docker client: %w", err)
 	}
@@ -62,12 +73,30 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 		selfhostedClients = append(selfhostedClients, sClient)
 	}
 
-	fallbackClient, err := fallback.New(ctx, log, opts.Transport)
+	// Create some of the fallback clients
+	ociclient, err := oci.New(&opts.OCI)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create OCI client: %w", err)
+	}
+	anonSelfHosted, err := selfhosted.New(ctx, log, &selfhosted.Options{Transporter: opts.Transport})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create anonymous Selfhosted client: %w", err)
+	}
+	annonDocker, err := docker.New(docker.Options{Transporter: opts.Transport}, log)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create anonymous docker client: %w", err)
+	}
+	fallbackClient, err := fallback.New(ctx, log, []api.ImageClient{
+		anonSelfHosted,
+		annonDocker,
+		ociclient,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create fallback client: %w", err)
 	}
 
 	c := &Client{
+		// Append all the clients in order of which we want to check against
 		clients: append(
 			selfhostedClients,
 			acrClient,
@@ -78,7 +107,7 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 			quay.New(opts.Quay, log),
 		),
 		fallbackClient: fallbackClient,
-		log:            log.WithField("client", "registry"),
+		log:            log,
 	}
 
 	for _, client := range append(c.clients, fallbackClient) {
