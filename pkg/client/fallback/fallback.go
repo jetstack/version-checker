@@ -54,9 +54,9 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) (tags []api
 
 		remaining := len(c.clients) - i - 1
 		if remaining == 0 {
-			c.log.Debugf("failed to lookup via %q, Giving up, no more clients", client.Name())
+			c.log.Infof("failed to lookup via %q, Giving up, no more clients", client.Name())
 		} else {
-			c.log.Debugf("failed to lookup via %q, continuing to search with %v clients remaining", client.Name(), remaining)
+			c.log.Infof("failed to lookup via %q, continuing to search with %v clients remaining", client.Name(), remaining)
 		}
 	}
 
