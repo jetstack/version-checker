@@ -72,10 +72,16 @@ type Options struct {
 	GracefulShutdownTimeout time.Duration
 	CacheSyncPeriod         time.Duration
 
-	kubeConfigFlags *genericclioptions.ConfigFlags
-	selfhosted      selfhosted.Options
+	KubeChannel  string
+	KubeInterval time.Duration
 
+	// kubeConfigFlags holds the flags for the kubernetes client
+	kubeConfigFlags *genericclioptions.ConfigFlags
+
+	// Client holds the options for the image client(s)
 	Client client.Options
+	// selfhosted holds the options for the selfhosted registry
+	selfhosted selfhosted.Options
 }
 
 func (o *Options) addFlags(cmd *cobra.Command) {
@@ -133,7 +139,15 @@ func (o *Options) addAppFlags(fs *pflag.FlagSet) {
 
 	fs.DurationVarP(&o.CacheSyncPeriod,
 		"cache-sync-period", "", 5*time.Hour,
-		"The time in which all resources should be updated.")
+		"The duration in which all resources should be updated.")
+
+	fs.DurationVarP(&o.KubeInterval,
+		"kube-interval", "", o.CacheSyncPeriod,
+		"The time in which kubernetes channels updates are checked.")
+
+	fs.StringVarP(&o.KubeChannel,
+		"kube-channel", "", "stable",
+		"The Kubernetes channel to check against for cluster updates.")
 }
 
 func (o *Options) addAuthFlags(fs *pflag.FlagSet) {

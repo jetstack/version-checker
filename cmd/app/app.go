@@ -110,15 +110,27 @@ func NewCommand(ctx context.Context) *cobra.Command {
 				return fmt.Errorf("failed to setup image registry clients: %s", err)
 			}
 
-			c := controller.NewPodReconciler(opts.CacheTimeout,
+			_ = client
+
+			podController := controller.NewPodReconciler(opts.CacheTimeout,
 				metricsServer,
 				client,
 				mgr.GetClient(),
 				log,
 				opts.DefaultTestAll,
 			)
+			if err := podController.SetupWithManager(mgr); err != nil {
+				return err
+			}
 
-			if err := c.SetupWithManager(mgr); err != nil {
+			kubeController := controller.NewKubeReconciler(
+				log,
+				mgr.GetConfig(),
+				metricsServer,
+				opts.KubeInterval,
+				opts.KubeChannel,
+			)
+			if err := mgr.Add(kubeController); err != nil {
 				return err
 			}
 
