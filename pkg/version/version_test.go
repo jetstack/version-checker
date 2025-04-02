@@ -39,6 +39,8 @@ func TestLatestSemver(t *testing.T) {
 		{Tag: "sha256-ea5b51fc3bd6d014355e56de6bda7f8f42acf261a0a4645a2107ccbc438e12c3.sig", Timestamp: parseTime("2023-06-04T10:00:00Z")},
 		{Tag: "v2.0.0", Timestamp: parseTime("2023-06-05T00:00:00Z")},
 		{Tag: "sha256-b019b2a5c384570201ba592be195769e1848d3106c8c56c4bdad7d2ee34748e0.sig", Timestamp: parseTime("2023-06-07T00:00:00Z")},
+		{Tag: "sha256-b019b2a5c384570201ba592be195769e1848d3106c8c56c4bdad7d2ee34748e0.att", Timestamp: parseTime("2023-06-07T10:00:00Z")},
+		{Tag: "sha256-b019b2a5c384570201ba592be195769e1848d3106c8c56c4bdad7d2ee34748e0.sbom", Timestamp: parseTime("2023-06-07T221:00:00Z")},
 	}
 	tagsNoPrefix := []api.ImageTag{
 		{Tag: "1.0.0", Timestamp: parseTime("2023-06-01T00:00:00Z")},
