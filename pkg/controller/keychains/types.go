@@ -6,12 +6,11 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 )
 
 // Main interface to what all CredentailManagers should implement.
 type Manager interface {
-	Get(ctx context.Context, pod *v1.Pod, imageURL string) (authn.Keychain, error)
+	Get(ctx context.Context, pod *corev1.Pod, imageURL string) (authn.Keychain, error)
 	cacheKey(pod *corev1.Pod) string
 }
 

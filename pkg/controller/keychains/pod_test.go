@@ -107,7 +107,7 @@ func TestPodKeychain_Get_SecretDeniedCreatingKeychain(t *testing.T) {
 	client := fake.NewSimpleClientset(resources...)
 
 	// Simulate an RBAC 403 Forbidden when trying to list pods
-	client.Fake.PrependReactor("get", "secrets", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+	client.PrependReactor("get", "secrets", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, apierrors.NewForbidden(
 			schema.GroupResource{Group: "", Resource: "secrets"},
 			"",

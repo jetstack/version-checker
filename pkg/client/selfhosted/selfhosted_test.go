@@ -105,7 +105,7 @@ func TestName(t *testing.T) {
 
 	assert.Equal(t, "testhost", client.Name())
 
-	client.Options.Host = ""
+	client.Host = ""
 	assert.Equal(t, "selfhosted", client.Name())
 }
 
@@ -322,7 +322,7 @@ func TestNewTLSConfig(t *testing.T) {
 	t.Run("successful TLS config creation with valid CA path", func(t *testing.T) {
 		caFile, err := os.CreateTemp("", "ca.pem")
 		assert.NoError(t, err)
-		defer os.Remove(caFile.Name())
+		defer func() { assert.NoError(t, os.Remove(caFile.Name())) }()
 
 		_, err = caFile.WriteString(`-----BEGIN CERTIFICATE-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwf3Kq/BnEePvM6rSGPP6

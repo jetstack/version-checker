@@ -95,7 +95,7 @@ func (c *Client) createClient(ctx context.Context, region string) (*ecr.Client, 
 	if c.IamRoleArn != "" {
 		cfg, err = config.LoadDefaultConfig(ctx,
 			config.WithRegion(region),
-			config.WithHTTPClient(&http.Client{Transport: c.Options.Transporter}),
+			config.WithHTTPClient(&http.Client{Transport: c.Transporter}),
 		)
 	} else {
 		cfg, err = config.LoadDefaultConfig(ctx,
@@ -103,7 +103,7 @@ func (c *Client) createClient(ctx context.Context, region string) (*ecr.Client, 
 				credentials.NewStaticCredentialsProvider(c.AccessKeyID, c.SecretAccessKey, c.SessionToken),
 			),
 			config.WithRegion(region),
-			config.WithHTTPClient(&http.Client{Transport: c.Options.Transporter}),
+			config.WithHTTPClient(&http.Client{Transport: c.Transporter}),
 		)
 	}
 	if err != nil {

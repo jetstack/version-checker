@@ -238,13 +238,13 @@ func (c *Client) doRequest(ctx context.Context, url, header string, obj interfac
 	if err != nil {
 		return nil, fmt.Errorf("failed to get %q image: %s", c.Name(), err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, selfhostederrors.NewHTTPError(resp.StatusCode, body)
@@ -279,7 +279,7 @@ func (c *Client) setupBasicAuth(ctx context.Context, url, tokenPath string) (str
 		return "", fmt.Errorf("failed to send basic auth request %q: %s",
 			req.URL, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

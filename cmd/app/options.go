@@ -24,6 +24,7 @@ const (
 	envACRUsername     = "ACR_USERNAME"
 	envACRPassword     = "ACR_PASSWORD"      // #nosec G101
 	envACRRefreshToken = "ACR_REFRESH_TOKEN" // #nosec G101
+	envACRJWKSURI      = "ACR_JWKS_URI"
 
 	envDockerUsername = "DOCKER_USERNAME"
 	envDockerPassword = "DOCKER_PASSWORD" // #nosec G101
@@ -88,13 +89,13 @@ func (o *Options) addFlags(cmd *cobra.Command) {
 
 	usageFmt := "Usage:\n  %s\n"
 	cmd.SetUsageFunc(func(cmd *cobra.Command) error {
-		fmt.Fprintf(cmd.OutOrStderr(), usageFmt, cmd.UseLine())
+		_, _ = fmt.Fprintf(cmd.OutOrStderr(), usageFmt, cmd.UseLine())
 		cliflag.PrintSections(cmd.OutOrStderr(), nfs, 0)
 		return nil
 	})
 
 	cmd.SetHelpFunc(func(cmd *cobra.Command, _ []string) {
-		fmt.Fprintf(cmd.OutOrStdout(), "%s\n\n"+usageFmt, cmd.Long, cmd.UseLine())
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n\n"+usageFmt, cmd.Long, cmd.UseLine())
 		cliflag.PrintSections(cmd.OutOrStdout(), nfs, 0)
 	})
 
@@ -156,6 +157,12 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 			"Refresh token to authenticate with azure container registry. Cannot be used with "+
 				"username/password (%s_%s).",
 			envPrefix, envACRRefreshToken,
+		))
+	fs.StringVar(&o.Client.ACR.JWKSURI,
+		"acr-jwks-uri", "",
+		fmt.Sprintf(
+			"JWKS URI to verify the JWT access token received. If left blank, JWT token will not be verified. (%s_%s)",
+			envPrefix, envACRJWKSURI,
 		))
 	///
 
@@ -301,6 +308,7 @@ func (o *Options) complete() {
 		{envACRUsername, &o.Client.ACR.Username},
 		{envACRPassword, &o.Client.ACR.Password},
 		{envACRRefreshToken, &o.Client.ACR.RefreshToken},
+		{envACRJWKSURI, &o.Client.ACR.JWKSURI},
 
 		{envDockerUsername, &o.Client.Docker.Username},
 		{envDockerPassword, &o.Client.Docker.Password},

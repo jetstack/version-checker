@@ -26,30 +26,49 @@ var fakek8s = fake.NewFakeClient()
 func TestCache(t *testing.T) {
 	m := New(logrus.NewEntry(logrus.New()), prometheus.NewRegistry(), fakek8s)
 
+	// Lets add some Images/Metrics...
 	for i, typ := range []string{"init", "container"} {
 		version := fmt.Sprintf("0.1.%d", i)
 		m.AddImage("namespace", "pod", "container", typ, "url", true, version, version)
 	}
 
+	// Check and ensure that the metrics are available...
 	for i, typ := range []string{"init", "container"} {
 		version := fmt.Sprintf("0.1.%d", i)
 		mt, _ := m.containerImageVersion.GetMetricWith(
-			m.buildLabels("namespace", "pod", "container", typ, "url", version, version),
+			m.buildFullLabels("namespace", "pod", "container", typ, "url", version, version),
 		)
 		count := testutil.ToFloat64(mt)
 		assert.Equal(t, count, float64(1), "Expected to get a metric for containerImageVersion")
 	}
 
+	// as well as the lastUpdated...
+	for _, typ := range []string{"init", "container"} {
+		mt, err := m.containerImageChecked.GetMetricWith(m.buildLastUpdatedLabels("namespace", "pod", "container", typ, "url"))
+		require.NoError(t, err)
+		count := testutil.ToFloat64(mt)
+		assert.GreaterOrEqual(t, count, float64(time.Now().Unix()))
+	}
+
+	// Remove said metrics...
 	for _, typ := range []string{"init", "container"} {
 		m.RemoveImage("namespace", "pod", "container", typ)
 	}
+	// Ensure metrics and values return 0
 	for i, typ := range []string{"init", "container"} {
 		version := fmt.Sprintf("0.1.%d", i)
 		mt, _ := m.containerImageVersion.GetMetricWith(
-			m.buildLabels("namespace", "pod", "container", typ, "url", version, version),
+			m.buildFullLabels("namespace", "pod", "container", typ, "url", version, version),
 		)
 		count := testutil.ToFloat64(mt)
 		assert.Equal(t, count, float64(0), "Expected NOT to get a metric for containerImageVersion")
+	}
+	// And the Last Updated is removed too
+	for _, typ := range []string{"init", "container"} {
+		mt, err := m.containerImageChecked.GetMetricWith(m.buildLastUpdatedLabels("namespace", "pod", "container", typ, "url"))
+		require.NoError(t, err)
+		count := testutil.ToFloat64(mt)
+		assert.Equal(t, count, float64(0), "Expected to get a metric for containerImageChecked")
 	}
 }
 
@@ -94,7 +113,7 @@ func TestErrorsReporting(t *testing.T) {
 				"container": tc.container,
 				"image":     tc.image,
 			})
-			assert.NoError(t, err, "Failed to get metric with labels")
+			require.NoError(t, err, "Failed to get metric with labels")
 
 			// Validate metric count
 			fetchErrorCount := testutil.ToFloat64(metric)
@@ -119,7 +138,7 @@ func Test_Metrics_SkipOnDeletedPod(t *testing.T) {
 
 	// Step 2: Create Metrics with fake registry
 	reg := prometheus.NewRegistry()
-	log := logrus.NewEntry(logrus.New())
+	log = logrus.NewEntry(logrus.New())
 	metrics := New(log, reg, client)
 
 	// verify Pod exists!

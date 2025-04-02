@@ -24,6 +24,7 @@ type Metrics struct {
 
 	registry               ctrmetrics.RegistererGatherer
 	containerImageVersion  *prometheus.GaugeVec
+	containerImageChecked  *prometheus.GaugeVec
 	containerImageDuration *prometheus.GaugeVec
 	containerImageErrors   *prometheus.CounterVec
 
@@ -49,6 +50,16 @@ func New(log *logrus.Entry, reg ctrmetrics.RegistererGatherer, cache k8sclient.R
 		},
 		[]string{
 			"namespace", "pod", "container", "container_type", "image", "current_version", "latest_version",
+		},
+	)
+	containerImageChecked := promauto.With(reg).NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "version_checker",
+			Name:      "last_checked",
+			Help:      "Timestamp when the image was checked",
+		},
+		[]string{
+			"namespace", "pod", "container", "container_type", "image",
 		},
 	)
 	containerImageDuration := promauto.With(reg).NewGaugeVec(
@@ -77,6 +88,7 @@ func New(log *logrus.Entry, reg ctrmetrics.RegistererGatherer, cache k8sclient.R
 		registry:               reg,
 		containerImageVersion:  containerImageVersion,
 		containerImageDuration: containerImageDuration,
+		containerImageChecked:  containerImageChecked,
 		containerImageErrors:   containerImageErrors,
 		roundTripper:           NewRoundTripper(reg),
 	}
@@ -92,8 +104,14 @@ func (m *Metrics) AddImage(namespace, pod, container, containerType, imageURL st
 	}
 
 	m.containerImageVersion.With(
-		m.buildLabels(namespace, pod, container, containerType, imageURL, currentVersion, latestVersion),
+		m.buildFullLabels(namespace, pod, container, containerType, imageURL, currentVersion, latestVersion),
 	).Set(isLatestF)
+
+	// Bump last updated timestamp
+	m.containerImageChecked.With(
+		m.buildLastUpdatedLabels(namespace, pod, container, containerType, imageURL),
+	).Set(float64(time.Now().Unix()))
+
 }
 
 func (m *Metrics) RemoveImage(namespace, pod, container, containerType string) {
@@ -105,6 +123,9 @@ func (m *Metrics) RemoveImage(namespace, pod, container, containerType string) {
 		m.buildPartialLabels(namespace, pod),
 	)
 	total += m.containerImageDuration.DeletePartialMatch(
+		m.buildPartialLabels(namespace, pod),
+	)
+	total += m.containerImageChecked.DeletePartialMatch(
 		m.buildPartialLabels(namespace, pod),
 	)
 	total += m.containerImageErrors.DeletePartialMatch(
@@ -122,6 +143,9 @@ func (m *Metrics) RemovePod(namespace, pod string) {
 		m.buildPartialLabels(namespace, pod),
 	)
 	total += m.containerImageDuration.DeletePartialMatch(
+		m.buildPartialLabels(namespace, pod),
+	)
+	total += m.containerImageChecked.DeletePartialMatch(
 		m.buildPartialLabels(namespace, pod),
 	)
 	total += m.containerImageErrors.DeletePartialMatch(
@@ -159,7 +183,7 @@ func (m *Metrics) ReportError(namespace, pod, container, imageURL string) {
 	).Inc()
 }
 
-func (m *Metrics) buildLabels(namespace, pod, container, containerType, imageURL, currentVersion, latestVersion string) prometheus.Labels {
+func (m *Metrics) buildFullLabels(namespace, pod, container, containerType, imageURL, currentVersion, latestVersion string) prometheus.Labels {
 	return prometheus.Labels{
 		"namespace":       namespace,
 		"pod":             pod,
@@ -168,6 +192,16 @@ func (m *Metrics) buildLabels(namespace, pod, container, containerType, imageURL
 		"image":           imageURL,
 		"current_version": currentVersion,
 		"latest_version":  latestVersion,
+	}
+}
+
+func (m *Metrics) buildLastUpdatedLabels(namespace, pod, container, containerType, imageURL string) prometheus.Labels {
+	return prometheus.Labels{
+		"namespace":      namespace,
+		"pod":            pod,
+		"container_type": containerType,
+		"container":      container,
+		"image":          imageURL,
 	}
 }
 
