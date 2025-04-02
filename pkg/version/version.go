@@ -19,11 +19,11 @@ import (
 type Version struct {
 	log *logrus.Entry
 
-	client     *client.Client
+	client     client.ClientHandler
 	imageCache *cache.Cache
 }
 
-func New(log *logrus.Entry, client *client.Client, cacheTimeout time.Duration) *Version {
+func New(log *logrus.Entry, client client.ClientHandler, cacheTimeout time.Duration) *Version {
 	log = log.WithField("module", "version_getter")
 
 	v := &Version{
@@ -49,7 +49,7 @@ func (v *Version) LatestTagFromImage(ctx context.Context, imageURL string, opts 
 
 	// If UseSHA then return early
 	if opts.UseSHA {
-		tag, err = latestSHA(tags)
+		tag, err = latestSHA(opts, tags)
 		if err != nil {
 			return nil, err
 		}
@@ -88,6 +88,7 @@ func (v *Version) Fetch(ctx context.Context, imageURL string, _ *api.Options) (i
 	if len(tags) == 0 {
 		return nil, versionerrors.NewVersionErrorNotFound("no tags found for given image URL: %q", imageURL)
 	}
+	v.log.WithField("image", imageURL).Debugf("fetched %v tags", len(tags))
 
 	return tags, nil
 }
@@ -102,13 +103,18 @@ func latestSemver(opts *api.Options, tags []api.ImageTag) (*api.ImageTag, error)
 	)
 
 	for i := range tags {
+		// Filter out SBOM and Attestation/Sig's
+		if isSBOMAttestationOrSig(tags[i].Tag) || isSBOMAttestationOrSig(tags[i].SHA) {
+			continue
+		}
+
 		v := semver.Parse(tags[i].Tag)
 
 		if shouldSkipTag(opts, v) {
 			continue
 		}
 
-		if isBetterTag(opts, latestV, v, latestImageTag, &tags[i]) {
+		if isBetterSemVer(opts, latestV, v, latestImageTag, &tags[i]) {
 			latestV = v
 			latestImageTag = &tags[i]
 		}
@@ -121,43 +127,16 @@ func latestSemver(opts *api.Options, tags []api.ImageTag) (*api.ImageTag, error)
 	return latestImageTag, nil
 }
 
-func shouldSkipTag(opts *api.Options, v *semver.SemVer) bool {
-	// Handle Regex matching
-	if opts.RegexMatcher != nil {
-		return !opts.RegexMatcher.MatchString(v.String())
-	}
-
-	// Handle metadata and version pinning
-	return (!opts.UseMetaData && v.HasMetaData()) ||
-		(opts.PinMajor != nil && *opts.PinMajor != v.Major()) ||
-		(opts.PinMinor != nil && *opts.PinMinor != v.Minor()) ||
-		(opts.PinPatch != nil && *opts.PinPatch != v.Patch())
-}
-
-func isBetterTag(_ *api.Options, latestV, v *semver.SemVer, latestImageTag, currentImageTag *api.ImageTag) bool {
-	// No latest version set yet
-	if latestV == nil {
-		return true
-	}
-
-	// If the current version is greater than the latest
-	if latestV.LessThan(v) {
-		return true
-	}
-
-	// If the versions are equal, prefer the one with a later timestamp
-	if latestV.Equal(v) && currentImageTag.Timestamp.After(latestImageTag.Timestamp) {
-		return true
-	}
-
-	return false
-}
-
 // latestSHA will return the latest ImageTag based on image timestamps.
-func latestSHA(tags []api.ImageTag) (*api.ImageTag, error) {
+func latestSHA(opts *api.Options, tags []api.ImageTag) (*api.ImageTag, error) {
 	var latestTag *api.ImageTag
 
 	for i := range tags {
+		// Filter out SBOM and Attestation/Sig's...
+		if shouldSkipSHA(opts, tags[i].Tag) {
+			continue
+		}
+
 		if latestTag == nil || tags[i].Timestamp.After(latestTag.Timestamp) {
 			latestTag = &tags[i]
 		}

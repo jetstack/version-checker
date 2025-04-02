@@ -119,10 +119,6 @@ func (c *Client) extractImageTags(versions []*github.PackageVersion) []api.Image
 			}
 
 			for _, tag := range meta.Container.Tags {
-				if c.shouldSkipTag(tag) {
-					continue
-				}
-
 				tags = append(tags, api.ImageTag{
 					Tag:       tag,
 					SHA:       sha,
@@ -132,12 +128,6 @@ func (c *Client) extractImageTags(versions []*github.PackageVersion) []api.Image
 		}
 	}
 	return tags
-}
-
-func (c *Client) shouldSkipTag(tag string) bool {
-	return strings.HasSuffix(tag, ".att") ||
-		strings.HasSuffix(tag, ".sig") ||
-		strings.HasSuffix(tag, ".sbom")
 }
 
 func (c *Client) ownerType(ctx context.Context, owner string) (string, error) {
