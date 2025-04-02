@@ -3,6 +3,8 @@ package errors
 import (
 	"errors"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestIsNoVersionFound(t *testing.T) {
@@ -31,9 +33,7 @@ func TestIsNoVersionFound(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result := IsNoVersionFound(test.err)
-			if result != test.expectRes {
-				t.Errorf("expected %v, got %v", test.expectRes, result)
-			}
+			assert.Equal(t, result, test.expectRes)
 		})
 	}
 }

@@ -1,29 +1,10 @@
 package checker
 
 import (
-	"encoding/json"
-	"fmt"
-	"hash/fnv"
 	"strings"
 
-	"github.com/jetstack/version-checker/pkg/api"
 	corev1 "k8s.io/api/core/v1"
 )
-
-// calculateHashIndex returns a hash index given an imageURL and options.
-func calculateHashIndex(imageURL string, opts *api.Options) (string, error) {
-	optsJSON, err := json.Marshal(opts)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal options: %s", err)
-	}
-
-	hash := fnv.New32()
-	if _, err := hash.Write(append(optsJSON, []byte(imageURL)...)); err != nil {
-		return "", fmt.Errorf("failed to calculate search hash: %s", err)
-	}
-
-	return fmt.Sprintf("%d", hash.Sum32()), nil
-}
 
 // containerStatusImageSHA will return the containers image SHA, if it is ready.
 func containerStatusImageSHA(pod *corev1.Pod, containerName string) string {

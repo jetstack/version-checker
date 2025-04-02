@@ -58,28 +58,6 @@ type Client struct {
 	httpScheme string
 }
 
-type AuthResponse struct {
-	Token string `json:"token"`
-}
-
-type TagResponse struct {
-	Tags []string `json:"tags"`
-}
-
-type ManifestResponse struct {
-	Digest       string
-	Architecture api.Architecture `json:"architecture"`
-	History      []History        `json:"history"`
-}
-
-type History struct {
-	V1Compatibility string `json:"v1Compatibility"`
-}
-
-type V1Compatibility struct {
-	Created time.Time `json:"created,omitempty"`
-}
-
 func New(ctx context.Context, log *logrus.Entry, opts *Options) (*Client, error) {
 	client := &Client{
 		Client: &http.Client{

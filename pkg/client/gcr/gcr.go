@@ -17,7 +17,8 @@ const (
 )
 
 type Options struct {
-	Token string
+	Token       string
+	Transporter http.RoundTripper
 }
 
 type Client struct {
@@ -38,7 +39,8 @@ func New(opts Options) *Client {
 	return &Client{
 		Options: opts,
 		Client: &http.Client{
-			Timeout: time.Second * 5,
+			Timeout:   time.Second * 5,
+			Transport: opts.Transporter,
 		},
 	}
 }

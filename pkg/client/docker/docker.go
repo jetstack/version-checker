@@ -10,6 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/jetstack/version-checker/pkg/api"
 )
 
@@ -30,32 +33,18 @@ type Client struct {
 	Options
 }
 
-type AuthResponse struct {
-	Token string `json:"token"`
-}
-
-type TagResponse struct {
-	Next    string   `json:"next"`
-	Results []Result `json:"results"`
-}
-
-type Result struct {
-	Name      string  `json:"name"`
-	Timestamp string  `json:"last_updated"`
-	Images    []Image `json:"images"`
-}
-
-type Image struct {
-	Digest       string           `json:"digest"`
-	OS           api.OS           `json:"os"`
-	Architecture api.Architecture `json:"Architecture"`
-}
-
-func New(ctx context.Context, opts Options) (*Client, error) {
-	client := &http.Client{
-		Timeout:   time.Second * 10,
-		Transport: opts.Transporter,
+func New(opts Options, log *logrus.Entry) (*Client, error) {
+	ctx := context.Background()
+	retryclient := retryablehttp.NewClient()
+	if opts.Transporter != nil {
+		retryclient.HTTPClient.Transport = opts.Transporter
 	}
+	retryclient.HTTPClient.Timeout = 10 * time.Second
+	retryclient.RetryMax = 10
+	retryclient.RetryWaitMax = 2 * time.Minute
+	retryclient.RetryWaitMin = 1 * time.Second
+	retryclient.Logger = log.WithField("client", "docker")
+	client := retryclient.StandardClient()
 
 	// Setup Auth if username and password used.
 	if len(opts.Username) > 0 || len(opts.Password) > 0 {

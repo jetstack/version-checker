@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/transport"
 	"github.com/sirupsen/logrus"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
 	"github.com/stretchr/testify/assert"
@@ -163,7 +164,7 @@ func TestRoundTripper(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			metricsServer := NewServer(log)
+			metricsServer := New(log, prometheus.NewRegistry(), fakek8s)
 			server := httptest.NewServer(tt.handler)
 			defer server.Close()
 
@@ -175,6 +176,7 @@ func TestRoundTripper(t *testing.T) {
 			require.NoError(t, err)
 
 			resp, err := client.Do(req)
+
 			if tt.expectedError {
 				assert.Error(t, err)
 				assert.Nil(t, resp)
@@ -183,6 +185,7 @@ func TestRoundTripper(t *testing.T) {
 				assert.NotNil(t, resp)
 				assert.Equal(t, tt.expectedStatus, resp.StatusCode)
 			}
+			resp.Body.Close()
 
 			// Validate metrics
 			assert.NoError(t,
