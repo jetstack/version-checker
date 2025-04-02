@@ -74,14 +74,14 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{Requeue: false}, nil
 	}
 	if err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: (r.RequeueDuration / 2)}, err
 	}
 
 	// Perform the version check (your sync logic)
 	if err := r.sync(ctx, pod); err != nil {
 		log.Error(err, "Failed to process pod")
 		// Requeue after some time in case of failure
-		return ctrl.Result{RequeueAfter: (r.RequeueDuration / 2)}, nil
+		return ctrl.Result{RequeueAfter: (r.RequeueDuration / 2)}, err
 	}
 
 	// Schedule next check

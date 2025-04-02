@@ -66,8 +66,7 @@ func (c *PodReconciler) syncContainer(ctx context.Context,
 	err = c.checkContainer(ctx, log, pod, container, containerType, opts)
 	// Don't re-sync, if no version found meeting search criteria
 	if versionerrors.IsNoVersionFound(err) {
-		log.Error(err.Error())
-		return nil
+		return err
 	}
 	if err != nil {
 		return fmt.Errorf("failed to check container image %q: %s",
