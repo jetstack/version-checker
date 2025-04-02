@@ -31,6 +31,7 @@ func TestComplete(t *testing.T) {
 				{"VERSION_CHECKER_ACR_USERNAME", "acr-username"},
 				{"VERSION_CHECKER_ACR_PASSWORD", "acr-password"},
 				{"VERSION_CHECKER_ACR_REFRESH_TOKEN", "acr-token"},
+				{"VERSION_CHECKER_ACR_JWKS_URI", "acr-jwks-uri"},
 				{"VERSION_CHECKER_DOCKER_USERNAME", "docker-username"},
 				{"VERSION_CHECKER_DOCKER_PASSWORD", "docker-password"},
 				{"VERSION_CHECKER_DOCKER_TOKEN", "docker-token"},
@@ -51,6 +52,7 @@ func TestComplete(t *testing.T) {
 					Username:     "acr-username",
 					Password:     "acr-password",
 					RefreshToken: "acr-token",
+					JWKSURI:      "acr-jwks-uri",
 				},
 				Docker: docker.Options{
 					Username: "docker-username",
@@ -92,6 +94,7 @@ func TestComplete(t *testing.T) {
 				{"VERSION_CHECKER_ACR_USERNAME", "acr-username"},
 				{"VERSION_CHECKER_ACR_PASSWORD", "acr-password"},
 				{"VERSION_CHECKER_ACR_REFRESH_TOKEN", "acr-token"},
+				{"VERSION_CHECKER_ACR_JWKS_URI", "acr-jwks-uri"},
 				{"VERSION_CHECKER_DOCKER_USERNAME", "docker-username"},
 				{"VERSION_CHECKER_DOCKER_PASSWORD", "docker-password"},
 				{"VERSION_CHECKER_DOCKER_TOKEN", "docker-token"},
@@ -119,6 +122,7 @@ func TestComplete(t *testing.T) {
 					Username:     "acr-username",
 					Password:     "acr-password",
 					RefreshToken: "acr-token",
+					JWKSURI:      "acr-jwks-uri",
 				},
 				Docker: docker.Options{
 					Username: "docker-username",
@@ -170,8 +174,9 @@ func TestComplete(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			os.Clearenv()
 			for _, env := range test.envs {
-				os.Setenv(env[0], env[1])
+				t.Setenv(env[0], env[1])
 			}
 			o := new(Options)
 			o.complete()
@@ -179,10 +184,6 @@ func TestComplete(t *testing.T) {
 			if !reflect.DeepEqual(o.Client, test.expOptions) {
 				t.Errorf("unexpected client options, exp=%#+v got=%#+v",
 					test.expOptions, o.Client)
-			}
-
-			for _, env := range test.envs {
-				os.Unsetenv(env[0])
 			}
 		})
 	}

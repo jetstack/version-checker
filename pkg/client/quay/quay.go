@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
+	"github.com/sirupsen/logrus"
 
 	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/jetstack/version-checker/pkg/client/util"
@@ -19,7 +20,8 @@ const (
 )
 
 type Options struct {
-	Token string
+	Token       string
+	Transporter http.RoundTripper
 }
 
 type Client struct {
@@ -57,10 +59,13 @@ type responseManifestDataItem struct {
 	} `json:"platform"`
 }
 
-func New(opts Options) *Client {
+func New(opts Options, log *logrus.Entry) *Client {
 	client := retryablehttp.NewClient()
 	client.RetryMax = 10
-	client.Logger = nil
+	client.Logger = log.WithField("client", "quay")
+	if opts.Transporter != nil {
+		client.HTTPClient.Transport = opts.Transporter
+	}
 
 	return &Client{
 		Options: opts,
@@ -167,7 +172,7 @@ func (c *Client) makeRequest(ctx context.Context, url string, obj interface{}) e
 	if err != nil {
 		return fmt.Errorf("failed to make quay call %q: %s", url, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if err := json.NewDecoder(resp.Body).Decode(obj); err != nil {
 		return err

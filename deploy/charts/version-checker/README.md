@@ -22,6 +22,9 @@ A Helm chart for version-checker
 | additionalAnnotations | object | `{}` | Additional Annotations to apply to Service and Deployment/Pod Objects |
 | additionalLabels | object | `{}` | Additional Labels to apply to Service and Deployment/Pod Objects |
 | affinity | object | `{}` | Set affinity |
+| dashboards.enabled | bool | `false` | Deploy Grafana Dashboard(s) for version-checker |
+| dashboards.grafana | string | `""` | Grafana instance to associate the Dashboard with when using GrafanaOperator |
+| dashboards.labels | object | `{}` | Additional labels to add to the Grafana Dashboard |
 | docker.password | string | `nil` | Password to authenticate with docker registry |
 | docker.token | string | `nil` | Token to authenticate with docker registry. Cannot be used with `docker.username` / `docker.password`. |
 | docker.username | string | `nil` | Username to authenticate with docker registry |
@@ -34,6 +37,7 @@ A Helm chart for version-checker
 | extraVolumeMounts | list | `[]` | Allow for extra Volume Mounts to version-checkers container |
 | extraVolumes | list | `[]` | Allow for extra Volumes to be associated to the pod |
 | gcr.token | string | `nil` | Access token for read access to private GCR registries |
+| ghcr.hostname | string | `nil` | Hostname for Github Enterprise to override the default ghcr domains. |
 | ghcr.token | string | `nil` | Personal Access token for read access to GHCR releases |
 | image.imagePullSecret | string | `nil` | Pull secrects - name of existing secret |
 | image.pullPolicy | string | `"IfNotPresent"` | Set the Image Pull Policy |
@@ -70,7 +74,7 @@ A Helm chart for version-checker
 | service.labels | object | `{}` | Additional labels to add to the service |
 | service.port | int | `8080` | Port to expose within the service |
 | serviceMonitor.additionalLabels | object | `{}` | Additional labels to add to the ServiceMonitor |
-| serviceMonitor.enabled | bool | `false` | Disable/Enable ServiceMonitor Object |
+| serviceMonitor.enabled | bool | `true` | Disable/Enable ServiceMonitor Object |
 | tolerations | list | `[]` | Configure tolerations |
 | topologySpreadConstraints | list | `[]` | Set topologySpreadConstraints |
 | versionChecker.imageCacheTimeout | string | `"30m"` | How long to hold on to image tags and their versions |

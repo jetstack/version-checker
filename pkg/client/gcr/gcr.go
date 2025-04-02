@@ -17,7 +17,8 @@ const (
 )
 
 type Options struct {
-	Token string
+	Token       string
+	Transporter http.RoundTripper
 }
 
 type Client struct {
@@ -38,7 +39,8 @@ func New(opts Options) *Client {
 	return &Client{
 		Options: opts,
 		Client: &http.Client{
-			Timeout: time.Second * 5,
+			Timeout:   time.Second * 5,
+			Transport: opts.Transporter,
 		},
 	}
 }
@@ -58,9 +60,9 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 
 	resp, err := c.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get docker image: %w", err)
+		return nil, fmt.Errorf("failed to get %q image: %w", c.Name(), err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

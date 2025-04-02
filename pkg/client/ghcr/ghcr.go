@@ -3,16 +3,20 @@ package ghcr
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
 
-	"github.com/gofri/go-github-ratelimit/github_ratelimit"
-	"github.com/google/go-github/v62/github"
 	"github.com/jetstack/version-checker/pkg/api"
+
+	"github.com/gofri/go-github-ratelimit/github_ratelimit"
+	"github.com/google/go-github/v70/github"
 )
 
 type Options struct {
-	Token string
+	Token       string
+	Hostname    string
+	Transporter http.RoundTripper
 }
 
 type Client struct {
@@ -27,11 +31,17 @@ func New(opts Options) *Client {
 	}
 
 	ghRatelimitOpts := github_ratelimit.WithLimitDetectedCallback(rateLimitDetection)
-	ghRateLimiter, err := github_ratelimit.NewRateLimitWaiterClient(nil, ghRatelimitOpts)
+	ghRateLimiter, err := github_ratelimit.NewRateLimitWaiterClient(opts.Transporter, ghRatelimitOpts)
 	if err != nil {
 		panic(err)
 	}
 	client := github.NewClient(ghRateLimiter).WithAuthToken(opts.Token)
+	if opts.Hostname != "" {
+		client, err = client.WithEnterpriseURLs(fmt.Sprintf("https://%s/", opts.Hostname), fmt.Sprintf("https://%s/api/uploads/", opts.Hostname))
+		if err != nil {
+			panic(fmt.Errorf("failed setting enterprise URLs: %w", err))
+		}
+	}
 
 	return &Client{
 		client:     client,
@@ -66,7 +76,7 @@ func (c *Client) Tags(ctx context.Context, _, owner, repo string) ([]api.ImageTa
 			break
 		}
 
-		opts.ListOptions.Page = resp.NextPage
+		opts.Page = resp.NextPage
 	}
 
 	return tags, nil
@@ -87,8 +97,8 @@ func (c *Client) determineGetAllVersionsFunc(ctx context.Context, owner, repo st
 
 func (c *Client) buildPackageListOptions() *github.PackageListOptions {
 	return &github.PackageListOptions{
-		PackageType: github.String("container"),
-		State:       github.String("active"),
+		PackageType: github.Ptr("container"),
+		State:       github.Ptr("active"),
 		ListOptions: github.ListOptions{
 			PerPage: 100,
 		},
@@ -98,34 +108,26 @@ func (c *Client) buildPackageListOptions() *github.PackageListOptions {
 func (c *Client) extractImageTags(versions []*github.PackageVersion) []api.ImageTag {
 	var tags []api.ImageTag
 	for _, ver := range versions {
-		if len(ver.Metadata.Container.Tags) == 0 {
-			continue
-		}
-
-		sha := ""
-		if strings.HasPrefix(*ver.Name, "sha") {
-			sha = *ver.Name
-		}
-
-		for _, tag := range ver.Metadata.Container.Tags {
-			if c.shouldSkipTag(tag) {
+		if meta, ok := ver.GetMetadata(); ok {
+			if len(meta.Container.Tags) == 0 {
 				continue
 			}
 
-			tags = append(tags, api.ImageTag{
-				Tag:       tag,
-				SHA:       sha,
-				Timestamp: ver.CreatedAt.Time,
-			})
+			sha := ""
+			if strings.HasPrefix(*ver.Name, "sha") {
+				sha = *ver.Name
+			}
+
+			for _, tag := range meta.Container.Tags {
+				tags = append(tags, api.ImageTag{
+					Tag:       tag,
+					SHA:       sha,
+					Timestamp: ver.CreatedAt.Time,
+				})
+			}
 		}
 	}
 	return tags
-}
-
-func (c *Client) shouldSkipTag(tag string) bool {
-	return strings.HasSuffix(tag, ".att") ||
-		strings.HasSuffix(tag, ".sig") ||
-		strings.HasSuffix(tag, ".sbom")
 }
 
 func (c *Client) ownerType(ctx context.Context, owner string) (string, error) {

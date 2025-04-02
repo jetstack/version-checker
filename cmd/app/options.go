@@ -22,29 +22,31 @@ const (
 	envPrefix = "VERSION_CHECKER"
 
 	envACRUsername     = "ACR_USERNAME"
-	envACRPassword     = "ACR_PASSWORD"
-	envACRRefreshToken = "ACR_REFRESH_TOKEN"
+	envACRPassword     = "ACR_PASSWORD"      // #nosec G101
+	envACRRefreshToken = "ACR_REFRESH_TOKEN" // #nosec G101
+	envACRJWKSURI      = "ACR_JWKS_URI"
 
 	envDockerUsername = "DOCKER_USERNAME"
-	envDockerPassword = "DOCKER_PASSWORD"
-	envDockerToken    = "DOCKER_TOKEN"
+	envDockerPassword = "DOCKER_PASSWORD" // #nosec G101
+	envDockerToken    = "DOCKER_TOKEN"    // #nosec G101
 
 	envECRIamRoleArn      = "ECR_IAM_ROLE_ARN"
-	envECRAccessKeyID     = "ECR_ACCESS_KEY_ID"
-	envECRSecretAccessKey = "ECR_SECRET_ACCESS_KEY"
-	envECRSessionToken    = "ECR_SESSION_TOKEN"
+	envECRAccessKeyID     = "ECR_ACCESS_KEY_ID"     // #nosec G101
+	envECRSecretAccessKey = "ECR_SECRET_ACCESS_KEY" // #nosec G101
+	envECRSessionToken    = "ECR_SESSION_TOKEN"     // #nosec G101
 
-	envGCRAccessToken = "GCR_TOKEN"
+	envGCRAccessToken = "GCR_TOKEN" // #nosec G101
 
-	envGHCRAccessToken = "GHCR_TOKEN"
+	envGHCRAccessToken = "GHCR_TOKEN" // #nosec G101
+	envGHCRHostname    = "GHCR_HOSTNAME"
 
-	envQuayToken = "QUAY_TOKEN"
+	envQuayToken = "QUAY_TOKEN" // #nosec G101
 
 	envSelfhostedPrefix    = "SELFHOSTED"
 	envSelfhostedUsername  = "USERNAME"
 	envSelfhostedPassword  = "PASSWORD"
 	envSelfhostedHost      = "HOST"
-	envSelfhostedBearer    = "TOKEN"
+	envSelfhostedBearer    = "TOKEN" // #nosec G101
 	envSelfhostedTokenPath = "TOKEN_PATH"
 	envSelfhostedInsecure  = "INSECURE"
 	envSelfhostedCAPath    = "CA_PATH"
@@ -67,6 +69,10 @@ type Options struct {
 	CacheTimeout          time.Duration
 	LogLevel              string
 
+	PprofBindAddress        string
+	GracefulShutdownTimeout time.Duration
+	CacheSyncPeriod         time.Duration
+
 	kubeConfigFlags *genericclioptions.ConfigFlags
 	selfhosted      selfhosted.Options
 
@@ -83,13 +89,13 @@ func (o *Options) addFlags(cmd *cobra.Command) {
 
 	usageFmt := "Usage:\n  %s\n"
 	cmd.SetUsageFunc(func(cmd *cobra.Command) error {
-		fmt.Fprintf(cmd.OutOrStderr(), usageFmt, cmd.UseLine())
+		_, _ = fmt.Fprintf(cmd.OutOrStderr(), usageFmt, cmd.UseLine())
 		cliflag.PrintSections(cmd.OutOrStderr(), nfs, 0)
 		return nil
 	})
 
 	cmd.SetHelpFunc(func(cmd *cobra.Command, _ []string) {
-		fmt.Fprintf(cmd.OutOrStdout(), "%s\n\n"+usageFmt, cmd.Long, cmd.UseLine())
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n\n"+usageFmt, cmd.Long, cmd.UseLine())
 		cliflag.PrintSections(cmd.OutOrStdout(), nfs, 0)
 	})
 
@@ -104,6 +110,10 @@ func (o *Options) addAppFlags(fs *pflag.FlagSet) {
 		"metrics-serving-address", "m", "0.0.0.0:8080",
 		"Address to serve metrics on at the /metrics path.")
 
+	fs.StringVarP(&o.PprofBindAddress,
+		"pprof-serving-address", "", "",
+		"Address to serve pprof on for profiling.")
+
 	fs.BoolVarP(&o.DefaultTestAll,
 		"test-all-containers", "a", false,
 		"If enabled, all containers will be tested, unless they have the "+
@@ -117,6 +127,14 @@ func (o *Options) addAppFlags(fs *pflag.FlagSet) {
 	fs.StringVarP(&o.LogLevel,
 		"log-level", "v", "info",
 		"Log level (debug, info, warn, error, fatal, panic).")
+
+	fs.DurationVarP(&o.GracefulShutdownTimeout,
+		"graceful-shutdown-timeout", "", 10*time.Second,
+		"Time that the manager should wait for all controller to shutdown.")
+
+	fs.DurationVarP(&o.CacheSyncPeriod,
+		"cache-sync-period", "", 5*time.Hour,
+		"The time in which all resources should be updated.")
 }
 
 func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
@@ -139,6 +157,12 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 			"Refresh token to authenticate with azure container registry. Cannot be used with "+
 				"username/password (%s_%s).",
 			envPrefix, envACRRefreshToken,
+		))
+	fs.StringVar(&o.Client.ACR.JWKSURI,
+		"acr-jwks-uri", "",
+		fmt.Sprintf(
+			"JWKS URI to verify the JWT access token received. If left blank, JWT token will not be verified. (%s_%s)",
+			envPrefix, envACRJWKSURI,
 		))
 	///
 
@@ -206,6 +230,12 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 		fmt.Sprintf(
 			"Personal Access token for read access to GHCR releases (%s_%s).",
 			envPrefix, envGHCRAccessToken,
+		))
+	fs.StringVar(&o.Client.GHCR.Hostname,
+		"gchr-hostname", "",
+		fmt.Sprintf(
+			"Override hostname for Github Enterprise instances (%s_%s).",
+			envPrefix, envGHCRHostname,
 		))
 	///
 
@@ -278,6 +308,7 @@ func (o *Options) complete() {
 		{envACRUsername, &o.Client.ACR.Username},
 		{envACRPassword, &o.Client.ACR.Password},
 		{envACRRefreshToken, &o.Client.ACR.RefreshToken},
+		{envACRJWKSURI, &o.Client.ACR.JWKSURI},
 
 		{envDockerUsername, &o.Client.Docker.Username},
 		{envDockerPassword, &o.Client.Docker.Password},
@@ -291,6 +322,7 @@ func (o *Options) complete() {
 		{envGCRAccessToken, &o.Client.GCR.Token},
 
 		{envGHCRAccessToken, &o.Client.GHCR.Token},
+		{envGHCRHostname, &o.Client.GHCR.Hostname},
 
 		{envQuayToken, &o.Client.Quay.Token},
 	} {

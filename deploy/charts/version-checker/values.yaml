@@ -88,6 +88,8 @@ gcr:
 ghcr:
   # -- (string) Personal Access token for read access to GHCR releases
   token:
+  # -- (string) Hostname for Github Enterprise to override the default ghcr domains.
+  hostname:
 
 # Quay.io Registry Credentials Configuration
 quay:
@@ -210,10 +212,19 @@ prometheus:
   # -- ServiceAccount for new Prometheus Object
   serviceAccountName: prometheus
 
+# Grafana Dashboards
+dashboards:
+  # -- Deploy Grafana Dashboard(s) for version-checker
+  enabled: false
+  # -- Additional labels to add to the Grafana Dashboard
+  labels: {}
+  # -- Grafana instance to associate the Dashboard with when using GrafanaOperator
+  grafana: ""
+
 # Configure a Prometheus-Operator ServiceMonitor object
 serviceMonitor:
   # -- Disable/Enable ServiceMonitor Object
-  enabled: false
+  enabled: true
   # -- Additional labels to add to the ServiceMonitor
   additionalLabels: {}
 

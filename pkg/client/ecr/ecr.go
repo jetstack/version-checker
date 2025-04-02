@@ -3,6 +3,7 @@ package ecr
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -24,6 +25,7 @@ type Options struct {
 	AccessKeyID     string
 	SecretAccessKey string
 	SessionToken    string
+	Transporter     http.RoundTripper
 }
 
 func New(opts Options) *Client {
@@ -93,11 +95,15 @@ func (c *Client) createClient(ctx context.Context, region string) (*ecr.Client, 
 	if c.IamRoleArn != "" {
 		cfg, err = config.LoadDefaultConfig(ctx,
 			config.WithRegion(region),
+			config.WithHTTPClient(&http.Client{Transport: c.Transporter}),
 		)
 	} else {
 		cfg, err = config.LoadDefaultConfig(ctx,
-			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(c.AccessKeyID, c.SecretAccessKey, c.SessionToken)),
+			config.WithCredentialsProvider(
+				credentials.NewStaticCredentialsProvider(c.AccessKeyID, c.SecretAccessKey, c.SessionToken),
+			),
 			config.WithRegion(region),
+			config.WithHTTPClient(&http.Client{Transport: c.Transporter}),
 		)
 	}
 	if err != nil {
