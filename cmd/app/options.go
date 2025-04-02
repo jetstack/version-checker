@@ -88,13 +88,13 @@ func (o *Options) addFlags(cmd *cobra.Command) {
 
 	usageFmt := "Usage:\n  %s\n"
 	cmd.SetUsageFunc(func(cmd *cobra.Command) error {
-		fmt.Fprintf(cmd.OutOrStderr(), usageFmt, cmd.UseLine())
+		_, _ = fmt.Fprintf(cmd.OutOrStderr(), usageFmt, cmd.UseLine())
 		cliflag.PrintSections(cmd.OutOrStderr(), nfs, 0)
 		return nil
 	})
 
 	cmd.SetHelpFunc(func(cmd *cobra.Command, _ []string) {
-		fmt.Fprintf(cmd.OutOrStdout(), "%s\n\n"+usageFmt, cmd.Long, cmd.UseLine())
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n\n"+usageFmt, cmd.Long, cmd.UseLine())
 		cliflag.PrintSections(cmd.OutOrStdout(), nfs, 0)
 	})
 

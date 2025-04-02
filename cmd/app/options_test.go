@@ -181,10 +181,6 @@ func TestComplete(t *testing.T) {
 				t.Errorf("unexpected client options, exp=%#+v got=%#+v",
 					test.expOptions, o.Client)
 			}
-
-			for _, env := range test.envs {
-				os.Unsetenv(env[0])
-			}
 		})
 	}
 }

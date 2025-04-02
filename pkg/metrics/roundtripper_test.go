@@ -176,6 +176,7 @@ func TestRoundTripper(t *testing.T) {
 			require.NoError(t, err)
 
 			resp, err := client.Do(req)
+			defer func() { _ = resp.Body.Close() }()
 
 			if tt.expectedError {
 				assert.Error(t, err)
@@ -185,7 +186,6 @@ func TestRoundTripper(t *testing.T) {
 				assert.NotNil(t, resp)
 				assert.Equal(t, tt.expectedStatus, resp.StatusCode)
 			}
-			resp.Body.Close()
 
 			// Validate metrics
 			assert.NoError(t,
