@@ -4,7 +4,14 @@ metadata:
   name: {{ include "version-checker.name" . }}
   labels:
     app: {{ include "version-checker.name" . }}
-{{ include "version-checker.labels" . | indent 4 }}
+    {{ include "version-checker.labels" . | nindent 4 }}
+    {{- if .Values.service.labels }}
+    {{ toYaml .Values.service.labels | nindent 4 }}
+    {{- end }}
+  {{- if .Values.service.annotations }}
+  annotations:
+    {{ toYaml .Values.service.annotations | nindent 4 }}
+  {{- end }}
 spec:
   ports:
     - port: {{ .Values.service.port }}
@@ -12,4 +19,4 @@ spec:
       protocol: TCP
       name: web
   selector:
-    app: {{ include "version-checker.name" . }}
+    {{- include "version-checker.selector" . | nindent 4 }}

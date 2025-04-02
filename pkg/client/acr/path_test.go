@@ -1,6 +1,10 @@
 package acr
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestIsHost(t *testing.T) {
 	tests := map[string]struct {
@@ -25,6 +29,18 @@ func TestIsHost(t *testing.T) {
 		},
 		"azurecr.io with random sub domains should be true": {
 			host:  "versionchecker.azurecr.io",
+			expIs: true,
+		},
+		"azurecr.cn with random sub domains should be true": {
+			host:  "versionchecker.azurecr.cn",
+			expIs: true,
+		},
+		"azurecr.de with random sub domains should be true": {
+			host:  "versionchecker.azurecr.de",
+			expIs: true,
+		},
+		"azurecr.us with random sub domains should be true": {
+			host:  "versionchecker.azurecr.us",
 			expIs: true,
 		},
 		"foodazurecr.io should be false": {
@@ -73,11 +89,9 @@ func TestRepoImage(t *testing.T) {
 	handler := new(Client)
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			if repo, image := handler.RepoImageFromPath(test.path); !(repo == test.expRepo &&
-				image == test.expImage) {
-				t.Errorf("%s: unexpected repo/image, exp=%s,%s got=%s,%s",
-					test.path, test.expRepo, test.expImage, repo, image)
-			}
+			repo, image := handler.RepoImageFromPath(test.path)
+			assert.Equal(t, repo, test.expRepo)
+			assert.Equal(t, image, test.expImage)
 		})
 	}
 }

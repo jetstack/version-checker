@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	reg = regexp.MustCompile(`(^(.*\.)?gcr.io$)`)
+	reg = regexp.MustCompile(`(^(.*\.)?gcr.io$|^(.*\.)?k8s.io$|^(.+)-docker.pkg.dev$)`)
 )
 
 func (c *Client) IsHost(host string) bool {
@@ -16,8 +16,9 @@ func (c *Client) IsHost(host string) bool {
 func (c *Client) RepoImageFromPath(path string) (string, string) {
 	lastIndex := strings.LastIndex(path, "/")
 
+	// If there's no slash, then its a "root" level image
 	if lastIndex == -1 {
-		return "google-containers", path
+		return "", path
 	}
 
 	return path[:lastIndex], path[lastIndex+1:]

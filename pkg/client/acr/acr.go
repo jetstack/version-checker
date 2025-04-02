@@ -5,25 +5,27 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"sync"
 	"time"
 
+	"github.com/MicahParks/keyfunc/v3"
+
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/adal"
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/jetstack/version-checker/pkg/client/util"
 )
 
 const (
-	userAgent = "jetstack/version-checker"
+	userAgent     = "jetstack/version-checker"
+	requiredScope = "repository:*:metadata_read"
 )
 
 type Client struct {
-	*http.Client
 	Options
 
 	cacheMu         sync.Mutex
@@ -39,13 +41,14 @@ type Options struct {
 	Username     string
 	Password     string
 	RefreshToken string
+	JWKSURI      string
 }
 
-type ACRAccessTokenResponse struct {
+type AccessTokenResponse struct {
 	AccessToken string `json:"access_token"`
 }
 
-type ACRManifestResponse struct {
+type ManifestResponse struct {
 	Manifests []struct {
 		Digest      string    `json:"digest"`
 		CreatedTime time.Time `json:"createdTime"`
@@ -54,10 +57,6 @@ type ACRManifestResponse struct {
 }
 
 func New(opts Options) (*Client, error) {
-	client := &http.Client{
-		Timeout: time.Second * 5,
-	}
-
 	if len(opts.RefreshToken) > 0 &&
 		(len(opts.Username) > 0 || len(opts.Password) > 0) {
 		return nil, errors.New("cannot specify refresh token as well as username/password")
@@ -65,7 +64,6 @@ func New(opts Options) (*Client, error) {
 
 	return &Client{
 		Options:         opts,
-		Client:          client,
 		cachedACRClient: make(map[string]*acrClient),
 	}, nil
 }
@@ -84,8 +82,9 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 	if err != nil {
 		return nil, err
 	}
+	defer func() { _ = resp.Body.Close() }()
 
-	var manifestResp ACRManifestResponse
+	var manifestResp ManifestResponse
 	if err := json.NewDecoder(resp.Body).Decode(&manifestResp); err != nil {
 		return nil, fmt.Errorf("%s: failed to decode manifest response: %s",
 			host, err)
@@ -140,7 +139,7 @@ func (c *Client) getManifestsWithClient(ctx context.Context, client *acrClient, 
 	}
 
 	if resp.StatusCode != 200 {
-		body, err := ioutil.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return nil, fmt.Errorf("bad request for image host %s", host)
 		}
@@ -159,16 +158,20 @@ func (c *Client) getACRClient(ctx context.Context, host string) (*acrClient, err
 	}
 
 	var (
-		client *acrClient
-		err    error
+		client            *acrClient
+		accessTokenClient *autorest.Client
+		accessTokenReq    *http.Request
+		err               error
 	)
-
 	if len(c.RefreshToken) > 0 {
-		client, err = c.getAccessTokenClient(ctx, host)
+		accessTokenClient, accessTokenReq, err = c.getAccessTokenRequesterForRefreshToken(ctx, host)
 	} else {
-		client, err = c.getBasicAuthClient(host)
+		accessTokenClient, accessTokenReq, err = c.getAccessTokenRequesterForBasicAuth(ctx, host)
 	}
 	if err != nil {
+		return nil, err
+	}
+	if client, err = c.getAuthorizedClient(accessTokenClient, accessTokenReq, host); err != nil {
 		return nil, err
 	}
 
@@ -177,17 +180,30 @@ func (c *Client) getACRClient(ctx context.Context, host string) (*acrClient, err
 	return client, nil
 }
 
-func (c *Client) getBasicAuthClient(host string) (*acrClient, error) {
+func (c *Client) getAccessTokenRequesterForBasicAuth(ctx context.Context, host string) (*autorest.Client, *http.Request, error) {
 	client := autorest.NewClientWithUserAgent(userAgent)
 	client.Authorizer = autorest.NewBasicAuthorizer(c.Username, c.Password)
+	urlParameters := map[string]interface{}{
+		"url": "https://" + host,
+	}
 
-	return &acrClient{
-		Client:      &client,
-		tokenExpiry: time.Unix(1<<63-1, 0),
-	}, nil
+	preparer := autorest.CreatePreparer(
+		autorest.WithCustomBaseURL("{url}", urlParameters),
+		autorest.WithPath("/oauth2/token"),
+		autorest.WithQueryParameters(map[string]interface{}{
+			"scope":   requiredScope,
+			"service": host,
+		}),
+	)
+	req, err := preparer.Prepare((&http.Request{}).WithContext(ctx))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return &client, req, nil
 }
 
-func (c *Client) getAccessTokenClient(ctx context.Context, host string) (*acrClient, error) {
+func (c *Client) getAccessTokenRequesterForRefreshToken(ctx context.Context, host string) (*autorest.Client, *http.Request, error) {
 	client := autorest.NewClientWithUserAgent(userAgent)
 	urlParameters := map[string]interface{}{
 		"url": "https://" + host,
@@ -196,7 +212,7 @@ func (c *Client) getAccessTokenClient(ctx context.Context, host string) (*acrCli
 	formDataParameters := map[string]interface{}{
 		"grant_type":    "refresh_token",
 		"refresh_token": c.RefreshToken,
-		"scope":         "repository:*:*",
+		"scope":         requiredScope,
 		"service":       host,
 	}
 
@@ -207,29 +223,34 @@ func (c *Client) getAccessTokenClient(ctx context.Context, host string) (*acrCli
 		autorest.WithFormData(autorest.MapToValues(formDataParameters)))
 	req, err := preparer.Prepare((&http.Request{}).WithContext(ctx))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+	return &client, req, nil
+}
 
+func (c *Client) getAuthorizedClient(client *autorest.Client, req *http.Request, host string) (*acrClient, error) {
 	resp, err := autorest.SendWithSender(client, req,
-		autorest.DoRetryForStatusCodes(client.RetryAttempts, client.RetryDuration, autorest.StatusCodesForRetry...))
+		autorest.DoRetryForStatusCodes(client.RetryAttempts, client.RetryDuration, autorest.StatusCodesForRetry...),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("%s: failed to request access token: %s",
 			host, err)
 	}
+	defer func() { _ = resp.Body.Close() }()
 
-	var respToken ACRAccessTokenResponse
+	var respToken AccessTokenResponse
 	if err := json.NewDecoder(resp.Body).Decode(&respToken); err != nil {
 		return nil, fmt.Errorf("%s: failed to decode access token response: %s",
 			host, err)
 	}
 
-	exp, err := getTokenExpiration(respToken.AccessToken)
+	exp, err := c.getTokenExpiration(respToken.AccessToken)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %s", host, err)
 	}
 
 	token := &adal.Token{
-		RefreshToken: c.RefreshToken,
+		RefreshToken: "", // empty if access_token was retrieved with basic auth. but client is not reused after expiry anyway (see cachedACRClient)
 		AccessToken:  respToken.AccessToken,
 	}
 
@@ -237,17 +258,31 @@ func (c *Client) getAccessTokenClient(ctx context.Context, host string) (*acrCli
 
 	return &acrClient{
 		tokenExpiry: exp,
-		Client:      &client,
+		Client:      client,
 	}, nil
 }
 
-func getTokenExpiration(token string) (time.Time, error) {
-	parser := jwt.Parser{SkipClaimsValidation: true}
-
-	claims := make(jwt.MapClaims)
-	_, _, err := parser.ParseUnverified(token, claims)
+func (c *Client) getTokenExpiration(tokenString string) (time.Time, error) {
+	jwtParser := jwt.NewParser(jwt.WithoutClaimsValidation())
+	var token *jwt.Token
+	var err error
+	if c.JWKSURI != "" {
+		var k keyfunc.Keyfunc
+		k, err = keyfunc.NewDefaultCtx(context.TODO(), []string{c.JWKSURI})
+		if err != nil {
+			return time.Time{}, err
+		}
+		token, err = jwtParser.Parse(tokenString, k.Keyfunc)
+	} else {
+		token, _, err = jwtParser.ParseUnverified(tokenString, jwt.MapClaims{})
+	}
 	if err != nil {
 		return time.Time{}, err
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return time.Time{}, fmt.Errorf("failed to process claims in access token")
 	}
 
 	if exp, ok := claims["exp"].(float64); ok {

@@ -2,109 +2,73 @@ package cache
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
 
 	"github.com/jetstack/version-checker/pkg/api"
+	"github.com/patrickmn/go-cache"
 )
 
-// Cache is a generic cache store.
+// Cache is a generic cache store - that supports a handler
 type Cache struct {
-	log *logrus.Entry
-
-	mu      sync.RWMutex
-	timeout time.Duration
+	log     *logrus.Entry
 	handler Handler
 
-	store map[string]*cacheItem
+	store *cache.Cache
 }
 
-// cacheItem is a single item for the cache stored. This cache item is
-// periodically garbage collected.
-type cacheItem struct {
-	mu        sync.Mutex
-	timestamp time.Time
-	i         interface{}
-}
-
-// Handler is an interface for implementations of the cache fetch
+// Handler is an interface for implementations of the cache fetch.
 type Handler interface {
 	// Fetch should fetch an item by the given index and options
 	Fetch(ctx context.Context, index string, opts *api.Options) (interface{}, error)
 }
 
-// New returns a new generic Cache
+// New returns a new generic Cache.
 func New(log *logrus.Entry, timeout time.Duration, handler Handler) *Cache {
-	return &Cache{
+	c := &Cache{
 		log:     log.WithField("cache", "handler"),
 		handler: handler,
-		timeout: timeout,
-		store:   make(map[string]*cacheItem),
+		store:   cache.New(timeout, timeout*2),
 	}
+	// Set our Cleanup hook
+	c.store.OnEvicted(c.cleanup)
+	return c
+}
+
+func (c *Cache) cleanup(key string, obj interface{}) {
+	c.log.Debugf("removing item from cache: %q", key)
+}
+
+func (c *Cache) Shutdown() {
+	c.store.Flush()
 }
 
 // Get returns the cache item from the store given the index. Will populate
 // the cache if the index does not currently exist.
-func (c *Cache) Get(ctx context.Context, index string, fetchIndex string, opts *api.Options) (interface{}, error) {
-	c.mu.RLock()
-	item, ok := c.store[index]
-	c.mu.RUnlock()
+func (c *Cache) Get(ctx context.Context, index string, fetchIndex string, opts *api.Options) (item interface{}, err error) {
+	item, found := c.store.Get(index)
 
-	// If the item doesn't yet exist, create a new zero item.
-	if !ok {
-		c.mu.Lock()
-		item = new(cacheItem)
-		c.store[index] = item
-		c.mu.Unlock()
-	}
-
-	item.mu.Lock()
-	defer item.mu.Unlock()
-
-	// Test if exists in the cache or is too old
-	if item.timestamp.Add(c.timeout).Before(time.Now()) {
+	// If the item doesn't yet exist, Lets look it up
+	if !found {
 		// Fetch a new item to commit
-		i, err := c.handler.Fetch(ctx, fetchIndex, opts)
+		item, err = c.handler.Fetch(ctx, fetchIndex, opts)
 		if err != nil {
 			return nil, err
 		}
 
 		// Commit to the cache
 		c.log.Debugf("committing item: %q", index)
-		item.timestamp = time.Now()
-		item.i = i
-
-		return i, nil
+		c.store.Set(index, item, cache.DefaultExpiration)
 	}
-
 	c.log.Debugf("found: %q", index)
 
-	return item.i, nil
+	return item, err
 }
 
-// StartGarbageCollector is a blocking func that will run the garbage collector
-// against the cache.
-func (c *Cache) StartGarbageCollector(refreshRate time.Duration) {
-	log := c.log.WithField("cache", "garbage_collector")
-	log.Infof("starting cache garbage collector")
-	ticker := time.NewTicker(refreshRate)
-
-	for {
-		<-ticker.C
-
-		c.mu.Lock()
-
-		now := time.Now()
-		for index, item := range c.store {
-			if item.timestamp.Add(c.timeout).Before(now) {
-
-				log.Debugf("removing stale cache item: %q", index)
-				delete(c.store, index)
-			}
-		}
-
-		c.mu.Unlock()
-	}
+func (c *Cache) Update(index string, item interface{}) {
+	c.store.SetDefault(index, item)
+}
+func (c *Cache) Delete(index string) {
+	c.store.Delete(index)
 }

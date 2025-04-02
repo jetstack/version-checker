@@ -1,7 +1,5 @@
 package errors
 
-import "fmt"
-
 type HTTPError struct {
 	Body       []byte
 	StatusCode int
@@ -15,7 +13,7 @@ func NewHTTPError(statusCode int, body []byte) *HTTPError {
 }
 
 func (h *HTTPError) Error() string {
-	return fmt.Sprintf("%s", h.Body)
+	return string(h.Body)
 }
 
 func IsHTTPError(err error) (*HTTPError, bool) {

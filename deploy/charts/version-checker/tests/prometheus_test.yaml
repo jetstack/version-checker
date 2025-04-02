@@ -1,0 +1,68 @@
+suite: test prometheus
+templates:
+  - prometheus.yaml
+tests:
+  - it: should work (defaults)
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should work (when enabled)
+    set:
+      prometheus.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 4
+
+      - containsDocument:
+          kind: ServiceAccount
+          apiVersion: v1
+        documentIndex: 0
+
+      - documentIndex: 1
+        containsDocument:
+          kind: Role
+          apiVersion: rbac.authorization.k8s.io/v1
+
+      - documentIndex: 2
+        containsDocument:
+          kind: RoleBinding
+          apiVersion: rbac.authorization.k8s.io/v1
+      - documentIndex: 2
+        equal:
+          path: subjects[0].kind
+          value: ServiceAccount
+      - documentIndex: 2
+        equal:
+          path: subjects[0].name
+          value: prometheus
+      - documentIndex: 2
+        equal:
+          path: roleRef.name
+          value: prometheus
+      - documentIndex: 2
+        equal:
+          path: roleRef.kind
+          value: Role
+
+      - documentIndex: 3
+        containsDocument:
+          kind: Prometheus
+          apiVersion: monitoring.coreos.com/v1
+      - documentIndex: 3
+        equal:
+          path: spec.replicas
+          value: 1
+      - documentIndex: 3
+        equal:
+          path: spec.serviceAccountName
+          value: prometheus
+      - documentIndex: 3
+        equal:
+          path: spec.version
+          value: v2.20.1
+      - documentIndex: 3
+        equal:
+          path: spec.serviceMonitorSelector.matchLabels
+          value:
+            app: version-checker

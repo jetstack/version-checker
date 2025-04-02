@@ -2,16 +2,22 @@ package selfhosted
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
+
+	"github.com/go-chi/transport"
+	"github.com/hashicorp/go-cleanhttp"
 
 	"github.com/jetstack/version-checker/pkg/api"
 	selfhostederrors "github.com/jetstack/version-checker/pkg/client/selfhosted/errors"
@@ -24,7 +30,7 @@ const (
 	// /v2/{repo/image}/manifests/{tag}
 	manifestPath = "%s/v2/%s/manifests/%s"
 	// Token endpoint
-	tokenPath = "/v2/token"
+	defaultTokenPath = "/v2/token"
 
 	// HTTP headers to request API version
 	dockerAPIv1Header = "application/vnd.docker.distribution.manifest.v1+json"
@@ -32,10 +38,14 @@ const (
 )
 
 type Options struct {
-	Host     string
-	Username string
-	Password string
-	Bearer   string
+	Host        string
+	Username    string
+	Password    string
+	Bearer      string
+	TokenPath   string
+	Insecure    bool
+	CAPath      string
+	Transporter http.RoundTripper
 }
 
 type Client struct {
@@ -48,77 +58,98 @@ type Client struct {
 	httpScheme string
 }
 
-type AuthResponse struct {
-	Token string `json:"token"`
-}
-
-type TagResponse struct {
-	Tags []string `json:"tags"`
-}
-
-type ManifestResponse struct {
-	Digest       string
-	Architecture string    `json:"architecture"`
-	History      []History `json:"history"`
-}
-
-type History struct {
-	V1Compatibility string `json:"v1Compatibility"`
-}
-
-type V1Compatibility struct {
-	Created time.Time `json:"created,omitempty"`
-}
-
 func New(ctx context.Context, log *logrus.Entry, opts *Options) (*Client, error) {
 	client := &Client{
 		Client: &http.Client{
-			Timeout: time.Second * 10,
+			Timeout:   time.Second * 10,
+			Transport: cleanhttp.DefaultTransport(),
 		},
 		Options: opts,
-		log:     log.WithField("client", opts.Host),
+		log:     log.WithField("client", "selfhosted-"+opts.Host),
 	}
 
-	// Set up client with host matching if set
-	if opts.Host != "" {
-		hostRegex, scheme, err := parseURL(opts.Host)
-		if err != nil {
-			return nil, fmt.Errorf("failed parsing url: %s", err)
-		}
-		client.hostRegex = hostRegex
-		client.httpScheme = scheme
-
-		// Setup Auth if username and password used.
-		if len(opts.Username) > 0 || len(opts.Password) > 0 {
-			if len(opts.Bearer) > 0 {
-				return nil, errors.New("cannot specify Bearer token as well as username/password")
-			}
-
-			token, err := client.setupBasicAuth(ctx, opts.Host)
-			if httpErr, ok := selfhostederrors.IsHTTPError(err); ok {
-				return nil, fmt.Errorf("failed to setup token auth (%d): %s",
-					httpErr.StatusCode, httpErr.Body)
-			}
-
-			if err != nil {
-				return nil, fmt.Errorf("failed to setup token auth: %s", err)
-			}
-			client.Bearer = token
-		}
+	if err := configureHost(ctx, client, opts); err != nil {
+		return nil, err
 	}
 
-	// Default to https if no scheme set
-	if client.httpScheme == "" {
-		client.httpScheme = "https"
+	if err := configureTransport(client, opts); err != nil {
+		return nil, err
 	}
 
 	return client, nil
 }
 
+func configureHost(ctx context.Context, client *Client, opts *Options) error {
+	if opts.Host == "" {
+		return nil
+	}
+
+	hostRegex, scheme, err := parseURL(opts.Host)
+	if err != nil {
+		return fmt.Errorf("failed parsing url: %s", err)
+	}
+	client.hostRegex = hostRegex
+	client.httpScheme = scheme
+
+	if err := configureAuth(ctx, client, opts); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func configureAuth(ctx context.Context, client *Client, opts *Options) error {
+	if len(opts.Username) == 0 && len(opts.Password) == 0 {
+		return nil
+	}
+
+	if len(opts.Bearer) > 0 {
+		return errors.New("cannot specify Bearer token as well as username/password")
+	}
+
+	tokenPath := opts.TokenPath
+	if tokenPath == "" {
+		tokenPath = defaultTokenPath
+	}
+
+	token, err := client.setupBasicAuth(ctx, opts.Host, tokenPath)
+	if httpErr, ok := selfhostederrors.IsHTTPError(err); ok {
+		return fmt.Errorf("failed to setup token auth (%d): %s",
+			httpErr.StatusCode, httpErr.Body)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to setup token auth: %s", err)
+	}
+
+	client.Bearer = token
+	return nil
+}
+
+func configureTransport(client *Client, opts *Options) error {
+	if client.httpScheme == "" {
+		client.httpScheme = "https"
+	}
+	baseTransport := cleanhttp.DefaultTransport()
+	baseTransport.Proxy = http.ProxyFromEnvironment
+
+	if client.httpScheme == "https" {
+		tlsConfig, err := newTLSConfig(opts.Insecure, opts.CAPath)
+		if err != nil {
+			return err
+		}
+		baseTransport.TLSClientConfig = tlsConfig
+	}
+
+	client.Transport = transport.Chain(baseTransport,
+		transport.If(logrus.IsLevelEnabled(logrus.DebugLevel), transport.LogRequests(transport.LogOptions{Concise: true})),
+		transport.If(opts.Transporter != nil, func(rt http.RoundTripper) http.RoundTripper { return opts.Transporter }))
+	return nil
+}
+
 // Name returns the name of the host URL for the selfhosted client
 func (c *Client) Name() string {
 	if len(c.Host) == 0 {
-		return "dockerapi"
+		return "selfhosted"
 	}
 
 	return c.Host
@@ -205,13 +236,15 @@ func (c *Client) doRequest(ctx context.Context, url, header string, obj interfac
 
 	resp, err := c.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get docker image: %s", err)
+		return nil, fmt.Errorf("failed to get %q image: %s", c.Name(), err)
 	}
+	defer func() { _ = resp.Body.Close() }()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, selfhostederrors.NewHTTPError(resp.StatusCode, body)
@@ -224,7 +257,7 @@ func (c *Client) doRequest(ctx context.Context, url, header string, obj interfac
 	return resp.Header, nil
 }
 
-func (c *Client) setupBasicAuth(ctx context.Context, url string) (string, error) {
+func (c *Client) setupBasicAuth(ctx context.Context, url, tokenPath string) (string, error) {
 	upReader := strings.NewReader(
 		fmt.Sprintf(`{"username": "%s", "password": "%s"}`,
 			c.Username, c.Password,
@@ -246,8 +279,9 @@ func (c *Client) setupBasicAuth(ctx context.Context, url string) (string, error)
 		return "", fmt.Errorf("failed to send basic auth request %q: %s",
 			req.URL, err)
 	}
+	defer func() { _ = resp.Body.Close() }()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
@@ -262,4 +296,26 @@ func (c *Client) setupBasicAuth(ctx context.Context, url string) (string, error)
 	}
 
 	return response.Token, nil
+}
+
+func newTLSConfig(insecure bool, CAPath string) (*tls.Config, error) {
+	// Load system CA Certs and/or create a new CertPool
+	rootCAs, _ := x509.SystemCertPool()
+	if rootCAs == nil {
+		rootCAs = x509.NewCertPool()
+	}
+
+	if CAPath != "" {
+		certs, err := os.ReadFile(CAPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to append %q to RootCAs: %v", CAPath, err)
+		}
+		rootCAs.AppendCertsFromPEM(certs)
+	}
+
+	return &tls.Config{
+		Renegotiation:      tls.RenegotiateOnceAsClient,
+		InsecureSkipVerify: insecure, // #nosec G402
+		RootCAs:            rootCAs,
+	}, nil
 }

@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -13,11 +13,12 @@ import (
 )
 
 const (
-	lookupURL = "https://%s/v2/%s/%s/tags/list"
+	lookupURL = "https://%s/v2/%s/tags/list"
 )
 
 type Options struct {
-	Token string
+	Token       string
+	Transporter http.RoundTripper
 }
 
 type Client struct {
@@ -38,7 +39,8 @@ func New(opts Options) *Client {
 	return &Client{
 		Options: opts,
 		Client: &http.Client{
-			Timeout: time.Second * 5,
+			Timeout:   time.Second * 5,
+			Transport: opts.Transporter,
 		},
 	}
 }
@@ -48,29 +50,21 @@ func (c *Client) Name() string {
 }
 
 func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.ImageTag, error) {
-	if repo == "google-containers" {
-		host = "gcr.io"
-	}
+	image = c.constructImageName(repo, image)
+	url := fmt.Sprintf(lookupURL, host, image)
 
-	url := fmt.Sprintf(lookupURL, host, repo, image)
-
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := c.buildRequest(ctx, url)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(c.Token) > 0 {
-		req.SetBasicAuth("oauth2accesstoken", c.Token)
-	}
-
-	req = req.WithContext(ctx)
-
 	resp, err := c.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get docker image: %s", err)
+		return nil, fmt.Errorf("failed to get %q image: %w", c.Name(), err)
 	}
+	defer func() { _ = resp.Body.Close() }()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -80,14 +74,36 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 		return nil, err
 	}
 
+	return c.extractImageTags(response)
+}
+
+func (c *Client) constructImageName(repo, image string) string {
+	if repo != "" {
+		return fmt.Sprintf("%s/%s", repo, image)
+	}
+	return image
+}
+
+func (c *Client) buildRequest(ctx context.Context, url string) (*http.Request, error) {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(c.Token) > 0 {
+		req.SetBasicAuth("oauth2accesstoken", c.Token)
+	}
+
+	return req.WithContext(ctx), nil
+}
+
+func (c *Client) extractImageTags(response Response) ([]api.ImageTag, error) {
 	var tags []api.ImageTag
 	for sha, manifestItem := range response.Manifest {
-		miliTimestamp, err := strconv.ParseInt(manifestItem.TimeCreated, 10, 64)
+		timestamp, err := c.convertTimestamp(manifestItem.TimeCreated)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert timestamp string: %s", err)
+			return nil, fmt.Errorf("failed to convert timestamp string: %w", err)
 		}
-
-		timestamp := time.Unix(0, miliTimestamp*int64(1000000))
 
 		// If no tag, add without and continue early.
 		if len(manifestItem.Tag) == 0 {
@@ -99,6 +115,13 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 			tags = append(tags, api.ImageTag{Tag: tag, SHA: sha, Timestamp: timestamp})
 		}
 	}
-
 	return tags, nil
+}
+
+func (c *Client) convertTimestamp(timeCreated string) (time.Time, error) {
+	miliTimestamp, err := strconv.ParseInt(timeCreated, 10, 64)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return time.Unix(0, miliTimestamp*int64(1000000)), nil
 }

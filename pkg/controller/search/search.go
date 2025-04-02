@@ -14,9 +14,8 @@ import (
 	"github.com/jetstack/version-checker/pkg/version"
 )
 
-// Searcher is the interface for Search to facilitate testing
+// Searcher is the interface for Search to facilitate testing.
 type Searcher interface {
-	Run(time.Duration)
 	LatestImage(context.Context, string, *api.Options) (*api.ImageTag, error)
 	ResolveSHAToTag(ctx context.Context, imageURL string, imageSHA string) (string, error)
 }
@@ -29,7 +28,7 @@ type Search struct {
 	searchCache   *cache.Cache
 }
 
-// New creates a new Search for querying searches over image tags
+// New creates a new Search for querying searches over image tags.
 func New(log *logrus.Entry, cacheTimeout time.Duration, versionGetter *version.Version) *Search {
 	s := &Search{
 		log:           log.WithField("module", "search"),
@@ -71,17 +70,10 @@ func (s *Search) ResolveSHAToTag(ctx context.Context, imageURL string, imageSHA 
 
 	tag, err := s.versionGetter.ResolveSHAToTag(ctx, imageURL, imageSHA)
 	if err != nil {
-		fmt.Println("failed to resolve the sha " + err.Error())
-		return "", fmt.Errorf("failed to resolve sha to tag")
+		return "", fmt.Errorf("failed to resolve sha to tag: %w", err)
 	}
 
 	return tag, err
-}
-
-// Run will run the search and image cache garbage collectors.
-func (s *Search) Run(refreshRate time.Duration) {
-	go s.versionGetter.Run(refreshRate)
-	s.searchCache.StartGarbageCollector(refreshRate)
 }
 
 // calculateHashIndex returns a hash index given an imageURL and options.

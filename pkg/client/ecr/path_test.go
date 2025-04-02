@@ -1,6 +1,10 @@
 package ecr
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestIsHost(t *testing.T) {
 	tests := map[string]struct {
@@ -88,16 +92,19 @@ func TestRepoImage(t *testing.T) {
 			expRepo:  "k8s-artifacts-prod/ingress-nginx",
 			expImage: "nginx",
 		},
+		"region": {
+			path:     "000000000000.dkr.ecr.eu-west-2.amazonaws.com/version-checker",
+			expRepo:  "000000000000.dkr.ecr.eu-west-2.amazonaws.com",
+			expImage: "version-checker",
+		},
 	}
 
 	handler := new(Client)
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			if repo, image := handler.RepoImageFromPath(test.path); !(repo == test.expRepo &&
-				image == test.expImage) {
-				t.Errorf("%s: unexpected repo/image, exp=%s,%s got=%s,%s",
-					test.path, test.expRepo, test.expImage, repo, image)
-			}
+			repo, image := handler.RepoImageFromPath(test.path)
+			assert.Equal(t, repo, test.expRepo)
+			assert.Equal(t, image, test.expImage)
 		})
 	}
 }

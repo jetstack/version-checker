@@ -1,15 +1,14 @@
 # version-checker
 
+![GitHub Release](https://img.shields.io/github/v/release/jetstack/version-checker)
+[![Go Report Card](https://goreportcard.com/badge/github.com/jetstack/version-checker)](https://goreportcard.com/report/github.com/jetstack/version-checker)
+[![Tests](https://github.com/jetstack/version-checker/actions/workflows/build-test.yaml/badge.svg)](https://github.com/jetstack/version-checker/actions/workflows/build-test.yaml?query=branch%3Amain)
+![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/jetstack/version-checker)
+
 version-checker is a Kubernetes utility for observing the current versions of
 images running in the cluster, as well as the latest available upstream. These
 checks get exposed as Prometheus metrics to be viewed on a dashboard, or _soft_
 alert cluster operators.
-
-> This tool is currently experimental.
-
-If you're interested in this tool, version checking is a built-in feature
-in our [Preflight](https://preflight.jetstack.io/) product. You may want to 
-check it out if you would like multi-cluster component version checking.
 
 ## Registries
 
@@ -40,8 +39,15 @@ $ kubectl apply -k ./deploy/yaml
 Or through helm;
 
 ```sh
-$ cd ./deploy/charts/version-checker && kubectl create namespace version-checker
-$ helm install version-checker . -n version-checker
+$ helm repo add jetstack https://charts.jetstack.io
+"jetstack" has been added to your repositories
+$ helm install version-checker jetstack/version-checker
+NAME: version-checker
+LAST DEPLOYED: Wed Jul 12 17:47:41 2023
+NAMESPACE: default
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
 ```
 
 The helm chart supports creating a Prometheus/ServiceMonitor to expose the
@@ -100,9 +106,17 @@ enrich version checking on image tags:
     used to change the URL for where to lookup where the latest image version
     is. In this example, the current version of `my-container` will be compared
     against the image versions in the `docker.io/bitnami/etcd` registry.
+
 - `resolve-sha-to-tags.version-checker.io/my-container`: is used to
     resolve images specified using sha256 in kubernetes manifests to valid semver
     tags. To enable this the annotation value must be set to "true".
+
+## Known configurations
+
+From time to time, version-checker may need some of the above options applied to determine the latest version,
+depending on how the maintainers publish their images. We are making a conscious effort to collate some of these configurations.
+
+See [known-configurations.md](known-configurations.md) for more details.
 
 ## Metrics
 

@@ -5,7 +5,7 @@ kind: ServiceAccount
 metadata:
   name: {{ .Values.prometheus.serviceAccountName }}
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: prometheus
@@ -21,7 +21,7 @@ rules:
   - configmaps
   verbs: ["get"]
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: prometheus
@@ -39,7 +39,7 @@ metadata:
   name: {{ include "version-checker.name" . }}
   labels:
     prometheus: {{ include "version-checker.name" . }}
-{{ include "version-checker.labels" . | indent 4 }}
+    {{ include "version-checker.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.prometheus.replicas }}
   serviceAccountName: {{ .Values.prometheus.serviceAccountName }}

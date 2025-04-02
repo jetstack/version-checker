@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	cliflag "k8s.io/component-base/cli/flag"
 
+	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/jetstack/version-checker/pkg/client"
 	"github.com/jetstack/version-checker/pkg/client/selfhosted"
 )
@@ -20,41 +22,56 @@ const (
 	envPrefix = "VERSION_CHECKER"
 
 	envACRUsername     = "ACR_USERNAME"
-	envACRPassword     = "ACR_PASSWORD"
-	envACRRefreshToken = "ACR_REFRESH_TOKEN"
+	envACRPassword     = "ACR_PASSWORD"      // #nosec G101
+	envACRRefreshToken = "ACR_REFRESH_TOKEN" // #nosec G101
+	envACRJWKSURI      = "ACR_JWKS_URI"
 
 	envDockerUsername = "DOCKER_USERNAME"
-	envDockerPassword = "DOCKER_PASSWORD"
-	envDockerToken    = "DOCKER_TOKEN"
+	envDockerPassword = "DOCKER_PASSWORD" // #nosec G101
+	envDockerToken    = "DOCKER_TOKEN"    // #nosec G101
 
-	envECRAccessKeyID     = "ECR_ACCESS_KEY_ID"
-	envECRSecretAccessKey = "ECR_SECRET_ACCESS_KEY"
-	envECRSessionToken    = "ECR_SESSION_TOKEN"
+	envECRIamRoleArn      = "ECR_IAM_ROLE_ARN"
+	envECRAccessKeyID     = "ECR_ACCESS_KEY_ID"     // #nosec G101
+	envECRSecretAccessKey = "ECR_SECRET_ACCESS_KEY" // #nosec G101
+	envECRSessionToken    = "ECR_SESSION_TOKEN"     // #nosec G101
 
-	envGCRAccessToken = "GCR_TOKEN"
+	envGCRAccessToken = "GCR_TOKEN" // #nosec G101
 
-	envQuayToken = "QUAY_TOKEN"
+	envGHCRAccessToken = "GHCR_TOKEN" // #nosec G101
+	envGHCRHostname    = "GHCR_HOSTNAME"
 
-	envSelfhostedPrefix   = "SELFHOSTED"
-	envSelfhostedUsername = "USERNAME"
-	envSelfhostedPassword = "PASSWORD"
-	envSelfhostedBearer   = "TOKEN"
-	envSelfhostedHost     = "HOST"
+	envQuayToken = "QUAY_TOKEN" // #nosec G101
+
+	envSelfhostedPrefix    = "SELFHOSTED"
+	envSelfhostedUsername  = "USERNAME"
+	envSelfhostedPassword  = "PASSWORD"
+	envSelfhostedHost      = "HOST"
+	envSelfhostedBearer    = "TOKEN" // #nosec G101
+	envSelfhostedTokenPath = "TOKEN_PATH"
+	envSelfhostedInsecure  = "INSECURE"
+	envSelfhostedCAPath    = "CA_PATH"
 )
 
 var (
 	selfhostedHostReg     = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_HOST_(.*)")
 	selfhostedUsernameReg = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_USERNAME_(.*)")
 	selfhostedPasswordReg = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_PASSWORD_(.*)")
+	selfhostedTokenPath   = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_TOKEN_PATH_(.*)")
 	selfhostedTokenReg    = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_TOKEN_(.*)")
+	selfhostedCAPath      = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_CA_PATH_(.*)")
+	selfhostedInsecureReg = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_INSECURE_(.*)")
 )
 
-// Options is a struct to hold options for the version-checker
+// Options is a struct to hold options for the version-checker.
 type Options struct {
 	MetricsServingAddress string
 	DefaultTestAll        bool
 	CacheTimeout          time.Duration
 	LogLevel              string
+
+	PprofBindAddress        string
+	GracefulShutdownTimeout time.Duration
+	CacheSyncPeriod         time.Duration
 
 	kubeConfigFlags *genericclioptions.ConfigFlags
 	selfhosted      selfhosted.Options
@@ -72,13 +89,13 @@ func (o *Options) addFlags(cmd *cobra.Command) {
 
 	usageFmt := "Usage:\n  %s\n"
 	cmd.SetUsageFunc(func(cmd *cobra.Command) error {
-		fmt.Fprintf(cmd.OutOrStderr(), usageFmt, cmd.UseLine())
+		_, _ = fmt.Fprintf(cmd.OutOrStderr(), usageFmt, cmd.UseLine())
 		cliflag.PrintSections(cmd.OutOrStderr(), nfs, 0)
 		return nil
 	})
 
-	cmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
-		fmt.Fprintf(cmd.OutOrStdout(), "%s\n\n"+usageFmt, cmd.Long, cmd.UseLine())
+	cmd.SetHelpFunc(func(cmd *cobra.Command, _ []string) {
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n\n"+usageFmt, cmd.Long, cmd.UseLine())
 		cliflag.PrintSections(cmd.OutOrStdout(), nfs, 0)
 	})
 
@@ -93,10 +110,14 @@ func (o *Options) addAppFlags(fs *pflag.FlagSet) {
 		"metrics-serving-address", "m", "0.0.0.0:8080",
 		"Address to serve metrics on at the /metrics path.")
 
+	fs.StringVarP(&o.PprofBindAddress,
+		"pprof-serving-address", "", "",
+		"Address to serve pprof on for profiling.")
+
 	fs.BoolVarP(&o.DefaultTestAll,
 		"test-all-containers", "a", false,
 		"If enabled, all containers will be tested, unless they have the "+
-			`annotation "enable.version-checker/${my-container}=false".`)
+			fmt.Sprintf(`annotation "%s/${my-container}=false".`, api.EnableAnnotationKey))
 
 	fs.DurationVarP(&o.CacheTimeout,
 		"image-cache-timeout", "c", time.Minute*30,
@@ -106,6 +127,14 @@ func (o *Options) addAppFlags(fs *pflag.FlagSet) {
 	fs.StringVarP(&o.LogLevel,
 		"log-level", "v", "info",
 		"Log level (debug, info, warn, error, fatal, panic).")
+
+	fs.DurationVarP(&o.GracefulShutdownTimeout,
+		"graceful-shutdown-timeout", "", 10*time.Second,
+		"Time that the manager should wait for all controller to shutdown.")
+
+	fs.DurationVarP(&o.CacheSyncPeriod,
+		"cache-sync-period", "", 5*time.Hour,
+		"The time in which all resources should be updated.")
 }
 
 func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
@@ -128,6 +157,12 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 			"Refresh token to authenticate with azure container registry. Cannot be used with "+
 				"username/password (%s_%s).",
 			envPrefix, envACRRefreshToken,
+		))
+	fs.StringVar(&o.Client.ACR.JWKSURI,
+		"acr-jwks-uri", "",
+		fmt.Sprintf(
+			"JWKS URI to verify the JWT access token received. If left blank, JWT token will not be verified. (%s_%s)",
+			envPrefix, envACRJWKSURI,
 		))
 	///
 
@@ -154,6 +189,12 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 	///
 
 	/// ECR
+	fs.StringVar(&o.Client.ECR.IamRoleArn,
+		"ecr-iam-role-arn", "",
+		fmt.Sprintf(
+			"IAM role ARN for read access to private registries, can not be used with access-key/secret-key/session-token (%s_%s).",
+			envPrefix, envECRIamRoleArn,
+		))
 	fs.StringVar(&o.Client.ECR.AccessKeyID,
 		"ecr-access-key-id", "",
 		fmt.Sprintf(
@@ -180,6 +221,21 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 		fmt.Sprintf(
 			"Access token for read access to private GCR registries (%s_%s).",
 			envPrefix, envGCRAccessToken,
+		))
+	///
+
+	/// GHCR
+	fs.StringVar(&o.Client.GHCR.Token,
+		"gchr-token", "",
+		fmt.Sprintf(
+			"Personal Access token for read access to GHCR releases (%s_%s).",
+			envPrefix, envGHCRAccessToken,
+		))
+	fs.StringVar(&o.Client.GHCR.Hostname,
+		"gchr-hostname", "",
+		fmt.Sprintf(
+			"Override hostname for Github Enterprise instances (%s_%s).",
+			envPrefix, envGHCRHostname,
 		))
 	///
 
@@ -212,11 +268,31 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 				"username/password (%s_%s).",
 			envPrefix, envSelfhostedBearer,
 		))
+	fs.StringVar(&o.selfhosted.TokenPath,
+		"selfhosted-token-path", "",
+		fmt.Sprintf(
+			"Override the default selfhosted registry's token auth path. "+
+				"(%s_%s).",
+			envPrefix, envSelfhostedTokenPath,
+		))
 	fs.StringVar(&o.selfhosted.Host,
 		"selfhosted-registry-host", "",
 		fmt.Sprintf(
-			"Full host of the selfhosted registry. Include http[s] scheme (%s_%s",
+			"Full host of the selfhosted registry. Include http[s] scheme (%s_%s)",
 			envPrefix, envSelfhostedHost,
+		))
+	fs.StringVar(&o.selfhosted.Host,
+		"selfhosted-registry-ca-path", "",
+		fmt.Sprintf(
+			"Absolute path to a PEM encoded x509 certificate chain. (%s_%s)",
+			envPrefix, envSelfhostedCAPath,
+		))
+	fs.BoolVarP(&o.selfhosted.Insecure,
+		"selfhosted-insecure", "", false,
+		fmt.Sprintf(
+			"Enable/Disable SSL Certificate Validation. WARNING: "+
+				"THIS IS NOT RECOMMENDED AND IS INTENDED FOR DEBUGGING (%s_%s)",
+			envPrefix, envSelfhostedInsecure,
 		))
 	///
 }
@@ -232,16 +308,21 @@ func (o *Options) complete() {
 		{envACRUsername, &o.Client.ACR.Username},
 		{envACRPassword, &o.Client.ACR.Password},
 		{envACRRefreshToken, &o.Client.ACR.RefreshToken},
+		{envACRJWKSURI, &o.Client.ACR.JWKSURI},
 
 		{envDockerUsername, &o.Client.Docker.Username},
 		{envDockerPassword, &o.Client.Docker.Password},
 		{envDockerToken, &o.Client.Docker.Token},
 
+		{envECRIamRoleArn, &o.Client.ECR.IamRoleArn},
 		{envECRAccessKeyID, &o.Client.ECR.AccessKeyID},
 		{envECRSessionToken, &o.Client.ECR.SessionToken},
 		{envECRSecretAccessKey, &o.Client.ECR.SecretAccessKey},
 
 		{envGCRAccessToken, &o.Client.GCR.Token},
+
+		{envGHCRAccessToken, &o.Client.GHCR.Token},
+		{envGHCRHostname, &o.Client.GHCR.Hostname},
 
 		{envQuayToken, &o.Client.Quay.Token},
 	} {
@@ -280,34 +361,53 @@ func (o *Options) assignSelfhosted(envs []string) {
 		}
 	}
 
+	regexActions := map[*regexp.Regexp]func(matches []string, value string){
+		selfhostedHostReg: func(matches []string, value string) {
+			initOptions(matches[1])
+			o.Client.Selfhosted[matches[1]].Host = value
+		},
+		selfhostedUsernameReg: func(matches []string, value string) {
+			initOptions(matches[1])
+			o.Client.Selfhosted[matches[1]].Username = value
+		},
+		selfhostedPasswordReg: func(matches []string, value string) {
+			initOptions(matches[1])
+			o.Client.Selfhosted[matches[1]].Password = value
+		},
+		selfhostedTokenPath: func(matches []string, value string) {
+			initOptions(matches[1])
+			o.Client.Selfhosted[matches[1]].TokenPath = value
+		},
+		selfhostedTokenReg: func(matches []string, value string) {
+			initOptions(matches[1])
+			o.Client.Selfhosted[matches[1]].Bearer = value
+		},
+		selfhostedInsecureReg: func(matches []string, value string) {
+			initOptions(matches[1])
+			if val, err := strconv.ParseBool(value); err == nil {
+				o.Client.Selfhosted[matches[1]].Insecure = val
+			}
+		},
+		selfhostedCAPath: func(matches []string, value string) {
+			initOptions(matches[1])
+			o.Client.Selfhosted[matches[1]].CAPath = value
+		},
+	}
+
 	for _, env := range envs {
 		pair := strings.SplitN(env, "=", 2)
 		if len(pair) != 2 || len(pair[1]) == 0 {
 			continue
 		}
 
-		if matches := selfhostedHostReg.FindStringSubmatch(strings.ToUpper(pair[0])); len(matches) == 2 {
-			initOptions(matches[1])
-			o.Client.Selfhosted[matches[1]].Host = pair[1]
-			continue
-		}
+		key := strings.ToUpper(pair[0])
+		value := pair[1]
 
-		if matches := selfhostedUsernameReg.FindStringSubmatch(strings.ToUpper(pair[0])); len(matches) == 2 {
-			initOptions(matches[1])
-			o.Client.Selfhosted[matches[1]].Username = pair[1]
-			continue
-		}
-
-		if matches := selfhostedPasswordReg.FindStringSubmatch(strings.ToUpper(pair[0])); len(matches) == 2 {
-			initOptions(matches[1])
-			o.Client.Selfhosted[matches[1]].Password = pair[1]
-			continue
-		}
-
-		if matches := selfhostedTokenReg.FindStringSubmatch(strings.ToUpper(pair[0])); len(matches) == 2 {
-			initOptions(matches[1])
-			o.Client.Selfhosted[matches[1]].Bearer = pair[1]
-			continue
+		for regex, action := range regexActions {
+			if matches := regex.FindStringSubmatch(key); len(matches) == 2 {
+				action(matches, value)
+				break
+			}
 		}
 	}
 

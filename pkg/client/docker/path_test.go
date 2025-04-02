@@ -77,7 +77,7 @@ func TestRepoImage(t *testing.T) {
 		path              string
 		expRepo, expImage string
 	}{
-		"single image should return libary": {
+		"single image should return library": {
 			path:     "nginx",
 			expRepo:  "library",
 			expImage: "nginx",

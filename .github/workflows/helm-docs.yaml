@@ -1,0 +1,69 @@
+name: Generate Helm Docs
+on:
+  # Allow other workflows to trigger
+  workflow_call:
+  push:
+    paths:
+      - '!*.md'
+      - 'deploy/charts/version-checker/**'
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  docs:
+    name: Generate Helm Docs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+      - name: Check for values.yaml changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            values:
+              - 'deploy/charts/version-checker/values.yaml'
+              - 'deploy/charts/version-checker/Chart.yaml'
+      - name: Install Helm Docs
+        if: steps.filter.outputs.values == 'true'
+        uses: envoy/install-helm-docs@v1.0.0
+        with:
+          version: 1.14.2
+      - name: Update Helm Docs
+        if: steps.filter.outputs.values == 'true'
+        run: |
+          set -ex
+          cd deploy/charts/version-checker
+          helm-docs
+      - name: Check for README.md changes
+        uses: dorny/paths-filter@v3
+        id: filter-readme
+        with:
+          base: HEAD
+          filters: |
+            readme:
+              - 'deploy/charts/version-checker/README.md'
+      - name: Commit Helm Docs
+        if: steps.filter-readme.outputs.readme == 'true'
+        run: |
+          set -ex
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add deploy/charts/version-checker
+          git commit -m "[HELM] Update helm docs"
+      - name: Push Changes
+        if: steps.filter-readme.outputs.readme == 'true'
+        uses: ad-m/github-push-action@v0.8.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.head_ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}

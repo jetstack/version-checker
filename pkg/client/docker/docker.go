@@ -5,23 +5,27 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/jetstack/version-checker/pkg/api"
 )
 
 const (
 	loginURL  = "https://hub.docker.com/v2/users/login/"
-	lookupURL = "https://registry.hub.docker.com/v2/repositories/%s/%s/tags"
+	lookupURL = "https://registry.hub.docker.com/v2/repositories/%s/%s/tags?page_size=100"
 )
 
 type Options struct {
-	Username string
-	Password string
-	Token    string
+	Username    string
+	Password    string
+	Token       string
+	Transporter http.RoundTripper
 }
 
 type Client struct {
@@ -29,31 +33,18 @@ type Client struct {
 	Options
 }
 
-type AuthResponse struct {
-	Token string `json:"token"`
-}
-
-type TagResponse struct {
-	Next    string   `json:"next"`
-	Results []Result `json:"results"`
-}
-
-type Result struct {
-	Name      string  `json:"name"`
-	Timestamp string  `json:"last_updated"`
-	Images    []Image `json:"images"`
-}
-
-type Image struct {
-	Digest       string `json:"digest"`
-	OS           string `json:"os"`
-	Architecture string `json:"Architecture"`
-}
-
-func New(ctx context.Context, opts Options) (*Client, error) {
-	client := &http.Client{
-		Timeout: time.Second * 5,
+func New(opts Options, log *logrus.Entry) (*Client, error) {
+	ctx := context.Background()
+	retryclient := retryablehttp.NewClient()
+	if opts.Transporter != nil {
+		retryclient.HTTPClient.Transport = opts.Transporter
 	}
+	retryclient.HTTPClient.Timeout = 10 * time.Second
+	retryclient.RetryMax = 10
+	retryclient.RetryWaitMax = 2 * time.Minute
+	retryclient.RetryWaitMin = 1 * time.Second
+	retryclient.Logger = log.WithField("client", "docker")
+	client := retryclient.StandardClient()
 
 	// Setup Auth if username and password used.
 	if len(opts.Username) > 0 || len(opts.Password) > 0 {
@@ -94,9 +85,12 @@ func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTa
 				continue
 			}
 
-			timestamp, err := time.Parse(time.RFC3339Nano, result.Timestamp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse image timestamp: %s", err)
+			var timestamp time.Time
+			if len(result.Timestamp) > 0 {
+				timestamp, err = time.Parse(time.RFC3339Nano, result.Timestamp)
+				if err != nil {
+					return nil, fmt.Errorf("failed to parse image timestamp: %s", err)
+				}
 			}
 
 			for _, image := range result.Images {
@@ -130,15 +124,16 @@ func (c *Client) doRequest(ctx context.Context, url string) (*TagResponse, error
 	req.URL.Scheme = "https"
 	req = req.WithContext(ctx)
 	if len(c.Token) > 0 {
-		req.Header.Add("Authorization", "Token "+c.Token)
+		req.Header.Add("Authorization", "Bearer "+c.Token)
 	}
 
 	resp, err := c.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get docker image: %s", err)
+		return nil, fmt.Errorf("failed to get %q image: %s", c.Name(), err)
 	}
+	defer func() { _ = resp.Body.Close() }()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -170,8 +165,9 @@ func basicAuthSetup(ctx context.Context, client *http.Client, opts Options) (str
 	if err != nil {
 		return "", err
 	}
+	defer func() { _ = resp.Body.Close() }()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}

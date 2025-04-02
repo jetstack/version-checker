@@ -27,14 +27,9 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}
 
 {{/*
-Required claims serialized to CLI argument
+Common selector
 */}}
-{{- define "requiredClaims" -}}
-{{- if .Values.oidc.requiredClaims -}}
-{{- $local := (list) -}}
-{{- range $k, $v := .Values.oidc.requiredClaims -}}
-{{- $local = (printf "%s=%s" $k $v | append $local) -}}
-{{- end -}}
-{{ join "," $local }}
-{{- end -}}
+{{- define "version-checker.selector" -}}
+app.kubernetes.io/name: {{ include "version-checker.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}

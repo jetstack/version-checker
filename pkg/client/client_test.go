@@ -7,10 +7,13 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/jetstack/version-checker/pkg/client/acr"
 	"github.com/jetstack/version-checker/pkg/client/docker"
 	"github.com/jetstack/version-checker/pkg/client/ecr"
+	"github.com/jetstack/version-checker/pkg/client/fallback"
 	"github.com/jetstack/version-checker/pkg/client/gcr"
+	"github.com/jetstack/version-checker/pkg/client/ghcr"
 	"github.com/jetstack/version-checker/pkg/client/quay"
 	"github.com/jetstack/version-checker/pkg/client/selfhosted"
 )
@@ -22,6 +25,9 @@ func TestFromImageURL(t *testing.T) {
 				Host: "https://docker.repositories.yourdomain.com",
 			},
 		},
+		GHCR: ghcr.Options{
+			Token: "test-token",
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -29,7 +35,7 @@ func TestFromImageURL(t *testing.T) {
 
 	tests := map[string]struct {
 		url       string
-		expClient ImageClient
+		expClient api.ImageClient
 		expHost   string
 		expPath   string
 	}{
@@ -120,6 +126,31 @@ func TestFromImageURL(t *testing.T) {
 			expHost:   "us.gcr.io",
 			expPath:   "k8s-artifacts-prod/ingress-nginx/nginx",
 		},
+		"k8s.io should be gcr": {
+			url:       "k8s.io/sig-storage/csi-node-driver-registrar",
+			expClient: new(gcr.Client),
+			expHost:   "k8s.io",
+			expPath:   "sig-storage/csi-node-driver-registrar",
+		},
+		"k8s.io with subdomain should be gcr": {
+			url:       "registry.k8s.io/sig-storage/csi-node-driver-registrar",
+			expClient: new(gcr.Client),
+			expHost:   "registry.k8s.io",
+			expPath:   "sig-storage/csi-node-driver-registrar",
+		},
+
+		"ghcr.io should be ghcr": {
+			url:       "ghcr.io/jetstack/version-checker",
+			expClient: new(ghcr.Client),
+			expHost:   "ghcr.io",
+			expPath:   "jetstack/version-checker",
+		},
+		"gcr.io with subdomain should be ghcr": {
+			url:       "ghcr.io/k8s-artifacts-prod/ingress-nginx/nginx",
+			expClient: new(ghcr.Client),
+			expHost:   "ghcr.io",
+			expPath:   "k8s-artifacts-prod/ingress-nginx/nginx",
+		},
 
 		"quay.io should be quay": {
 			url:       "quay.io/jetstack/version-checker",
@@ -141,7 +172,7 @@ func TestFromImageURL(t *testing.T) {
 		},
 		"selfhosted with different domain should be fallback": {
 			url:       "registry.opensource.zalan.do/teapot/external-dns",
-			expClient: new(selfhosted.Client),
+			expClient: new(fallback.Client),
 			expHost:   "registry.opensource.zalan.do",
 			expPath:   "teapot/external-dns",
 		},

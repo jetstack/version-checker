@@ -35,6 +35,26 @@ func TestIsHost(t *testing.T) {
 			host:  "gcr.iofoo",
 			expIs: false,
 		},
+		"just pkg.dev should be false": {
+			host:  "pkg.dev",
+			expIs: false,
+		},
+		"docker.pkg.dev with random sub domains should be false": {
+			host:  "docker.pkg.dev",
+			expIs: false,
+		},
+		"eu-docker.pkg.dev with random sub domains should be true": {
+			host:  "eu-docker.pkg.dev",
+			expIs: true,
+		},
+		"k8s.io should be true": {
+			host:  "k8s.io",
+			expIs: true,
+		},
+		"registry.k8s.io should be true": {
+			host:  "registry.k8s.io",
+			expIs: true,
+		},
 	}
 
 	handler := new(Client)
