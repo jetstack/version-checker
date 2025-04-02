@@ -76,7 +76,7 @@ func (c *Client) Tags(ctx context.Context, _, owner, repo string) ([]api.ImageTa
 			break
 		}
 
-		opts.ListOptions.Page = resp.NextPage
+		opts.Page = resp.NextPage
 	}
 
 	return tags, nil

@@ -78,7 +78,7 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var manifestResp ManifestResponse
 	if err := json.NewDecoder(resp.Body).Decode(&manifestResp); err != nil {
@@ -212,7 +212,7 @@ func (c *Client) getAccessTokenClient(ctx context.Context, host string) (*acrCli
 		return nil, fmt.Errorf("%s: failed to request access token: %s",
 			host, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var respToken AccessTokenResponse
 	if err := json.NewDecoder(resp.Body).Decode(&respToken); err != nil {

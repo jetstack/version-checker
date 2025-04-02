@@ -172,7 +172,7 @@ func (c *Client) makeRequest(ctx context.Context, url string, obj interface{}) e
 	if err != nil {
 		return fmt.Errorf("failed to make quay call %q: %s", url, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if err := json.NewDecoder(resp.Body).Decode(obj); err != nil {
 		return err
