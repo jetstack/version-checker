@@ -12,8 +12,9 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/hashicorp/go-retryablehttp"
+	retryablehttp "github.com/hashicorp/go-retryablehttp"
 	"github.com/jetstack/version-checker/pkg/api"
+	"github.com/jetstack/version-checker/pkg/client/util"
 )
 
 const (
@@ -41,8 +42,10 @@ func New(opts Options, log *logrus.Entry) (*Client, error) {
 	}
 	retryclient.HTTPClient.Timeout = 10 * time.Second
 	retryclient.RetryMax = 10
-	retryclient.RetryWaitMax = 2 * time.Minute
+	retryclient.RetryWaitMax = 10 * time.Minute
 	retryclient.RetryWaitMin = 1 * time.Second
+	// This custom backoff will fail requests that have a max wait of the RetryWaitMax
+	retryclient.Backoff = util.HTTPBackOff
 	retryclient.Logger = log.WithField("client", "docker")
 	client := retryclient.StandardClient()
 
