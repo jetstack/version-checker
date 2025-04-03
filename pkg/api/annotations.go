@@ -14,6 +14,9 @@ const (
 	// as its tag.
 	UseSHAAnnotationKey = "use-sha.version-checker.io"
 
+	//ResolveSHAToTagsKey is used to resolve image sha256 to corresponding tags
+	ResolveSHAToTagsKey = "resolve-sha-to-tags.version-checker.io"
+
 	// MatchRegexAnnotationKey will enforce that tags that are looked up must
 	// match this regex. UseMetaDataAnnotationKey is not required when this is
 	// set. All other options are ignored when this is set.

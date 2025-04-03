@@ -111,6 +111,16 @@ func TestBuild(t *testing.T) {
 			},
 			expErr: "",
 		},
+		"output options for resolve sha": {
+			containerName: "test-name",
+			annotations: map[string]string{
+				api.ResolveSHAToTagsKey + "/test-name": "true",
+			},
+			expOptions: &api.Options{
+				ResolveSHAToTags: true,
+			},
+			expErr: "",
+		},
 		"bool options that don't have 'true' and nothing": {
 			containerName: "test-name",
 			annotations: map[string]string{
