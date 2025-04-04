@@ -29,35 +29,8 @@ type Client struct {
 	Options
 }
 
-type responseTag struct {
-	Tags          []responseTagItem `json:"tags"`
-	HasAdditional bool              `json:"has_additional"`
-	Page          int               `json:"page"`
-}
-
-type responseTagItem struct {
-	Name           string `json:"name"`
-	ManifestDigest string `json:"manifest_digest"`
-	LastModified   string `json:"last_modified"`
-	IsManifestList bool   `json:"is_manifest_list"`
-}
-
-type responseManifest struct {
-	ManifestData string `json:"manifest_data"`
-	Status       *int   `json:"status,omitempty"`
-}
-
-type responseManifestData struct {
-	Manifests []responseManifestDataItem `json:"manifests"`
-}
-
-type responseManifestDataItem struct {
-	Digest   string `json:"digest"`
-	Platform struct {
-		Architecture api.Architecture `json:"architecture"`
-		OS           api.OS           `json:"os"`
-	} `json:"platform"`
-}
+// Ensure that we are an ImageClient
+var _ api.ImageClient = (*Client)(nil)
 
 func New(opts Options, log *logrus.Entry) *Client {
 	client := retryablehttp.NewClient()
@@ -89,60 +62,58 @@ func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTa
 }
 
 // fetchImageManifest will lookup all manifests for a tag, if it is a list.
-func (c *Client) fetchImageManifest(ctx context.Context, repo, image string, tag *responseTagItem) ([]api.ImageTag, error) {
+func (c *Client) fetchImageManifest(ctx context.Context, repo, image string, tag *responseTagItem) (*api.ImageTag, error) {
 	timestamp, err := time.Parse(time.RFC1123Z, tag.LastModified)
 	if err != nil {
 		return nil, err
 	}
 
+	iTag := &api.ImageTag{
+		Tag:          tag.Name,
+		SHA:          tag.ManifestDigest,
+		Timestamp:    timestamp,
+		OS:           "",
+		Architecture: "",
+	}
+
 	// If a multi-arch image, call manifest endpoint
 	if tag.IsManifestList {
 		url := fmt.Sprintf(manifestURL, repo, image, tag.ManifestDigest)
-		tags, err := c.callManifests(ctx, timestamp, tag.Name, url)
+		err := c.callManifests(ctx, timestamp, iTag, url)
 		if err != nil {
 			return nil, err
 		}
 
-		return tags, nil
+		return iTag, nil
 	}
 
 	// Fallback to not using multi-arch image
+	iTag.OS, iTag.Architecture = util.OSArchFromTag(tag.Name)
 
-	os, arch := util.OSArchFromTag(tag.Name)
-
-	return []api.ImageTag{
-		{
-			Tag:          tag.Name,
-			SHA:          tag.ManifestDigest,
-			Timestamp:    timestamp,
-			OS:           os,
-			Architecture: arch,
-		},
-	}, nil
+	return iTag, nil
 }
 
 // callManifests endpoint on the tags image manifest.
-func (c *Client) callManifests(ctx context.Context, timestamp time.Time, tag, url string) ([]api.ImageTag, error) {
+func (c *Client) callManifests(ctx context.Context, timestamp time.Time, tag *api.ImageTag, url string) error {
 	var manifestResp responseManifest
 	if err := c.makeRequest(ctx, url, &manifestResp); err != nil {
-		return nil, err
+		return err
 	}
 
 	// Got error on this manifest, ignore
 	if manifestResp.Status != nil {
-		return nil, nil
+		return nil
 	}
 
 	var manifestData responseManifestData
 	if err := json.Unmarshal([]byte(manifestResp.ManifestData), &manifestData); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal manifest data %s: %#+v: %s",
-			tag, manifestResp, err)
+		return fmt.Errorf("failed to unmarshal manifest data %s: %#+v: %s",
+			tag.Tag, manifestResp, err)
 	}
 
-	var tags []api.ImageTag
 	for _, manifest := range manifestData.Manifests {
-		tags = append(tags, api.ImageTag{
-			Tag:          tag,
+		tag.Children = append(tag.Children, &api.ImageTag{
+			Tag:          tag.Tag,
 			SHA:          manifest.Digest,
 			Timestamp:    timestamp,
 			Architecture: manifest.Platform.Architecture,
@@ -150,7 +121,7 @@ func (c *Client) callManifests(ctx context.Context, timestamp time.Time, tag, ur
 		})
 	}
 
-	return tags, nil
+	return nil
 }
 
 // makeRequest will make a call and write the response to the object.

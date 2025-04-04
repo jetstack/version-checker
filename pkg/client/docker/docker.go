@@ -14,7 +14,11 @@ import (
 
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/jetstack/version-checker/pkg/api"
+	"github.com/jetstack/version-checker/pkg/client/util"
 )
+
+// Ensure that we are an ImageClient
+var _ api.ImageClient = (*Client)(nil)
 
 const (
 	loginURL  = "https://hub.docker.com/v2/users/login/"
@@ -93,13 +97,23 @@ func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTa
 				}
 			}
 
+			tag := api.ImageTag{
+				Tag:          result.Name,
+				Timestamp:    timestamp,
+				SHA:          result.Digest, // This isn't _always_ returned
+				OS:           "",
+				Architecture: "",
+			}
+			// Attempt to get OS/Arch, from the Tag Name
+			tag.OS, tag.Architecture = util.OSArchFromTag(result.Name)
+
 			for _, image := range result.Images {
 				// Image without digest contains no real image.
 				if len(image.Digest) == 0 {
 					continue
 				}
 
-				tags = append(tags, api.ImageTag{
+				tag.Children = append(tag.Children, &api.ImageTag{
 					Tag:          result.Name,
 					SHA:          image.Digest,
 					Timestamp:    timestamp,
@@ -107,6 +121,9 @@ func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTa
 					Architecture: image.Architecture,
 				})
 			}
+
+			// Append our Tag at the end...
+			tags = append(tags, tag)
 		}
 
 		url = response.Next

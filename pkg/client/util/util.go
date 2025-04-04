@@ -46,12 +46,13 @@ func JoinRepoImage(repo, image string) string {
 }
 
 // Attempt to determine the OS and Arch, given a tag name.
-func OSArchFromTag(tag string) (api.OS, api.Architecture) {
-	var (
-		os    api.OS
-		arch  api.Architecture
-		split = strings.Split(tag, "-")
-	)
+func OSArchFromTag(tag string) (os api.OS, arch api.Architecture) {
+	split := strings.Split(tag, "-")
+
+	// If we don't have >3 splits, then we may not have
+	if len(split) == 2 {
+		os = api.OS("linux")
+	}
 
 	for _, s := range split {
 		ss := strings.ToLower(s)

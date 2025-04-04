@@ -12,6 +12,7 @@ import (
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/jetstack/version-checker/pkg/client"
@@ -43,21 +44,21 @@ func NewPodReconciler(
 	imageClient *client.Client,
 	kubeClient k8sclient.Client,
 	log *logrus.Entry,
+	requeueDuration time.Duration,
 	defaultTestAll bool,
 ) *PodReconciler {
 	log = log.WithField("controller", "pod")
 	versionGetter := version.New(log, imageClient, cacheTimeout)
 	search := search.New(log, cacheTimeout, versionGetter)
 
-	c := &PodReconciler{
-		Log:            log,
-		Client:         kubeClient,
-		Metrics:        metrics,
-		VersionChecker: checker.New(search),
-		defaultTestAll: defaultTestAll,
+	return &PodReconciler{
+		Log:             log,
+		Client:          kubeClient,
+		Metrics:         metrics,
+		VersionChecker:  checker.New(search),
+		defaultTestAll:  defaultTestAll,
+		RequeueDuration: requeueDuration,
 	}
-
-	return c
 }
 
 // Reconcile is triggered whenever a watched object changes.
@@ -77,7 +78,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{}, err
 	}
 
-	// Perform the version check (your sync logic)
+	// Perform the version check
 	if err := r.sync(ctx, pod); err != nil {
 		log.Error(err, "Failed to process pod")
 		// Requeue after some time in case of failure
@@ -93,7 +94,10 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	LeaderElect := false
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Pod{}, builder.OnlyMetadata).
-		WithOptions(controller.Options{MaxConcurrentReconciles: numWorkers, NeedLeaderElection: &LeaderElect}).
+		WithOptions(controller.Options{
+			MaxConcurrentReconciles: numWorkers,
+			NeedLeaderElection:      &LeaderElect,
+		}).
 		WithEventFilter(predicate.Funcs{
 			CreateFunc: func(_ event.TypedCreateEvent[k8sclient.Object]) bool { return true },
 			UpdateFunc: func(_ event.TypedUpdateEvent[k8sclient.Object]) bool { return true },

@@ -32,6 +32,9 @@ type Client struct {
 	puller *remote.Puller
 }
 
+// Ensure that we are an ImageClient
+var _ api.ImageClient = (*Client)(nil)
+
 // New returns a new client
 func New(opts *Options) (*Client, error) {
 	pullOpts := []remote.Option{
@@ -94,7 +97,7 @@ func (c *Client) RepoImageFromPath(path string) (string, string) {
 	}
 
 	if lenSplit > 1 {
-		return split[lenSplit-2], split[lenSplit-1]
+		return strings.Join(split[:len(split)-1], "/"), split[lenSplit-1]
 	}
 
 	return path, ""

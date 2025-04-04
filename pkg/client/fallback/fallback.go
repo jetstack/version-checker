@@ -12,6 +12,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Ensure that we are an ImageClient
+var _ api.ImageClient = (*Client)(nil)
+
 type Client struct {
 	clients []api.ImageClient
 

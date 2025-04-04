@@ -24,6 +24,9 @@ import (
 	"github.com/jetstack/version-checker/pkg/client/util"
 )
 
+// Ensure that we are an ImageClient
+var _ api.ImageClient = (*Client)(nil)
+
 const (
 	// {host}/v2/{repo/image}/tags/list?n=500
 	tagsPath = "%s/v2/%s/tags/list?n=500"
@@ -167,7 +170,7 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 		return nil, err
 	}
 
-	var tags []api.ImageTag
+	tags := map[string]api.ImageTag{}
 	for _, tag := range tagResponse.Tags {
 		manifestURL := fmt.Sprintf(manifestPath, host, path, tag)
 
@@ -208,15 +211,30 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 			return nil, err
 		}
 
-		tags = append(tags, api.ImageTag{
+		current := api.ImageTag{
 			Tag:          tag,
 			SHA:          header.Get("Docker-Content-Digest"),
 			Timestamp:    timestamp,
 			Architecture: manifestResponse.Architecture,
-		})
+		}
+
+		// Already exists — add as child
+		if parent, exists := tags[tag]; exists {
+			parent.Children = append(parent.Children, &current)
+			tags[tag] = parent
+		} else {
+			// First occurrence — assign as root
+			tags[tag] = current
+		}
 	}
 
-	return tags, nil
+	// Convert Map to Slice
+	taglist := make([]api.ImageTag, 0, len(tags))
+	for _, tag := range tags {
+		taglist = append(taglist, tag)
+	}
+
+	return taglist, nil
 }
 
 func (c *Client) doRequest(ctx context.Context, url, header string, obj interface{}) (http.Header, error) {

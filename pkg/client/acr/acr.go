@@ -20,6 +20,9 @@ import (
 	"github.com/jetstack/version-checker/pkg/client/util"
 )
 
+// Ensure that we are an ImageClient
+var _ api.ImageClient = (*Client)(nil)
+
 const (
 	userAgent     = "jetstack/version-checker"
 	requiredScope = "repository:*:metadata_read"
@@ -48,11 +51,16 @@ type AccessTokenResponse struct {
 	AccessToken string `json:"access_token"`
 }
 
+// API Taken from documentation:
+// https://learn.microsoft.com/en-us/rest/api/containerregistry/manifests/get-list?view=rest-containerregistry-2019-08-15&tabs=HTTP
+
 type ManifestResponse struct {
 	Manifests []struct {
-		Digest      string    `json:"digest"`
-		CreatedTime time.Time `json:"createdTime"`
-		Tags        []string  `json:"tags"`
+		Digest       string           `json:"digest"`
+		CreatedTime  time.Time        `json:"createdTime"`
+		Tags         []string         `json:"tags"`
+		Architecture api.Architecture `json:"architecture,omitempty"`
+		OS           api.OS           `json:"os,omitempty"`
 	} `json:"manifests"`
 }
 
@@ -90,27 +98,47 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 			host, err)
 	}
 
-	var tags []api.ImageTag
-	for _, manifest := range manifestResp.Manifests {
-		if len(manifest.Tags) == 0 {
-			tags = append(tags, api.ImageTag{
-				SHA:       manifest.Digest,
-				Timestamp: manifest.CreatedTime,
-			})
+	// Create a map of tags, so that when we come up with additional Tags
+	// we can add them as Children
+	tags := map[string]api.ImageTag{}
 
+	for _, manifest := range manifestResp.Manifests {
+		// Base data shared across tags
+		base := api.ImageTag{
+			SHA:          manifest.Digest,
+			Timestamp:    manifest.CreatedTime,
+			OS:           manifest.OS,
+			Architecture: manifest.Architecture,
+		}
+
+		// No tags, use digest as the key
+		if len(manifest.Tags) == 0 {
+			tags[base.SHA] = base
 			continue
 		}
 
 		for _, tag := range manifest.Tags {
-			tags = append(tags, api.ImageTag{
-				SHA:       manifest.Digest,
-				Timestamp: manifest.CreatedTime,
-				Tag:       tag,
-			})
+			current := base   // copy the base
+			current.Tag = tag // set tag value
+
+			// Already exists — add as child
+			if parent, exists := tags[tag]; exists {
+				parent.Children = append(parent.Children, &current)
+				tags[tag] = parent
+			} else {
+				// First occurrence — assign as root
+				tags[tag] = current
+			}
 		}
 	}
 
-	return tags, nil
+	// Convert Map to Slice
+	taglist := make([]api.ImageTag, 0, len(tags))
+	for _, tag := range tags {
+		taglist = append(taglist, tag)
+	}
+
+	return taglist, nil
 }
 
 func (c *Client) getManifestsWithClient(ctx context.Context, client *acrClient, host, repo, image string) (*http.Response, error) {

@@ -145,11 +145,15 @@ func (c *Checker) isLatestSemver(ctx context.Context, imageURL, currentSHA strin
 		isLatest = true
 	}
 
-	// If using the same image version, but the SHA has been updated upstream,
-	// make not latest
-	if currentImage.Equal(latestImageV) && currentSHA != latestImage.SHA && latestImage.SHA != "" {
+	// If using the same image version,
+	// but the SHA has been updated upstream,
+	// mark not latest
+	if currentImage.Equal(latestImageV) &&
+		!latestImage.MatchesSHA(currentSHA) &&
+		latestImage.SHA != "" {
+
 		isLatest = false
-		latestImage.Tag = fmt.Sprintf("%s@%s", latestImage.Tag, latestImage.SHA)
+		// latestImage.Tag = fmt.Sprintf("%s@%s", latestImage.Tag, latestImage.SHA)
 	}
 
 	return latestImage, isLatest, nil
