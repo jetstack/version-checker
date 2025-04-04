@@ -67,6 +67,7 @@ type Options struct {
 	MetricsServingAddress string
 	DefaultTestAll        bool
 	CacheTimeout          time.Duration
+	RequeueDuration       time.Duration
 	LogLevel              string
 
 	PprofBindAddress        string
@@ -123,6 +124,10 @@ func (o *Options) addAppFlags(fs *pflag.FlagSet) {
 		"image-cache-timeout", "c", time.Minute*30,
 		"The time for an image version in the cache to be considered fresh. Images "+
 			"will be rechecked after this interval.")
+
+	fs.DurationVarP(&o.RequeueDuration,
+		"requeue-duration", "r", time.Hour,
+		"The time a pod will be re-checked for new versions/tags")
 
 	fs.StringVarP(&o.LogLevel,
 		"log-level", "v", "info",
