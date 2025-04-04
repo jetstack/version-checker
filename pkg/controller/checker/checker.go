@@ -153,7 +153,8 @@ func (c *Checker) isLatestSemver(ctx context.Context, imageURL, currentSHA strin
 		latestImage.SHA != "" {
 
 		isLatest = false
-		// latestImage.Tag = fmt.Sprintf("%s@%s", latestImage.Tag, latestImage.SHA)
+		// Add the SHA as a prefix to idenfity that it has been updated!
+		latestImage.Tag = fmt.Sprintf("%s@%s", latestImage.Tag, latestImage.SHA)
 	}
 
 	return latestImage, isLatest, nil

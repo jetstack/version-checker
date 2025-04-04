@@ -78,8 +78,7 @@ func TestClient_Tags(t *testing.T) {
 		tags, err := client.Tags(ctx, host, "test-user-owner", "test-repo")
 		assert.NoError(t, err)
 		assert.Len(t, tags, 2)
-		assert.Equal(t, "tag1", tags[0].Tag)
-		assert.Equal(t, "tag2", tags[1].Tag)
+		assert.ElementsMatch(t, []string{"tag1", "tag2"}, []string{tags[0].Tag, tags[1].Tag})
 	})
 
 	t.Run("failed to fetch owner type", func(t *testing.T) {

@@ -8,6 +8,9 @@ import (
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/jetstack/version-checker/pkg/controller/internal/fake/search"
 	"github.com/jetstack/version-checker/pkg/version/semver"
@@ -50,6 +53,22 @@ func TestContainer(t *testing.T) {
 			searchResp: &api.ImageTag{
 				Tag: "v0.2.0",
 				SHA: "sha:123",
+			},
+			expResult: &Result{
+				CurrentVersion: "v0.2.0",
+				LatestVersion:  "v0.2.0",
+				ImageURL:       "localhost:5000/version-checker",
+				IsLatest:       true,
+			},
+		},
+		"if v0.2.0 is latest version, but sha is in a child, then latest": {
+			statusSHA: "localhost:5000/version-checker@sha:123",
+			imageURL:  "localhost:5000/version-checker:v0.2.0",
+			opts:      new(api.Options),
+			searchResp: &api.ImageTag{
+				Tag:      "v0.2.0",
+				SHA:      "sha:abc1234",
+				Children: []*api.ImageTag{{SHA: "sha:123"}},
 			},
 			expResult: &Result{
 				CurrentVersion: "v0.2.0",
@@ -280,14 +299,8 @@ func TestContainer(t *testing.T) {
 			}
 
 			result, err := checker.Container(context.TODO(), logrus.NewEntry(logrus.New()), pod, container, test.opts)
-			if err != nil {
-				t.Errorf("unexpected error: %s", err)
-			}
-
-			if !reflect.DeepEqual(test.expResult, result) {
-				t.Errorf("got unexpected result, exp=%#+v got=%#+v",
-					test.expResult, result)
-			}
+			require.NoError(t, err)
+			assert.Exactly(t, test.expResult, result)
 		})
 	}
 }
