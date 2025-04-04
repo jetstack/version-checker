@@ -68,7 +68,7 @@ func (p *pager) fetchTagsPaged(ctx context.Context, page int) (bool, error) {
 		go func(i int) {
 			defer p.wg.Done()
 
-			imageTags, err := p.fetchImageManifest(ctx, p.repo, p.image, &resp.Tags[i])
+			imageTag, err := p.fetchImageManifest(ctx, p.repo, p.image, &resp.Tags[i])
 
 			p.mu.Lock()
 			defer p.mu.Unlock()
@@ -78,7 +78,7 @@ func (p *pager) fetchTagsPaged(ctx context.Context, page int) (bool, error) {
 				return
 			}
 
-			p.tags = append(p.tags, imageTags...)
+			p.tags = append(p.tags, *imageTag)
 		}(i)
 	}
 

@@ -16,6 +16,8 @@ import (
 	"github.com/jetstack/version-checker/pkg/version/semver"
 )
 
+var _ cache.Handler = (*Version)(nil)
+
 type Version struct {
 	log *logrus.Entry
 
@@ -112,7 +114,7 @@ func (v *Version) Fetch(ctx context.Context, imageURL string, _ *api.Options) (i
 }
 
 // latestSemver will return the latest ImageTag based on the given options
-// restriction, using semver. This should not be used is UseSHA has been
+// restriction, using semver. This should not be used if UseSHA has been
 // enabled.
 func latestSemver(opts *api.Options, tags []api.ImageTag) (*api.ImageTag, error) {
 	var (
@@ -121,11 +123,6 @@ func latestSemver(opts *api.Options, tags []api.ImageTag) (*api.ImageTag, error)
 	)
 
 	for i := range tags {
-		// Filter out SBOM and Attestation/Sig's
-		if isSBOMAttestationOrSig(tags[i].Tag) || isSBOMAttestationOrSig(tags[i].SHA) {
-			continue
-		}
-
 		v := semver.Parse(tags[i].Tag)
 
 		if shouldSkipTag(opts, v) {

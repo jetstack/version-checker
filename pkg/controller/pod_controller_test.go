@@ -41,13 +41,14 @@ func TestNewController(t *testing.T) {
 	)
 	imageClient := &client.Client{}
 
-	controller := NewPodReconciler(5*time.Minute, metrics, imageClient, kubeClient, testLogger, true)
+	controller := NewPodReconciler(5*time.Minute, metrics, imageClient, kubeClient, testLogger, time.Hour, true)
 
 	assert.NotNil(t, controller)
 	assert.Equal(t, controller.defaultTestAll, true)
 	assert.Equal(t, controller.Client, kubeClient)
 	assert.NotNil(t, controller.VersionChecker)
 }
+
 func TestReconcile(t *testing.T) {
 	imageClient := &client.Client{}
 
@@ -84,8 +85,7 @@ func TestReconcile(t *testing.T) {
 				prometheus.NewRegistry(),
 				kubeClient,
 			)
-			controller := NewPodReconciler(5*time.Minute, metrics, imageClient, kubeClient, testLogger, true)
-			controller.RequeueDuration = 5 * time.Minute
+			controller := NewPodReconciler(5*time.Minute, metrics, imageClient, kubeClient, testLogger, 5*time.Minute, true)
 
 			ctx := context.Background()
 
@@ -113,6 +113,7 @@ func TestReconcile(t *testing.T) {
 		})
 	}
 }
+
 func TestSetupWithManager(t *testing.T) {
 	kubeClient := fake.NewClientBuilder().Build()
 	metrics := metrics.New(
@@ -121,7 +122,7 @@ func TestSetupWithManager(t *testing.T) {
 		kubeClient,
 	)
 	imageClient := &client.Client{}
-	controller := NewPodReconciler(5*time.Minute, metrics, imageClient, kubeClient, testLogger, true)
+	controller := NewPodReconciler(5*time.Minute, metrics, imageClient, kubeClient, testLogger, time.Hour, true)
 
 	mgr, err := manager.New(&rest.Config{}, manager.Options{LeaderElectionConfig: nil})
 	require.NoError(t, err)

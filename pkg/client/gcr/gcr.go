@@ -16,6 +16,9 @@ const (
 	lookupURL = "https://%s/v2/%s/tags/list"
 )
 
+// Ensure that we are an ImageClient
+var _ api.ImageClient = (*Client)(nil)
+
 type Options struct {
 	Token       string
 	Transporter http.RoundTripper
@@ -28,10 +31,11 @@ type Client struct {
 
 type Response struct {
 	Manifest map[string]ManifestItem `json:"manifest"`
+	Tags     []string                `json:"tags,omitempty"`
 }
 
 type ManifestItem struct {
-	Tag         []string `json:"tag"`
+	Tags        []string `json:"tag"`
 	TimeCreated string   `json:"timeCreatedMs"`
 }
 
@@ -98,24 +102,47 @@ func (c *Client) buildRequest(ctx context.Context, url string) (*http.Request, e
 }
 
 func (c *Client) extractImageTags(response Response) ([]api.ImageTag, error) {
-	var tags []api.ImageTag
+	tags := map[string]api.ImageTag{}
 	for sha, manifestItem := range response.Manifest {
 		timestamp, err := c.convertTimestamp(manifestItem.TimeCreated)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert timestamp string: %w", err)
 		}
 
+		// Base data shared across tags
+		base := api.ImageTag{
+			SHA:       sha,
+			Timestamp: timestamp,
+		}
+
 		// If no tag, add without and continue early.
-		if len(manifestItem.Tag) == 0 {
-			tags = append(tags, api.ImageTag{SHA: sha, Timestamp: timestamp})
+		if len(manifestItem.Tags) == 0 {
+			tags[sha] = base
 			continue
 		}
 
-		for _, tag := range manifestItem.Tag {
-			tags = append(tags, api.ImageTag{Tag: tag, SHA: sha, Timestamp: timestamp})
+		for _, tag := range manifestItem.Tags {
+			current := base   // copy the base
+			current.Tag = tag // set tag value
+
+			// Already exists — add as child
+			if parent, exists := tags[tag]; exists {
+				parent.Children = append(parent.Children, &current)
+				tags[tag] = parent
+			} else {
+				// First occurrence — assign as root
+				tags[tag] = current
+			}
 		}
 	}
-	return tags, nil
+
+	// Convert Map to Slice
+	taglist := make([]api.ImageTag, 0, len(tags))
+	for _, tag := range tags {
+		taglist = append(taglist, tag)
+	}
+
+	return taglist, nil
 }
 
 func (c *Client) convertTimestamp(timeCreated string) (time.Time, error) {

@@ -14,6 +14,7 @@ type TagResponse struct {
 type Result struct {
 	Name      string  `json:"name"`
 	Timestamp string  `json:"last_updated"`
+	Digest    string  `json:"digest,omitempty"`
 	Images    []Image `json:"images"`
 }
 

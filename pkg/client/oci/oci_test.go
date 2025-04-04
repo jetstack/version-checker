@@ -7,7 +7,9 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/registry"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
@@ -137,15 +139,13 @@ func TestClientTags(t *testing.T) {
 			tc := fn(t, host)
 
 			gotTags, err := c.Tags(ctx, host, tc.repo, tc.img)
-			if tc.wantErr && err == nil {
-				t.Errorf("unexpected nil error listing tags")
+
+			if tc.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
 			}
-			if !tc.wantErr && err != nil {
-				t.Errorf("unexpected error listing tags: %s", err)
-			}
-			if diff := cmp.Diff(tc.wantTags, gotTags); diff != "" {
-				t.Errorf("unexpected tags:\n%s", diff)
-			}
+			assert.Equal(t, tc.wantTags, gotTags)
 		})
 	}
 }
@@ -184,10 +184,8 @@ func TestClientRepoImageFromPath(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			repo, image := c.RepoImageFromPath(test.path)
-			if repo != test.expRepo && image != test.expImage {
-				t.Errorf("%s: unexpected repo/image, exp=%s/%s got=%s/%s",
-					test.path, test.expRepo, test.expImage, repo, image)
-			}
+			assert.Equal(t, test.expRepo, repo)
+			assert.Equal(t, test.expImage, image)
 		})
 	}
 }
@@ -196,8 +194,7 @@ func setupRegistry(t *testing.T) string {
 	r := httptest.NewServer(registry.New())
 	t.Cleanup(r.Close)
 	u, err := url.Parse(r.URL)
-	if err != nil {
-		t.Fatalf("unexpected error parsing registry url: %s", err)
-	}
+	require.NoError(t, err)
+
 	return u.Host
 }

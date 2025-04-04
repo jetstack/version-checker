@@ -13,6 +13,9 @@ import (
 	"github.com/google/go-github/v70/github"
 )
 
+// Ensure that we are an ImageClient
+var _ api.ImageClient = (*Client)(nil)
+
 type Options struct {
 	Token       string
 	Hostname    string
@@ -106,28 +109,43 @@ func (c *Client) buildPackageListOptions() *github.PackageListOptions {
 }
 
 func (c *Client) extractImageTags(versions []*github.PackageVersion) []api.ImageTag {
-	var tags []api.ImageTag
+	tags := map[string]api.ImageTag{}
 	for _, ver := range versions {
 		if meta, ok := ver.GetMetadata(); ok {
-			if len(meta.Container.Tags) == 0 {
-				continue
-			}
 
-			sha := ""
+			var sha string
 			if strings.HasPrefix(*ver.Name, "sha") {
 				sha = *ver.Name
 			}
 
+			base := api.ImageTag{
+				Tag:       *ver.Name,
+				SHA:       sha,
+				Timestamp: ver.CreatedAt.Time,
+			}
+
 			for _, tag := range meta.Container.Tags {
-				tags = append(tags, api.ImageTag{
-					Tag:       tag,
-					SHA:       sha,
-					Timestamp: ver.CreatedAt.Time,
-				})
+				current := base   // copy the base
+				current.Tag = tag // set tag value
+
+				// Tag Already exists — add as child
+				if parent, exists := tags[tag]; exists {
+					parent.Children = append(parent.Children, &current)
+					tags[tag] = parent
+				} else {
+					// First occurrence of Tag — assign as root
+					tags[tag] = current
+				}
 			}
 		}
 	}
-	return tags
+
+	// Convert Map to Slice
+	taglist := make([]api.ImageTag, 0, len(tags))
+	for _, tag := range tags {
+		taglist = append(taglist, tag)
+	}
+	return taglist
 }
 
 func (c *Client) ownerType(ctx context.Context, owner string) (string, error) {
