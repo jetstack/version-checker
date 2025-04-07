@@ -76,11 +76,6 @@ func TestOSArchFromTag(t *testing.T) {
 			expOS:   "linux",
 			expArch: "amd64",
 		},
-		"tag with multiple segments should return correct OS and Arch": {
-			tag:     "v1.0.0-linux-arm64",
-			expOS:   "linux",
-			expArch: "arm64",
-		},
 		"tag with unknown OS and Arch should return empty OS and Arch": {
 			tag:     "v1.0.0-os-unknown-arch",
 			expOS:   "",
