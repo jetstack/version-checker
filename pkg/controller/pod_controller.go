@@ -100,7 +100,16 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		}).
 		WithEventFilter(predicate.Funcs{
 			CreateFunc: func(_ event.TypedCreateEvent[k8sclient.Object]) bool { return true },
-			UpdateFunc: func(_ event.TypedUpdateEvent[k8sclient.Object]) bool { return true },
+			UpdateFunc: func(e event.TypedUpdateEvent[k8sclient.Object]) bool {
+				oldAnn := e.ObjectOld.GetAnnotations()
+				newAnn := e.ObjectNew.GetAnnotations()
+
+				if !annotationsEqual(oldAnn, newAnn) {
+					// Remove metrics for pod, if the annotations have changed
+					r.Metrics.RemovePod(e.ObjectOld.GetNamespace(), e.ObjectOld.GetName())
+				}
+				return true
+			},
 			DeleteFunc: func(e event.TypedDeleteEvent[k8sclient.Object]) bool {
 				r.Log.Infof("Pod deleted: %s/%s", e.Object.GetNamespace(), e.Object.GetName())
 				r.Metrics.RemovePod(e.Object.GetNamespace(), e.Object.GetName())
@@ -108,4 +117,17 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			},
 		}).
 		Complete(r)
+}
+
+// annotationsEqual compares two annotation maps for equality.
+func annotationsEqual(a, b map[string]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for key, valA := range a {
+		if valB, ok := b[key]; !ok || valA != valB {
+			return false
+		}
+	}
+	return true
 }
