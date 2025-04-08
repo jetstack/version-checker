@@ -14,7 +14,6 @@ import (
 
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/jetstack/version-checker/pkg/api"
-	"github.com/jetstack/version-checker/pkg/client/util"
 )
 
 // Ensure that we are an ImageClient
@@ -98,14 +97,9 @@ func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTa
 			}
 
 			tag := api.ImageTag{
-				Tag:          result.Name,
-				Timestamp:    timestamp,
-				SHA:          result.Digest, // This isn't _always_ returned
-				OS:           "",
-				Architecture: "",
+				Tag:       result.Name,
+				Timestamp: timestamp,
 			}
-			// Attempt to get OS/Arch, from the Tag Name
-			tag.OS, tag.Architecture = util.OSArchFromTag(result.Name)
 
 			for _, image := range result.Images {
 				// Image without digest contains no real image.

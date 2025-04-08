@@ -77,6 +77,38 @@ func TestContainer(t *testing.T) {
 				IsLatest:       true,
 			},
 		},
+		"if v0.2.0 is latest version, but sha is not in cache, then not latest": {
+			statusSHA: "localhost:5000/version-checker@sha:123",
+			imageURL:  "localhost:5000/version-checker:v0.2.0",
+			opts:      new(api.Options),
+			searchResp: &api.ImageTag{
+				Tag:      "v0.2.0",
+				SHA:      "",
+				Children: []*api.ImageTag{{SHA: "sha:789"}},
+			},
+			expResult: &Result{
+				CurrentVersion: "v0.2.0@sha:123",
+				LatestVersion:  "v0.2.0@sha:789",
+				ImageURL:       "localhost:5000/version-checker",
+				IsLatest:       false,
+			},
+		},
+		"if v0.2.0 is latest version, but sha is not in cache, and multiple possible shas, then not latest": {
+			statusSHA: "localhost:5000/version-checker@123",
+			imageURL:  "localhost:5000/version-checker:v0.2.0",
+			opts:      new(api.Options),
+			searchResp: &api.ImageTag{
+				Tag:      "v0.2.0",
+				SHA:      "",
+				Children: []*api.ImageTag{{SHA: "789"}, {SHA: "sha:987"}},
+			},
+			expResult: &Result{
+				CurrentVersion: "v0.2.0@123",
+				LatestVersion:  "v0.2.0@789",
+				ImageURL:       "localhost:5000/version-checker",
+				IsLatest:       false,
+			},
+		},
 		"if v0.2.0@sha:123 is wrong sha, then not latest": {
 			statusSHA: "localhost:5000/version-checker@sha:123",
 			imageURL:  "localhost:5000/version-checker:v0.2.0@sha:123",
@@ -513,20 +545,21 @@ func TestIsLatestSHA(t *testing.T) {
 		searchResp           *api.ImageTag
 		expResult            *Result
 	}{
-		"if SHA not eqaual, then should be not equal": {
+		"if SHA not equal, then should be not equal": {
 			imageURL:   "docker.io",
 			currentSHA: "123",
 			searchResp: &api.ImageTag{
 				SHA: "456",
+				Tag: "foo",
 			},
 			expResult: &Result{
 				CurrentVersion: "123",
-				LatestVersion:  "456",
+				LatestVersion:  "foo@456",
 				IsLatest:       false,
 				ImageURL:       "docker.io",
 			},
 		},
-		"if SHA eqaual, then should be equal": {
+		"if SHA equal, then should be equal": {
 			imageURL:   "docker.io",
 			currentSHA: "123",
 			searchResp: &api.ImageTag{
@@ -536,6 +569,68 @@ func TestIsLatestSHA(t *testing.T) {
 				CurrentVersion: "123",
 				LatestVersion:  "123",
 				IsLatest:       true,
+				ImageURL:       "docker.io",
+			},
+		},
+		"if child SHA equal, then should be equal": {
+			imageURL:   "docker.io",
+			currentSHA: "123",
+			searchResp: &api.ImageTag{
+				SHA: "456",
+				Tag: "foo",
+				Children: []*api.ImageTag{
+					&api.ImageTag{
+						SHA: "123",
+					},
+				},
+			},
+			expResult: &Result{
+				CurrentVersion: "123",
+				LatestVersion:  "foo@123",
+				IsLatest:       true,
+				ImageURL:       "docker.io",
+			},
+		},
+		"if child SHA equal, and parent SHA empty, then should be equal": {
+			imageURL:   "docker.io",
+			currentSHA: "123",
+			searchResp: &api.ImageTag{
+				SHA: "",
+				Tag: "foo",
+				Children: []*api.ImageTag{
+					&api.ImageTag{
+						SHA: "123",
+					},
+					&api.ImageTag{
+						SHA: "456",
+					},
+				},
+			},
+			expResult: &Result{
+				CurrentVersion: "123",
+				LatestVersion:  "foo@123",
+				IsLatest:       true,
+				ImageURL:       "docker.io",
+			},
+		},
+		"if child SHA not equal, and parent SHA empty, then should not be equal": {
+			imageURL:   "docker.io",
+			currentSHA: "123",
+			searchResp: &api.ImageTag{
+				SHA: "",
+				Children: []*api.ImageTag{
+					&api.ImageTag{
+						SHA: "456",
+					},
+					&api.ImageTag{
+						SHA: "789",
+					},
+				},
+			},
+			expResult: &Result{
+				CurrentVersion: "123",
+				LatestVersion:  "",
+				IsLatest:       false,
 				ImageURL:       "docker.io",
 			},
 		},
