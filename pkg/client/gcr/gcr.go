@@ -20,8 +20,8 @@ const (
 var _ api.ImageClient = (*Client)(nil)
 
 type Options struct {
-	Token       string
 	Transporter http.RoundTripper
+	Token       string
 }
 
 type Client struct {
@@ -35,8 +35,8 @@ type Response struct {
 }
 
 type ManifestItem struct {
-	Tags        []string `json:"tag"`
 	TimeCreated string   `json:"timeCreatedMs"`
+	Tags        []string `json:"tag"`
 }
 
 func New(opts Options) *Client {

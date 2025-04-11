@@ -17,15 +17,15 @@ import (
 var _ api.ImageClient = (*Client)(nil)
 
 type Options struct {
+	Transporter http.RoundTripper
 	Token       string
 	Hostname    string
-	Transporter http.RoundTripper
 }
 
 type Client struct {
 	client     *github.Client
-	opts       Options
 	ownerTypes map[string]string
+	opts       Options
 }
 
 func New(opts Options) *Client {

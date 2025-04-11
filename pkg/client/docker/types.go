@@ -12,10 +12,14 @@ type TagResponse struct {
 }
 
 type Result struct {
-	Name      string  `json:"name"`
-	Timestamp string  `json:"last_updated"`
-	Digest    string  `json:"digest,omitempty"`
-	Images    []Image `json:"images"`
+	Name      string `json:"name"`
+	Timestamp string `json:"last_updated"`
+	TagStatus string `json:"tag_status"` // String of "active" or "inactive"
+	MediaType string `json:"media_type,omitempty"`
+	// Digest is only set with `application/vnd.oci.image.index.v1+json` media_type
+	Digest string `json:"digest,omitempty"`
+
+	Images []Image `json:"images"`
 }
 
 type Image struct {

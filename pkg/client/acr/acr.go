@@ -104,14 +104,7 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 			}
 		}
 	}
-
-	// Convert Map to Slice
-	taglist := make([]api.ImageTag, 0, len(tags))
-	for _, tag := range tags {
-		taglist = append(taglist, tag)
-	}
-
-	return taglist, nil
+	return util.TagMaptoList(tags), nil
 }
 
 func (c *Client) getManifestsWithClient(ctx context.Context, client *acrClient, host, repo, image string) (*http.Response, error) {

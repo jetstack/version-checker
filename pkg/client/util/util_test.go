@@ -97,3 +97,41 @@ func TestOSArchFromTag(t *testing.T) {
 		})
 	}
 }
+func TestTagMaptoList(t *testing.T) {
+	tests := map[string]struct {
+		tags    map[string]api.ImageTag
+		expList []api.ImageTag
+	}{
+		"empty map should return empty list": {
+			tags:    map[string]api.ImageTag{},
+			expList: []api.ImageTag{},
+		},
+		"single entry map should return single element list": {
+			tags: map[string]api.ImageTag{
+				"v1.0.0": {Tag: "v1.0.0"},
+			},
+			expList: []api.ImageTag{
+				{Tag: "v1.0.0"},
+			},
+		},
+		"multiple entry map should return list with all elements": {
+			tags: map[string]api.ImageTag{
+				"v1.0.0": {Tag: "v1.0.0"},
+				"v1.1.0": {Tag: "v1.1.0"},
+				"v2.0.0": {Tag: "v2.0.0"},
+			},
+			expList: []api.ImageTag{
+				{Tag: "v1.0.0"},
+				{Tag: "v1.1.0"},
+				{Tag: "v2.0.0"},
+			},
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			result := TagMaptoList(test.tags)
+			assert.ElementsMatch(t, result, test.expList)
+		})
+	}
+}

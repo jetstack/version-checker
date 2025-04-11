@@ -20,8 +20,8 @@ const (
 )
 
 type Options struct {
-	Token       string
 	Transporter http.RoundTripper
+	Token       string
 }
 
 type Client struct {
