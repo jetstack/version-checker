@@ -14,11 +14,11 @@ type pager struct {
 
 	repo, image string
 
-	mu sync.Mutex
-	wg sync.WaitGroup
-
 	tags []api.ImageTag
 	errs []error
+	wg   sync.WaitGroup
+
+	mu sync.Mutex
 }
 
 func (c *Client) newPager(repo, image string) *pager {
@@ -55,20 +55,28 @@ func (p *pager) fetchTags(ctx context.Context) error {
 // fetchTagsPaged will return the image tags from a given page number, as well
 // as if there are more pages.
 func (p *pager) fetchTagsPaged(ctx context.Context, page int) (bool, error) {
+	select {
+	case <-ctx.Done():
+		return false, ctx.Err()
+	default:
+	}
+
 	url := fmt.Sprintf(tagURL, p.repo, p.image, page)
 	var resp responseTag
 	if err := p.makeRequest(ctx, url, &resp); err != nil {
 		return false, err
 	}
 
+	sem := make(chan struct{}, 10) // limit concurrent fetches
 	p.wg.Add(len(resp.Tags))
 
-	// Concurrently fetch all images from a given tag
-	for i := range resp.Tags {
-		go func(i int) {
+	for _, tag := range resp.Tags {
+		go func(tag responseTagItem) {
 			defer p.wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
 
-			imageTag, err := p.fetchImageManifest(ctx, p.repo, p.image, &resp.Tags[i])
+			imageTag, err := p.fetchImageManifest(ctx, p.repo, p.image, &tag)
 
 			p.mu.Lock()
 			defer p.mu.Unlock()
@@ -79,7 +87,7 @@ func (p *pager) fetchTagsPaged(ctx context.Context, page int) (bool, error) {
 			}
 
 			p.tags = append(p.tags, *imageTag)
-		}(i)
+		}(tag)
 	}
 
 	return resp.HasAdditional, nil

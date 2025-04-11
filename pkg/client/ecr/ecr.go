@@ -18,17 +18,16 @@ import (
 var _ api.ImageClient = (*Client)(nil)
 
 type Client struct {
-	Config aws.Config
-
 	Options
+	Config aws.Config
 }
 
 type Options struct {
+	Transporter     http.RoundTripper
 	IamRoleArn      string
 	AccessKeyID     string
 	SecretAccessKey string
 	SessionToken    string
-	Transporter     http.RoundTripper
 }
 
 func New(opts Options) *Client {
@@ -96,13 +95,7 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 		}
 	}
 
-	// Convert Map to Slice
-	taglist := make([]api.ImageTag, 0, len(tags))
-	for _, tag := range tags {
-		taglist = append(taglist, tag)
-	}
-
-	return taglist, nil
+	return util.TagMaptoList(tags), nil
 }
 
 func (c *Client) createClient(ctx context.Context, region string) (*ecr.Client, error) {

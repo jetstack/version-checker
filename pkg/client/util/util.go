@@ -72,3 +72,11 @@ func OSArchFromTag(tag string) (os api.OS, arch api.Architecture) {
 
 	return os, arch
 }
+
+func TagMaptoList(tags map[string]api.ImageTag) []api.ImageTag {
+	taglist := make([]api.ImageTag, 0, len(tags))
+	for _, tag := range tags {
+		taglist = append(taglist, tag)
+	}
+	return taglist
+}

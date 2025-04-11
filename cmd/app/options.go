@@ -64,20 +64,21 @@ var (
 
 // Options is a struct to hold options for the version-checker.
 type Options struct {
+	kubeConfigFlags *genericclioptions.ConfigFlags
+
+	Client                client.Options
 	MetricsServingAddress string
-	DefaultTestAll        bool
-	CacheTimeout          time.Duration
-	RequeueDuration       time.Duration
 	LogLevel              string
 
-	PprofBindAddress        string
+	PprofBindAddress string
+	selfhosted       selfhosted.Options
+
+	CacheTimeout            time.Duration
+	RequeueDuration         time.Duration
 	GracefulShutdownTimeout time.Duration
 	CacheSyncPeriod         time.Duration
 
-	kubeConfigFlags *genericclioptions.ConfigFlags
-	selfhosted      selfhosted.Options
-
-	Client client.Options
+	DefaultTestAll bool
 }
 
 func (o *Options) addFlags(cmd *cobra.Command) {

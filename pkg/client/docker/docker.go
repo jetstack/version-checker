@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/time/rate"
+
 	"github.com/sirupsen/logrus"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -19,34 +21,52 @@ import (
 // Ensure that we are an ImageClient
 var _ api.ImageClient = (*Client)(nil)
 
+// Values taken from: https://docs.docker.com/docker-hub/usage/#abuse-rate-limit
+const (
+	windowDuration = time.Minute
+	APIRateLimit   = 500
+	maxWait        = time.Hour
+)
+
 const (
 	loginURL  = "https://hub.docker.com/v2/users/login/"
 	lookupURL = "https://registry.hub.docker.com/v2/repositories/%s/%s/tags?page_size=100"
 )
 
 type Options struct {
+	Transporter http.RoundTripper
 	Username    string
 	Password    string
 	Token       string
-	Transporter http.RoundTripper
 }
 
 type Client struct {
 	*http.Client
 	Options
+
+	log     *logrus.Entry
+	limiter *rate.Limiter
 }
 
 func New(opts Options, log *logrus.Entry) (*Client, error) {
 	ctx := context.Background()
+
+	limiter := rate.NewLimiter(
+		rate.Every(windowDuration/APIRateLimit),
+		1,
+	)
+	log = log.WithField("client", "docker")
+
 	retryclient := retryablehttp.NewClient()
 	if opts.Transporter != nil {
 		retryclient.HTTPClient.Transport = opts.Transporter
 	}
+	retryclient.Backoff = util.RateLimitedBackoffLimiter(log, limiter, maxWait)
 	retryclient.HTTPClient.Timeout = 10 * time.Second
 	retryclient.RetryMax = 10
 	retryclient.RetryWaitMax = 2 * time.Minute
 	retryclient.RetryWaitMin = 1 * time.Second
-	retryclient.Logger = log.WithField("client", "docker")
+	retryclient.Logger = log
 	client := retryclient.StandardClient()
 
 	// Setup Auth if username and password used.
@@ -65,6 +85,8 @@ func New(opts Options, log *logrus.Entry) (*Client, error) {
 	return &Client{
 		Options: opts,
 		Client:  client,
+		log:     log,
+		limiter: limiter,
 	}, nil
 }
 
@@ -97,8 +119,9 @@ func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTa
 			}
 
 			tag := api.ImageTag{
-				Tag:       result.Name,
-				Timestamp: timestamp,
+				Tag:          result.Name,
+				Timestamp:    timestamp,
+				SHA:          result.Digest,
 			}
 
 			for _, image := range result.Images {
@@ -114,6 +137,11 @@ func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTa
 					OS:           image.OS,
 					Architecture: image.Architecture,
 				})
+			}
+
+			// If we only have one child, and it has a SHA, then lets use that in the parent
+			if tag.SHA == "" && len(tag.Children) == 1 && tag.Children[0].SHA != "" {
+				tag.SHA = tag.Children[0].SHA
 			}
 
 			// Append our Tag at the end...
@@ -137,6 +165,7 @@ func (c *Client) doRequest(ctx context.Context, url string) (*TagResponse, error
 	if len(c.Token) > 0 {
 		req.Header.Add("Authorization", "Bearer "+c.Token)
 	}
+	req.Header.Set("User-Agent", "version-checker/docker")
 
 	resp, err := c.Do(req)
 	if err != nil {
@@ -169,6 +198,7 @@ func basicAuthSetup(ctx context.Context, client *http.Client, opts Options) (str
 		return "", err
 	}
 
+	req.Header.Set("User-Agent", "version-checker/docker")
 	req.Header.Set("Content-Type", "application/json")
 	req = req.WithContext(ctx)
 
