@@ -228,7 +228,7 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 		}
 
 		if len(manifestListResponse.Manifests) == 0 {
-
+			// TODO:
 		}
 
 		for _, manifest := range manifestListResponse.Manifests {

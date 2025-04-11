@@ -128,15 +128,20 @@ func (c *Client) Manifests(ctx context.Context, repo name.Repository, tags []str
 				Timestamp: ts,
 			}
 
-			// We have a suitable Image Index!
-			if manifest.MediaType == types.OCIImageIndex || manifest.MediaType == types.DockerManifestList {
+			switch manifest.MediaType {
+
+			case types.OCIImageIndex, types.DockerManifestList:
 				children := []*api.ImageTag{}
 				imgidx, err := manifest.ImageIndex()
 				if err != nil {
-					log.Errorf("getting imageindex: %s", err)
+					log.Errorf("getting ImageIndex: %s", err)
 					return
 				}
 				idxman, err := imgidx.IndexManifest()
+				if err != nil {
+					log.Errorf("getting IndexManifest: %s", err)
+					return
+				}
 				for _, img := range idxman.Manifests {
 
 					children = append(children, &api.ImageTag{
@@ -145,7 +150,8 @@ func (c *Client) Manifests(ctx context.Context, repo name.Repository, tags []str
 					})
 				}
 				baseTag.Children = children
-			} else if manifest.MediaType == types.OCIManifestSchema1 || manifest.MediaType == types.DockerManifestSchema2 {
+
+			case types.OCIManifestSchema1, types.DockerManifestSchema2:
 				img, err := manifest.Image()
 				if err != nil {
 					log.Errorf("unable to collect image from manifest: %s", err)
