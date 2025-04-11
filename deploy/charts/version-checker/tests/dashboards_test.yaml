@@ -21,6 +21,19 @@ tests:
       - isNotEmpty:
           path: .data["internal.json"]
 
+  - it: works w/ custom labels
+    set:
+      dashboards.labels:
+        grafana: "123"
+    asserts:
+      - isKind:
+          of: ConfigMap
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.labels.grafana
+          value: "123"
+
   - it: Works w/ GrafanaDashboard
     capabilities:
       apiVersions:
