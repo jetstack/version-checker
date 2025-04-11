@@ -9,12 +9,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint:
-    permissions:
-      contents: read # for actions/checkout to fetch code
-      pull-requests: read # for golangci/golangci-lint-action to fetch pull requests
-      checks: write # for golangci/golangci-lint-action to annotate Pull Requests
-    name: Lint Go code
+  setup:
+    name: "Checkout and Setup"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -23,6 +19,17 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+
+  lint:
+    needs:
+      - setup
+    permissions:
+      contents: read # for actions/checkout to fetch code
+      pull-requests: read # for golangci/golangci-lint-action to fetch pull requests
+      checks: write # for golangci/golangci-lint-action to annotate Pull Requests
+    name: Lint Go code
+    runs-on: ubuntu-latest
+    steps:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@1481404843c368bc19ca9406f87d6e0fc97bdcfd # v7.0.0
         with:
@@ -31,6 +38,8 @@ jobs:
           only-new-issues: true
 
   govulncheck:
+    needs:
+      - setup
     runs-on: ubuntu-latest
     name: Run govulncheck
     steps:
@@ -41,16 +50,11 @@ jobs:
           go-package: ./...
 
   test:
+    needs:
+      - setup
     name: Run unit tests for Go packages
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4 # v3.5.3
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-
       - name: Download and required packages
         run: |
           make deps
@@ -75,6 +79,7 @@ jobs:
 
   build:
     needs:
+      - setup
       - test
       - lint
     runs-on: ubuntu-latest
@@ -86,8 +91,6 @@ jobs:
           - linux/arm64
     name: Build Images
     steps:
-      - name: Checkout code
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 

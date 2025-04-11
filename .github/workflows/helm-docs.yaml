@@ -4,8 +4,8 @@ on:
   workflow_call:
   push:
     paths:
-      - '!*.md'
-      - 'deploy/charts/version-checker/**'
+      - "!*.md"
+      - "deploy/charts/version-checker/**"
     branches:
       - main
 

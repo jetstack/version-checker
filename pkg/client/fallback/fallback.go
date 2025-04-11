@@ -12,11 +12,13 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type Client struct {
-	clients []api.ImageClient
+// Ensure that we are an ImageClient
+var _ api.ImageClient = (*Client)(nil)
 
+type Client struct {
 	log       *logrus.Entry
 	hostCache *cache.Cache
+	clients   []api.ImageClient
 }
 
 func New(ctx context.Context, log *logrus.Entry, clients []api.ImageClient) (*Client, error) {

@@ -64,19 +64,21 @@ var (
 
 // Options is a struct to hold options for the version-checker.
 type Options struct {
+	kubeConfigFlags *genericclioptions.ConfigFlags
+
+	Client                client.Options
 	MetricsServingAddress string
-	DefaultTestAll        bool
-	CacheTimeout          time.Duration
 	LogLevel              string
 
-	PprofBindAddress        string
+	PprofBindAddress string
+	selfhosted       selfhosted.Options
+
+	CacheTimeout            time.Duration
+	RequeueDuration         time.Duration
 	GracefulShutdownTimeout time.Duration
 	CacheSyncPeriod         time.Duration
 
-	kubeConfigFlags *genericclioptions.ConfigFlags
-	selfhosted      selfhosted.Options
-
-	Client client.Options
+	DefaultTestAll bool
 }
 
 func (o *Options) addFlags(cmd *cobra.Command) {
@@ -123,6 +125,10 @@ func (o *Options) addAppFlags(fs *pflag.FlagSet) {
 		"image-cache-timeout", "c", time.Minute*30,
 		"The time for an image version in the cache to be considered fresh. Images "+
 			"will be rechecked after this interval.")
+
+	fs.DurationVarP(&o.RequeueDuration,
+		"requeue-duration", "r", time.Hour,
+		"The time a pod will be re-checked for new versions/tags")
 
 	fs.StringVarP(&o.LogLevel,
 		"log-level", "v", "info",

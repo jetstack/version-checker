@@ -15,6 +15,10 @@ func isSBOMAttestationOrSig(tag string) bool {
 
 // Used when filtering Tags as a SemVer
 func shouldSkipTag(opts *api.Options, v *semver.SemVer) bool {
+	if isSBOMAttestationOrSig(v.String()) {
+		return true
+	}
+
 	// Handle Regex matching
 	if opts.RegexMatcher != nil {
 		return !opts.RegexMatcher.MatchString(v.String())

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestIsHost(t *testing.T) {
@@ -77,10 +78,9 @@ func TestIsHost(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			if isHost := handler.IsHost(test.host); isHost != test.expIs {
-				t.Errorf("%s: unexpected IsHost, exp=%t got=%t",
-					test.host, test.expIs, isHost)
-			}
+			assert.Equal(t, test.expIs,
+				handler.IsHost(test.host),
+			)
 		})
 	}
 }

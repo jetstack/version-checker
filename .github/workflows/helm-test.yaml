@@ -2,41 +2,47 @@ name: Test Helm Chart
 on:
   pull_request:
     paths:
-      - '!*.md'
-      - 'deploy/charts/version-checker/**'
+      - "!*.md"
+      - "deploy/charts/version-checker/**"
     branches:
-      - 'main'
+      - "main"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  lint:
-    permissions:
-      contents: read  # for actions/checkout to fetch code
-      pull-requests: read  # for golangci/golangci-lint-action to fetch pull requests
-    name: Lint Helm Chart
+  setup:
+    name: "Checkout and Setup"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
-
-      - uses: azure/setup-helm@v4
-
-      - run: helm lint deploy/charts/version-checker
-
-  test:
-    name: Run unit tests for Helm Chart
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
-
+      - name: Setup Golang
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
       - uses: azure/setup-helm@v4
         with:
           token: ${{ github.token }}
 
+  lint:
+    needs:
+      - setup
+    permissions:
+      contents: read # for actions/checkout to fetch code
+      pull-requests: read # for golangci/golangci-lint-action to fetch pull requests
+    name: Lint Helm Chart
+    runs-on: ubuntu-latest
+    steps:
+      - run: helm lint deploy/charts/version-checker
+
+  test:
+    needs:
+      - setup
+    name: Run unit tests for Helm Chart
+    runs-on: ubuntu-latest
+    steps:
       - name: Install helm Plugins
         run: |
           if [ ! -e "${HELM_PLUGINS}/helm-unittest" ]; then
@@ -52,6 +58,8 @@ jobs:
           helm unittest deploy/charts/version-checker
 
   security_policies:
+    needs:
+      - setup
     name: Verify that the Helm chart complies with the pod security standards
     runs-on: ubuntu-latest
     steps:
@@ -59,5 +67,4 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       - name: Install Kyverno CLI
         uses: kyverno/action-install-cli@v0.2.0
-      - uses: azure/setup-helm@v4
       - run: kyverno apply -p https://github.com/kyverno/policies/pod-security/restricted --git-branch main --resource <(helm template deploy/charts/version-checker/)

@@ -2,8 +2,9 @@ package app
 
 import (
 	"os"
-	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/jetstack/version-checker/pkg/client"
 	"github.com/jetstack/version-checker/pkg/client/acr"
@@ -181,10 +182,7 @@ func TestComplete(t *testing.T) {
 			o := new(Options)
 			o.complete()
 
-			if !reflect.DeepEqual(o.Client, test.expOptions) {
-				t.Errorf("unexpected client options, exp=%#+v got=%#+v",
-					test.expOptions, o.Client)
-			}
+			assert.Exactly(t, test.expOptions, o.Client)
 		})
 	}
 }
@@ -305,10 +303,7 @@ func TestAssignSelfhosted(t *testing.T) {
 			o := new(Options)
 			o.assignSelfhosted(test.envs)
 
-			if !reflect.DeepEqual(o.Client.Selfhosted, test.expOptions.Selfhosted) {
-				t.Errorf("unexpected client selfhosted options, exp=%#+v got=%#+v",
-					test.expOptions.Selfhosted, o.Client.Selfhosted)
-			}
+			assert.Exactly(t, test.expOptions.Selfhosted, o.Client.Selfhosted)
 		})
 	}
 }
