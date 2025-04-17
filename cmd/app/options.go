@@ -252,49 +252,51 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&o.selfhosted.Username,
 		"selfhosted-username", "",
 		fmt.Sprintf(
-			"Username is authenticate with a selfhosted registry (%s_%s).",
-			envPrefix, envSelfhostedUsername,
+			"Username is authenticate with a selfhosted registry (%s_%s_%s).",
+			envPrefix, envSelfhostedPrefix, envSelfhostedUsername,
 		))
 	fs.StringVar(&o.selfhosted.Password,
 		"selfhosted-password", "",
 		fmt.Sprintf(
-			"Password is authenticate with a selfhosted registry (%s_%s).",
-			envPrefix, envSelfhostedPassword,
+			"Password is authenticate with a selfhosted registry (%s_%s_%s).",
+			envPrefix, envSelfhostedPrefix, envSelfhostedPassword,
 		))
 	fs.StringVar(&o.selfhosted.Bearer,
 		"selfhosted-token", "",
 		fmt.Sprintf(
 			"Token to authenticate to a selfhosted registry. Cannot be used with "+
-				"username/password (%s_%s).",
-			envPrefix, envSelfhostedBearer,
+				"username/password (%s_%s_%s).",
+			envPrefix, envSelfhostedPrefix, envSelfhostedBearer,
 		))
 	fs.StringVar(&o.selfhosted.TokenPath,
 		"selfhosted-token-path", "",
 		fmt.Sprintf(
 			"Override the default selfhosted registry's token auth path. "+
-				"(%s_%s).",
-			envPrefix, envSelfhostedTokenPath,
+				"(%s_%s_%s).",
+			envPrefix, envSelfhostedPrefix, envSelfhostedTokenPath,
 		))
 	fs.StringVar(&o.selfhosted.Host,
 		"selfhosted-registry-host", "",
 		fmt.Sprintf(
-			"Full host of the selfhosted registry. Include http[s] scheme (%s_%s)",
-			envPrefix, envSelfhostedHost,
+			"Full host of the selfhosted registry. Include http[s] scheme (%s_%s_%s)",
+			envPrefix, envSelfhostedPrefix, envSelfhostedHost,
 		))
-	fs.StringVar(&o.selfhosted.Host,
+	fs.StringVar(&o.selfhosted.CAPath,
 		"selfhosted-registry-ca-path", "",
 		fmt.Sprintf(
-			"Absolute path to a PEM encoded x509 certificate chain. (%s_%s)",
-			envPrefix, envSelfhostedCAPath,
+			"Absolute path to a PEM encoded x509 certificate chain. (%s_%s_%s)",
+			envPrefix, envSelfhostedPrefix, envSelfhostedCAPath,
 		))
 	fs.BoolVarP(&o.selfhosted.Insecure,
 		"selfhosted-insecure", "", false,
 		fmt.Sprintf(
 			"Enable/Disable SSL Certificate Validation. WARNING: "+
-				"THIS IS NOT RECOMMENDED AND IS INTENDED FOR DEBUGGING (%s_%s)",
-			envPrefix, envSelfhostedInsecure,
+				"THIS IS NOT RECOMMENDED AND IS INTENDED FOR DEBUGGING (%s_%s_%s)",
+			envPrefix, envSelfhostedPrefix, envSelfhostedInsecure,
 		))
-	///
+	// if !validSelfHostedOpts(o) {
+	// 	panic(fmt.Errorf("invalid self hosted configuration"))
+	// }
 }
 
 func (o *Options) complete() {
@@ -414,4 +416,26 @@ func (o *Options) assignSelfhosted(envs []string) {
 	if len(o.selfhosted.Host) > 0 {
 		o.Client.Selfhosted[o.selfhosted.Host] = &o.selfhosted
 	}
+	if !validSelfHostedOpts(o) {
+		panic(fmt.Errorf("invalid self hosted configuration"))
+	}
+}
+
+func validSelfHostedOpts(opts *Options) bool {
+	// opts set using env vars
+	if opts.Client.Selfhosted != nil {
+		for _, selfHostedOpts := range opts.Client.Selfhosted {
+			return isValidOption(selfHostedOpts.Host, "")
+		}
+	}
+
+	// opts set using flags
+	if opts.selfhosted != (selfhosted.Options{}) {
+		return isValidOption(opts.selfhosted.Host, "")
+	}
+	return true
+}
+
+func isValidOption(option, invalid string) bool {
+	return option != invalid
 }
