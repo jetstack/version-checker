@@ -189,6 +189,61 @@ func TestComplete(t *testing.T) {
 	}
 }
 
+func TestInvalidSelfhostedPanic(t *testing.T) {
+	tests := map[string]struct {
+		envs []string
+	}{
+		"single host for all options should be included": {
+			envs: []string{
+				"VERSION_CHECKER_SELFHOSTED_INSECURE_FOO=true",
+			},
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			defer func() { recover() }()
+
+			o := new(Options)
+			o.assignSelfhosted(test.envs)
+
+			t.Errorf("did not panic")
+		})
+	}
+}
+
+func TestInvalidSelfhostedOpts(t *testing.T) {
+	tests := map[string]struct {
+		opts  Options
+		valid bool
+	}{
+		"no self hosted configuration": {
+			opts:  Options{},
+			valid: true,
+		},
+		"no self hosted host provided": {
+			opts: Options{
+				Client: client.Options{
+					Selfhosted: map[string]*selfhosted.Options{"foo": &selfhosted.Options{
+						Insecure: true,
+					}},
+				},
+			},
+			valid: false,
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+
+			valid := validSelfHostedOpts(&test.opts)
+
+			if !reflect.DeepEqual(test.valid, valid) {
+				t.Errorf("unexpected selfhosted valid options, exp=%#+v got=%#+v",
+					test.valid, valid)
+			}
+		})
+	}
+}
+
 func TestAssignSelfhosted(t *testing.T) {
 	tests := map[string]struct {
 		envs       []string
