@@ -232,11 +232,7 @@ func (c *Client) doRequest(ctx context.Context, url, header string, obj interfac
 	req = req.WithContext(ctx)
 	if len(c.Bearer) > 0 {
 		req.Header.Add("Authorization", "Bearer "+c.Bearer)
-<<<<<<< HEAD
 	} else if c.Username != "" && c.Password != "" {
-=======
-	} else if len(c.Username) > 0 && len(c.Password) > 0 {
->>>>>>> 8e64777... Add ginkgo e2e tests
 		req.SetBasicAuth(c.Username, c.Password)
 	}
 

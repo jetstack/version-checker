@@ -1,4 +1,4 @@
-package suite
+package selfhosted
 
 import (
 	"bytes"
@@ -12,23 +12,41 @@ import (
 	"github.com/itchyny/gojq"
 )
 
-var _ = Describe("version-checker", func() {
-	// BeforeEach(func() {
-	// 	cmd := exec.Command("kubectl", "apply", "-f", "./manifests/kaniko.yaml")
-	// 	cmd.Stdout = GinkgoWriter
-	// 	cmd.Stderr = GinkgoWriter
-	// 	Expect(cmd.Run()).NotTo(HaveOccurred())
-	// 	cmd = exec.Command("kubectl", "wait", "pod", "-lapp=e2e-kaniko", "--timeout=30s", "--for=jsonpath='{.status.containerStatuses[*].state.terminated.reason}'=Completed")
-	// 	cmd.Stdout = GinkgoWriter
-	// 	cmd.Stderr = GinkgoWriter
-	// 	Expect(cmd.Run()).NotTo(HaveOccurred())
-	// })
-	// AfterEach(func() {
-	// 	cmd := exec.Command("kubectl", "delete", "-f", "./manifests/kaniko.yaml")
-	// 	cmd.Stdout = GinkgoWriter
-	// 	cmd.Stderr = GinkgoWriter
-	// 	Expect(cmd.Run()).NotTo(HaveOccurred())
-	// })
+var _ = BeforeSuite(func() {
+	cmd := exec.Command("helm", "repo", "add", "twuni", "https://helm.twun.io")
+	cmd.Stdout = GinkgoWriter
+	cmd.Stderr = GinkgoWriter
+	Expect(cmd.Run()).NotTo(HaveOccurred())
+	cmd = exec.Command("helm", "upgrade", "--install", "--create-namespace", "-n", "registry", "--wait", "--set", "service.type=NodePort", "--set", "service.nodePort=30443", "-f", "./manifests/docker-registry-values.yaml", "docker-registry", "twuni/docker-registry")
+	cmd.Stdout = GinkgoWriter
+	cmd.Stderr = GinkgoWriter
+	Expect(cmd.Run()).NotTo(HaveOccurred())
+})
+
+var _ = AfterSuite(func() {
+	cmd := exec.Command("helm", "uninstall", "-n", "registry", "--wait", "docker-registry")
+	cmd.Stdout = GinkgoWriter
+	cmd.Stderr = GinkgoWriter
+	Expect(cmd.Run()).NotTo(HaveOccurred())
+})
+
+var _ = Describe("version-checker selfhosted", func() {
+	BeforeEach(func() {
+		cmd := exec.Command("kubectl", "apply", "-f", "./manifests/kaniko.yaml", "-f", "./manifests/docker-credentials.yaml")
+		cmd.Stdout = GinkgoWriter
+		cmd.Stderr = GinkgoWriter
+		Expect(cmd.Run()).NotTo(HaveOccurred())
+		cmd = exec.Command("kubectl", "wait", "pod", "-lapp=e2e-kaniko", "--timeout=30s", "--for=jsonpath={.status.containerStatuses[*].state.terminated.reason}=Completed")
+		cmd.Stdout = GinkgoWriter
+		cmd.Stderr = GinkgoWriter
+		Expect(cmd.Run()).NotTo(HaveOccurred())
+	})
+	AfterEach(func() {
+		cmd := exec.Command("kubectl", "delete", "-f", "./manifests/kaniko.yaml")
+		cmd.Stdout = GinkgoWriter
+		cmd.Stderr = GinkgoWriter
+		Expect(cmd.Run()).NotTo(HaveOccurred())
+	})
 
 	JustBeforeEach(func() {
 		cmd := exec.Command("kubectl", "apply", "-f", "./manifests/prom2json.yaml")

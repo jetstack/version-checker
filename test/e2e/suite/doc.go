@@ -1,5 +1,5 @@
 /*
-Copyright 2023 The cert-manager Authors.
+Copyright 2021 The cert-manager Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,33 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package suite
 
 import (
-	"fmt"
-	"os"
-
-	"github.com/spf13/cobra"
+	_ "github.com/jetstack/version-checker/test/e2e/suite/selfhosted"
 )
-
-var CommandRoot = cobra.Command{
-	Use: "image-tool",
-}
-
-func main() {
-	CommandRoot.AddCommand(&CommandAppendLayers)
-	CommandRoot.AddCommand(&CommandConvertToDockerTar)
-	CommandRoot.AddCommand(&CommandListDigests)
-	must("error running command", CommandRoot.Execute())
-}
-
-func must(msg string, err error) {
-	if err != nil {
-		fail(msg+": %w", err)
-	}
-}
-
-func fail(msg string, a ...any) {
-	fmt.Fprintf(os.Stderr, msg+"\n", a...)
-	os.Exit(1)
-}

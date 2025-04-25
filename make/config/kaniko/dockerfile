@@ -1,1 +1,1 @@
-FROM nginx
+FROM hello-world

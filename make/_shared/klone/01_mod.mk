@@ -12,9 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ifndef helm_dont_include_crds
-include $(dir $(lastword $(MAKEFILE_LIST)))/crds.mk
-endif
+.PHONY: generate-klone
+## Generate klone shared Makefiles
+## @category [shared] Generate/ Verify
+generate-klone: | $(NEEDS_KLONE)
+	$(KLONE) sync
 
-include $(dir $(lastword $(MAKEFILE_LIST)))/helm.mk
-include $(dir $(lastword $(MAKEFILE_LIST)))/deploy.mk
+shared_generate_targets += generate-klone
+
+.PHONY: upgrade-klone
+## Upgrade klone Makefile modules to latest version
+## @category [shared] Self-upgrade
+upgrade-klone: | $(NEEDS_KLONE)
+	$(KLONE) upgrade

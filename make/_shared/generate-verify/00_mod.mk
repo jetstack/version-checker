@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ifndef helm_dont_include_crds
-include $(dir $(lastword $(MAKEFILE_LIST)))/crds.mk
-endif
-
-include $(dir $(lastword $(MAKEFILE_LIST)))/helm.mk
-include $(dir $(lastword $(MAKEFILE_LIST)))/deploy.mk
+shared_generate_targets ?=
+shared_generate_targets_dirty ?=
+shared_verify_targets ?=
+shared_verify_targets_dirty ?=

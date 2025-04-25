@@ -12,17 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Utility variables
-current_makefile = $(lastword $(MAKEFILE_LIST))
-current_makefile_directory = $(dir $(current_makefile))
+$(bin_dir)/scratch/image:
+	@mkdir -p $@
 
-# Build the image tool
-image_tool_dir := $(current_makefile_directory:/=)/image_tool
-IMAGE_TOOL := $(CURDIR)/$(bin_dir)/tools/image_tool
-NEEDS_IMAGE_TOOL := $(bin_dir)/tools/image_tool
-$(NEEDS_IMAGE_TOOL): $(wildcard $(image_tool_dir)/*.go) | $(NEEDS_GO)
-	cd $(image_tool_dir) && GOWORK=off GOBIN=$(CURDIR)/$(dir $@) $(GO) install .
-	
 define ko_config_target
 .PHONY: $(ko_config_path_$1:$(CURDIR)/%=%)
 $(ko_config_path_$1:$(CURDIR)/%=%): | $(NEEDS_YQ) $(bin_dir)/scratch/image
@@ -31,11 +23,13 @@ $(ko_config_path_$1:$(CURDIR)/%=%): | $(NEEDS_YQ) $(bin_dir)/scratch/image
 		$(YQ) '.builds[0].id = "$1"' | \
 		$(YQ) '.builds[0].dir = "$(go_$1_mod_dir)"' | \
 		$(YQ) '.builds[0].main = "$(go_$1_main_dir)"' | \
-		$(YQ) '.builds[0].env[0] = "CGO_ENABLED=$(cgo_enabled_$1)"' | \
-		$(YQ) '.builds[0].env[1] = "GOEXPERIMENT=$(goexperiment_$1)"' | \
+		$(YQ) '.builds[0].env[0] = "CGO_ENABLED=$(go_$1_cgo_enabled)"' | \
+		$(YQ) '.builds[0].env[1] = "GOEXPERIMENT=$(go_$1_goexperiment)"' | \
 		$(YQ) '.builds[0].ldflags[0] = "-s"' | \
 		$(YQ) '.builds[0].ldflags[1] = "-w"' | \
-		$(YQ) '.builds[0].ldflags[2] = "{{.Env.LDFLAGS}}"' \
+		$(YQ) '.builds[0].ldflags[2] = "{{.Env.LDFLAGS}}"' | \
+		$(YQ) '.builds[0].flags[0] = "$(go_$1_flags)"' | \
+		$(YQ) '.builds[0].linux_capabilities = "$(oci_$1_linux_capabilities)"' \
 		> $(CURDIR)/$(oci_layout_path_$1).ko_config.yaml
 
 ko-config-$1: $(ko_config_path_$1:$(CURDIR)/%=%)
@@ -47,7 +41,7 @@ $(foreach build_name,$(build_names),$(eval $(call ko_config_target,$(build_name)
 .PHONY: $(oci_build_targets)
 ## Build the OCI image.
 ## @category [shared] Build
-$(oci_build_targets): oci-build-%: ko-config-% | $(NEEDS_KO) $(NEEDS_GO) $(NEEDS_YQ) $(NEEDS_IMAGE_TOOL) $(bin_dir)/scratch/image
+$(oci_build_targets): oci-build-%: ko-config-% | $(NEEDS_KO) $(NEEDS_GO) $(NEEDS_YQ) $(NEEDS_IMAGE-TOOL) $(bin_dir)/scratch/image
 	rm -rf $(CURDIR)/$(oci_layout_path_$*)
 	GOWORK=off \
 	KO_DOCKER_REPO=$(oci_$*_image_name_development) \
@@ -58,17 +52,18 @@ $(oci_build_targets): oci-build-%: ko-config-% | $(NEEDS_KO) $(NEEDS_GO) $(NEEDS
 	LDFLAGS="$(go_$*_ldflags)" \
 	$(KO) build $(go_$*_mod_dir)/$(go_$*_main_dir) \
 		--platform=$(oci_platforms) \
+		$(oci_$*_build_args) \
 		--oci-layout-path=$(oci_layout_path_$*) \
 		--sbom-dir=$(CURDIR)/$(oci_layout_path_$*).sbom \
 		--sbom=spdx \
 		--push=false \
 		--bare
 
-	$(IMAGE_TOOL) append-layers \
+	$(IMAGE-TOOL) append-layers \
 		$(CURDIR)/$(oci_layout_path_$*) \
-		$(oci_additional_layers_$*)
+		$(oci_$*_additional_layers)
 
-	$(IMAGE_TOOL) list-digests \
+	$(IMAGE-TOOL) list-digests \
 		$(CURDIR)/$(oci_layout_path_$*) \
 		> $(oci_digest_path_$*)
 
@@ -86,5 +81,5 @@ endif
 ## @category [shared] Build
 .PHONY: $(docker_tarball_targets)
 $(docker_tarball_targets): oci_platforms := "linux/$(HOST_ARCH)"
-$(docker_tarball_targets): docker-tarball-%: oci-build-% | $(NEEDS_GO) $(NEEDS_IMAGE_TOOL)
-	$(IMAGE_TOOL) convert-to-docker-tar $(CURDIR)/$(oci_layout_path_$*) $(docker_tarball_path_$*) $(oci_$*_image_name_development):$(oci_$*_image_tag)
+$(docker_tarball_targets): docker-tarball-%: oci-build-% | $(NEEDS_GO) $(NEEDS_IMAGE-TOOL)
+	$(IMAGE-TOOL) convert-to-docker-tar $(CURDIR)/$(oci_layout_path_$*) $(docker_tarball_path_$*) $(oci_$*_image_name_development):$(oci_$*_image_tag)

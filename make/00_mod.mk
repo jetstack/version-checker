@@ -32,7 +32,7 @@ deploy_name := version-checker
 deploy_namespace := version-checker
 
 helm_chart_source_dir := deploy/charts/version-checker
-helm_chart_name := version-checker
+helm_chart_image_name := version-checker
 helm_chart_version := $(VERSION)
 helm_labels_template_name := version-checker.labels
 helm_docs_use_helm_tool := 1

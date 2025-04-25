@@ -16,14 +16,15 @@ oci_platforms ?= linux/amd64,linux/arm/v7,linux/arm64,linux/ppc64le
 
 # Use distroless as minimal base image to package the manager binary
 # To get latest SHA run "crane digest quay.io/jetstack/base-static:latest"
-base_image_static := quay.io/jetstack/base-static@sha256:262e3020adb3b09ddbf9cd8fe672330451a556c8e7024142fa205c8876c3fd75
+base_image_static := quay.io/jetstack/base-static@sha256:16a5a64b918592f5c38fa73721a87f8585a3a501d261087e7b953f8b59279cd0
 
 # Use custom apko-built image as minimal base image to package the manager binary
 # To get latest SHA run "crane digest quay.io/jetstack/base-static-csi:latest"
-base_image_csi-static := quay.io/jetstack/base-static-csi@sha256:f776795838d73f9836b134f688b4c827fcd7ed22f46d3cefcb9f57d668388fef
+base_image_csi-static := quay.io/jetstack/base-static-csi@sha256:fb97fc098aabdfb5b9b01475d3531b688a9c2219f4bbc143816d3e47a267be6d
 
 # Utility functions
 fatal_if_undefined = $(if $(findstring undefined,$(origin $1)),$(error $1 is not set))
+fatal_if_deprecated_defined = $(if $(findstring undefined,$(origin $1)),,$(error $1 is deprecated, use $2 instead))
 
 # Validate globals that are required
 $(call fatal_if_undefined,bin_dir)
@@ -37,9 +38,12 @@ GOEXPERIMENT ?=  # empty by default
 #
 # $1 - build_name
 define default_per_build_variables
-cgo_enabled_$1 ?= $(CGO_ENABLED)
-goexperiment_$1 ?= $(GOEXPERIMENT)
-oci_additional_layers_$1 ?= 
+go_$1_cgo_enabled ?= $(CGO_ENABLED)
+go_$1_goexperiment ?= $(GOEXPERIMENT)
+go_$1_flags ?= -tags=
+oci_$1_additional_layers ?= 
+oci_$1_linux_capabilities ?= 
+oci_$1_build_args ?= 
 endef
 
 $(foreach build_name,$(build_names),$(eval $(call default_per_build_variables,$(build_name))))
@@ -48,6 +52,11 @@ $(foreach build_name,$(build_names),$(eval $(call default_per_build_variables,$(
 #
 # $1 - build_name
 define check_per_build_variables
+# Validate deprecated variables
+$(call fatal_if_deprecated_defined,cgo_enabled_$1,go_$1_cgo_enabled)
+$(call fatal_if_deprecated_defined,goexperiment_$1,go_$1_goexperiment)
+$(call fatal_if_deprecated_defined,oci_additional_layers_$1,oci_$1_additional_layers)
+
 # Validate required config exists
 $(call fatal_if_undefined,go_$1_ldflags)
 $(call fatal_if_undefined,go_$1_main_dir)

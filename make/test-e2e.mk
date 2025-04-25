@@ -25,15 +25,15 @@ e2e-setup-docker-registry: | kind-cluster $(NEEDS_HELM) $(NEEDS_KUBECTL)
 		-f ./make/config/registry/docker-registry-values.yaml \
 		docker-registry twuni/docker-registry >/dev/null
 
- 
-INSTALL_OPTIONS += --set image.repository=$(oci_manager_image_name_development)
-INSTALL_OPTIONS += -f ./make/config/version-checker-values.yaml
 
-.PHONY: e2e-setup-deps
-e2e-setup-deps: | kind-cluster $(NEEDS_KUBECTL)
-	$(KUBECTL) apply -f test/e2e/manifests/docker-credentials.yaml
-	$(KUBECTL) apply -f test/e2e/manifests/kaniko.yaml
-	$(KUBECTL) wait pod -lapp=e2e-kaniko --timeout=30s --for=jsonpath='{.status.containerStatuses[*].state.terminated.reason}'=Completed
+INSTALL_OPTIONS += --set image.repository=$(oci_manager_image_name_development)
+# INSTALL_OPTIONS += -f ./make/config/version-checker-values.yaml
+
+# .PHONY: e2e-setup-deps
+# e2e-setup-deps: | kind-cluster $(NEEDS_KUBECTL)
+# 	$(KUBECTL) apply -f test/e2e/manifests/docker-credentials.yaml
+# 	$(KUBECTL) apply -f test/e2e/manifests/kaniko.yaml
+# 	$(KUBECTL) wait pod -lapp=e2e-kaniko --timeout=30s --for=jsonpath='{.status.containerStatuses[*].state.terminated.reason}'=Completed
 
 is_e2e_test=
 
@@ -50,8 +50,9 @@ ifdef is_e2e_test
 install: kind-cluster oci-load-manager
 endif
 
-test-e2e-deps: e2e-setup-docker-registry
-test-e2e-deps: e2e-setup-deps
+# test-e2e-deps: e2e-setup-docker-registry
+# test-e2e-deps: e2e-setup-deps
+test-e2e-deps: INSTALL_OPTIONS += -f ./make/config/version-checker-values.yaml
 test-e2e-deps: install
 
 

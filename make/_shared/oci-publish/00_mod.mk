@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Push names is equivilent to build_names, additional names can be added for 
+# Push names is equivalent to build_names, additional names can be added for 
 # pushing images that are not build with the oci-build module
 push_names ?=
 push_names += $(build_names)
