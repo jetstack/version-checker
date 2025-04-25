@@ -45,18 +45,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4 # v3.5.3
+        uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
 
-      - name: Download and required packages
-        run: |
-          make deps
-
       - name: Run all unit tests
-        run: make test
+        run: make test-unit
 
       - name: check test coverage
         uses: vladopajic/go-test-coverage@v2
