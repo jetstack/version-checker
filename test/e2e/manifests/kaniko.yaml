@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kaniko-0
+  labels:
+    app: e2e-kaniko
+spec:
+  containers:
+  - name: kaniko
+    image: gcr.io/kaniko-project/executor:latest
+    args: ["--dockerfile=/workspace/dockerfile",
+            "--context=dir://workspace",
+            "--insecure=true",
+            "--destination=docker-registry.registry.svc.cluster.local:5000/my-app:0.0.1",
+            "--insecure-registry=docker-registry.registry.svc.cluster.local:5000",
+            "--push-retry=10"]
+    volumeMounts:
+      - name: docker-secret
+        mountPath: /kaniko/.docker
+      - name: dockerfile-storage
+        mountPath: /workspace
+  restartPolicy: Never
+  volumes:
+    - name: docker-secret
+      secret:
+        secretName: regcred
+        items:
+          - key: .dockerconfigjson
+            path: config.json
+    - name: dockerfile-storage
+      hostPath:
+        path: /workspace
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kaniko-1
+  labels:
+    app: e2e-kaniko
+spec:
+  containers:
+  - name: kaniko
+    image: gcr.io/kaniko-project/executor:latest
+    args: ["--dockerfile=/workspace/dockerfile",
+            "--context=dir://workspace",
+            "--insecure=true",
+            "--destination=docker-registry.registry.svc.cluster.local:5000/my-app:0.0.2",
+            "--insecure-registry=docker-registry.registry.svc.cluster.local:5000",
+            "--push-retry=10"]
+    volumeMounts:
+      - name: docker-secret
+        mountPath: /kaniko/.docker
+      - name: dockerfile-storage
+        mountPath: /workspace
+  restartPolicy: Never
+  volumes:
+    - name: docker-secret
+      secret:
+        secretName: regcred
+        items:
+          - key: .dockerconfigjson
+            path: config.json
+    - name: dockerfile-storage
+      hostPath:
+        path: /workspace
