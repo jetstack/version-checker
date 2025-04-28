@@ -24,6 +24,9 @@ import (
 	"github.com/jetstack/version-checker/pkg/client/util"
 )
 
+// Ensure that we are an ImageClient
+var _ api.ImageClient = (*Client)(nil)
+
 const (
 	// {host}/v2/{repo/image}/tags/list?n=500
 	tagsPath = "%s/v2/%s/tags/list?n=500"
@@ -33,21 +36,22 @@ const (
 	defaultTokenPath = "/v2/token"
 
 	// HTTP headers to request API version
-	dockerAPIv1Header = "application/vnd.docker.distribution.manifest.v1+json"
-	dockerAPIv2Header = "application/vnd.docker.distribution.manifest.v2+json"
+	dockerAPIv1Header       = "application/vnd.docker.distribution.manifest.v1+json"
+	dockerAPIv2Header       = "application/vnd.docker.distribution.manifest.v2+json"
+	dockerAPIv2ManifestList = "application/vnd.docker.distribution.manifest.list.v2+json"
 )
 
 type Options struct {
-	Host        string
-	Username    string
-	Password    string
-	Bearer      string
-	TokenPath   string
-	Insecure    bool
-	CAPath      string
 	Transporter http.RoundTripper
-}
 
+	Host      string
+	Username  string
+	Password  string
+	Bearer    string
+	TokenPath string
+	CAPath    string
+	Insecure  bool
+}
 type Client struct {
 	*http.Client
 	*Options
@@ -169,7 +173,7 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 		return nil, err
 	}
 
-	var tags []api.ImageTag
+	tags := map[string]api.ImageTag{}
 	for _, tag := range tagResponse.Tags {
 		manifestURL := fmt.Sprintf(manifestPath, host, path, tag)
 
@@ -187,20 +191,16 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 
 		var timestamp time.Time
 		for _, v1History := range manifestResponse.History {
-			data := V1Compatibility{}
-			if err := json.Unmarshal([]byte(v1History.V1Compatibility), &data); err != nil {
-				return nil, err
-			}
-
-			if !data.Created.IsZero() {
-				timestamp = data.Created
+			if !v1History.V1Compatibility.Created.IsZero() {
+				timestamp = v1History.V1Compatibility.Created
 				// Each layer has its own created timestamp. We just want a general reference.
 				// Take the first and step out the loop
 				break
 			}
 		}
 
-		header, err := c.doRequest(ctx, manifestURL, dockerAPIv2Header, new(ManifestResponse))
+		var manifestListResponse V2ManifestListResponse
+		header, err := c.doRequest(ctx, manifestURL, strings.Join([]string{dockerAPIv2Header, dockerAPIv2ManifestList}, ","), &manifestListResponse)
 		if httpErr, ok := selfhostederrors.IsHTTPError(err); ok {
 			c.log.Errorf("%s: failed to get manifest sha response for tag, skipping (%d): %s",
 				manifestURL, httpErr.StatusCode, httpErr.Body)
@@ -210,15 +210,28 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 			return nil, err
 		}
 
-		tags = append(tags, api.ImageTag{
+		// Lets set as much of the current as we know
+		current := api.ImageTag{
 			Tag:          tag,
 			SHA:          header.Get("Docker-Content-Digest"),
 			Timestamp:    timestamp,
-			Architecture: manifestResponse.Architecture,
-		})
-	}
+			Architecture: api.Architecture(manifestResponse.Architecture),
+		}
 
-	return tags, nil
+		util.FindParentTags(tags, tag, &current)
+
+		for _, manifest := range manifestListResponse.Manifests {
+
+			// If we didn't get a SHA from the inital call,
+			// lets set it from the manifestList
+			if current.SHA != "" && manifest.Digest != "" {
+				current.SHA = manifest.Digest
+			}
+
+			util.FindParentTags(tags, tag, &current)
+		}
+	}
+	return util.TagMaptoList(tags), nil
 }
 
 func (c *Client) doRequest(ctx context.Context, url, header string, obj interface{}) (http.Header, error) {
@@ -227,6 +240,7 @@ func (c *Client) doRequest(ctx context.Context, url, header string, obj interfac
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Set("User-Agent", "version-checker/selfhosted")
 
 	req = req.WithContext(ctx)
 	if len(c.Bearer) > 0 {
@@ -256,7 +270,7 @@ func (c *Client) doRequest(ctx context.Context, url, header string, obj interfac
 	}
 
 	if err := json.Unmarshal(body, obj); err != nil {
-		return nil, fmt.Errorf("unexpected %s response: %s", url, body)
+		return nil, fmt.Errorf("unexpected %s response: %s - %w", url, body, err)
 	}
 
 	return resp.Header, nil

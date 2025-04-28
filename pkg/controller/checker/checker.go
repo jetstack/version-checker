@@ -20,8 +20,8 @@ type Checker struct {
 type Result struct {
 	CurrentVersion string
 	LatestVersion  string
-	IsLatest       bool
 	ImageURL       string
+	IsLatest       bool
 }
 
 func New(search search.Searcher) *Checker {
@@ -145,11 +145,24 @@ func (c *Checker) isLatestSemver(ctx context.Context, imageURL, currentSHA strin
 		isLatest = true
 	}
 
-	// If using the same image version, but the SHA has been updated upstream,
-	// make not latest
-	if currentImage.Equal(latestImageV) && currentSHA != latestImage.SHA && latestImage.SHA != "" {
+	// If using the same image version,
+	// but the SHA has been updated upstream,
+	// mark not latest
+	if currentImage.Equal(latestImageV) &&
+		!latestImage.MatchesSHA(currentSHA) {
 		isLatest = false
-		latestImage.Tag = fmt.Sprintf("%s@%s", latestImage.Tag, latestImage.SHA)
+		if latestImage.SHA != "" {
+			// Add the SHA as a prefix to identify that it has been updated!
+			latestImage.Tag = fmt.Sprintf("%s@%s", latestImage.Tag, latestImage.SHA)
+		} else {
+			for _, child := range latestImage.Children {
+				// Take first child's SHA for latest image tag
+				if child.SHA != currentSHA {
+					latestImage.Tag = fmt.Sprintf("%s@%s", latestImage.Tag, child.SHA)
+					break
+				}
+			}
+		}
 	}
 
 	return latestImage, isLatest, nil
@@ -162,10 +175,26 @@ func (c *Checker) isLatestSHA(ctx context.Context, imageURL, currentSHA string, 
 		return nil, err
 	}
 
-	isLatest := latestImage.SHA == currentSHA
-	latestVersion := latestImage.SHA
-	if len(latestImage.Tag) > 0 {
-		latestVersion = fmt.Sprintf("%s@%s", latestImage.Tag, latestImage.SHA)
+	var (
+		isLatest      bool
+		latestVersion string
+	)
+
+	if latestImage.SHA != "" {
+		isLatest = latestImage.SHA == currentSHA
+		latestVersion = latestImage.SHA
+	}
+
+	for _, child := range latestImage.Children {
+		if child.SHA == currentSHA {
+			isLatest = true
+			latestVersion = child.SHA
+			break
+		}
+	}
+
+	if len(latestImage.Tag) > 0 && latestVersion != "" {
+		latestVersion = fmt.Sprintf("%s@%s", latestImage.Tag, latestVersion)
 	}
 
 	return &Result{

@@ -64,19 +64,26 @@ var (
 
 // Options is a struct to hold options for the version-checker.
 type Options struct {
+	kubeConfigFlags *genericclioptions.ConfigFlags
+
+	Client                client.Options
 	MetricsServingAddress string
-	DefaultTestAll        bool
-	CacheTimeout          time.Duration
 	LogLevel              string
 
-	PprofBindAddress        string
+	PprofBindAddress string
+	selfhosted       selfhosted.Options
+
+	CacheTimeout            time.Duration
+	RequeueDuration         time.Duration
 	GracefulShutdownTimeout time.Duration
 	CacheSyncPeriod         time.Duration
 
-	kubeConfigFlags *genericclioptions.ConfigFlags
-	selfhosted      selfhosted.Options
+	DefaultTestAll bool
+}
 
-	Client client.Options
+type envMatcher struct {
+	re     *regexp.Regexp
+	action func(matches []string, value string)
 }
 
 func (o *Options) addFlags(cmd *cobra.Command) {
@@ -123,6 +130,10 @@ func (o *Options) addAppFlags(fs *pflag.FlagSet) {
 		"image-cache-timeout", "c", time.Minute*30,
 		"The time for an image version in the cache to be considered fresh. Images "+
 			"will be rechecked after this interval.")
+
+	fs.DurationVarP(&o.RequeueDuration,
+		"requeue-duration", "r", time.Hour,
+		"The time a pod will be re-checked for new versions/tags")
 
 	fs.StringVarP(&o.LogLevel,
 		"log-level", "v", "info",
@@ -358,56 +369,81 @@ func (o *Options) assignSelfhosted(envs []string) {
 	}
 
 	initOptions := func(name string) {
+		if name == "" {
+			panic("Not meant to be empty!")
+		}
 		if o.Client.Selfhosted[name] == nil {
 			o.Client.Selfhosted[name] = new(selfhosted.Options)
 		}
 	}
 
-	regexActions := map[*regexp.Regexp]func(matches []string, value string){
-		selfhostedHostReg: func(matches []string, value string) {
-			initOptions(matches[1])
-			o.Client.Selfhosted[matches[1]].Host = value
+	// Go maps iterate in random order - Using a slice to consistency
+	regexActions := []envMatcher{
+		{
+			re: selfhostedTokenPath,
+			action: func(matches []string, value string) {
+				initOptions(matches[1])
+				o.Client.Selfhosted[matches[1]].TokenPath = value
+			},
 		},
-		selfhostedUsernameReg: func(matches []string, value string) {
-			initOptions(matches[1])
-			o.Client.Selfhosted[matches[1]].Username = value
+		{
+			re: selfhostedTokenReg,
+			action: func(matches []string, value string) {
+				initOptions(matches[1])
+				o.Client.Selfhosted[matches[1]].Bearer = value
+			},
 		},
-		selfhostedPasswordReg: func(matches []string, value string) {
-			initOptions(matches[1])
-			o.Client.Selfhosted[matches[1]].Password = value
+		// All your other patterns (host, username, password, insecure, capath...)
+		{
+			re: selfhostedHostReg,
+			action: func(matches []string, value string) {
+				initOptions(matches[1])
+				o.Client.Selfhosted[matches[1]].Host = value
+			},
 		},
-		selfhostedTokenPath: func(matches []string, value string) {
-			initOptions(matches[1])
-			o.Client.Selfhosted[matches[1]].TokenPath = value
+		{
+			re: selfhostedUsernameReg,
+			action: func(matches []string, value string) {
+				initOptions(matches[1])
+				o.Client.Selfhosted[matches[1]].Username = value
+			},
 		},
-		selfhostedTokenReg: func(matches []string, value string) {
-			initOptions(matches[1])
-			o.Client.Selfhosted[matches[1]].Bearer = value
+		{
+			re: selfhostedPasswordReg,
+			action: func(matches []string, value string) {
+				initOptions(matches[1])
+				o.Client.Selfhosted[matches[1]].Password = value
+			},
 		},
-		selfhostedInsecureReg: func(matches []string, value string) {
-			initOptions(matches[1])
-			if val, err := strconv.ParseBool(value); err == nil {
-				o.Client.Selfhosted[matches[1]].Insecure = val
-			}
+		{
+			re: selfhostedInsecureReg,
+			action: func(matches []string, value string) {
+				initOptions(matches[1])
+				if b, err := strconv.ParseBool(value); err == nil {
+					o.Client.Selfhosted[matches[1]].Insecure = b
+				}
+			},
 		},
-		selfhostedCAPath: func(matches []string, value string) {
-			initOptions(matches[1])
-			o.Client.Selfhosted[matches[1]].CAPath = value
+		{
+			re: selfhostedCAPath,
+			action: func(matches []string, value string) {
+				initOptions(matches[1])
+				o.Client.Selfhosted[matches[1]].CAPath = value
+			},
 		},
 	}
 
 	for _, env := range envs {
-		pair := strings.SplitN(env, "=", 2)
-		if len(pair) != 2 || len(pair[1]) == 0 {
+		parts := strings.SplitN(env, "=", 2)
+		if len(parts) != 2 || parts[1] == "" {
 			continue
 		}
+		key := strings.ToUpper(parts[0])
+		val := parts[1]
 
-		key := strings.ToUpper(pair[0])
-		value := pair[1]
-
-		for regex, action := range regexActions {
-			if matches := regex.FindStringSubmatch(key); len(matches) == 2 {
-				action(matches, value)
+		for _, p := range regexActions {
+			if match := p.re.FindStringSubmatch(key); len(match) == 2 {
+				p.action(match, val)
 				break
 			}
 		}

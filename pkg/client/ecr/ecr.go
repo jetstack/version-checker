@@ -14,18 +14,20 @@ import (
 	"github.com/jetstack/version-checker/pkg/client/util"
 )
 
-type Client struct {
-	Config aws.Config
+// Ensure that we are an ImageClient
+var _ api.ImageClient = (*Client)(nil)
 
+type Client struct {
 	Options
+	Config aws.Config
 }
 
 type Options struct {
+	Transporter     http.RoundTripper
 	IamRoleArn      string
 	AccessKeyID     string
 	SecretAccessKey string
 	SessionToken    string
-	Transporter     http.RoundTripper
 }
 
 func New(opts Options) *Client {
@@ -64,28 +66,29 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 		return nil, fmt.Errorf("failed to describe images: %s", err)
 	}
 
-	var tags []api.ImageTag
+	tags := map[string]api.ImageTag{}
 	for _, img := range images.ImageDetails {
+		// Base data shared across tags
+		base := api.ImageTag{
+			SHA:       *img.ImageDigest,
+			Timestamp: *img.ImagePushedAt,
+		}
+
 		// Continue early if no tags available
 		if len(img.ImageTags) == 0 {
-			tags = append(tags, api.ImageTag{
-				SHA:       *img.ImageDigest,
-				Timestamp: *img.ImagePushedAt,
-			})
-
+			tags[base.SHA] = base
 			continue
 		}
 
 		for _, tag := range img.ImageTags {
-			tags = append(tags, api.ImageTag{
-				SHA:       *img.ImageDigest,
-				Timestamp: *img.ImagePushedAt,
-				Tag:       tag,
-			})
+			current := base   // copy the base
+			current.Tag = tag // set tag value
+
+			util.FindParentTags(tags, tag, &current)
 		}
 	}
 
-	return tags, nil
+	return util.TagMaptoList(tags), nil
 }
 
 func (c *Client) createClient(ctx context.Context, region string) (*ecr.Client, error) {
