@@ -74,9 +74,9 @@ type Options struct {
 	selfhosted       selfhosted.Options
 
 	CacheTimeout            time.Duration
-	RequeueDuration         time.Duration
 	GracefulShutdownTimeout time.Duration
 	CacheSyncPeriod         time.Duration
+	RequeueDuration         time.Duration
 
 	DefaultTestAll bool
 }
@@ -446,9 +446,11 @@ func (o *Options) assignSelfhosted(envs []string) {
 		}
 	}
 
+	// If we have some selfhosted flags, lets set them here...
 	if len(o.selfhosted.Host) > 0 {
 		o.Client.Selfhosted[o.selfhosted.Host] = &o.selfhosted
 	}
+
 	if !validSelfHostedOpts(o) {
 		panic(fmt.Errorf("invalid self hosted configuration"))
 	}
