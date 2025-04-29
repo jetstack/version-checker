@@ -160,16 +160,17 @@ jobs:
 
       - name: Sign Helm Chart
         run: |
-          cosign sign-blob -y jetstack-charts/charts/version-checker-${{needs.release-name.outputs.name}}.tgz \
-            --bundle jetstack-charts/charts/version-checker-${{needs.release-name.outputs.name}}.tgz.cosign.bundle
+          cosign sign-blob -y jetstack-charts/charts/version-checker-${{ needs.release-name.outputs.name }}.tgz \
+            --bundle jetstack-charts/charts/version-checker-${{ needs.release-name.outputs.name }}.tgz.cosign.bundle
 
       - name: Creating PR
         uses: peter-evans/create-pull-request@v7
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
         with:
           token: ${{ secrets.JETSTACK_CHARTS_PAT }}
-          title: "Release version-checker ${{needs.release-name.outputs.name }}"
-          commit-message: "Release version-checker ${{needs.release-name.outputs.name }}"
-          branch: version-checker/${{github.ref_name}}
+          title: "Release version-checker ${{ needs.release-name.outputs.name }}"
+          commit-message: "Release version-checker ${{ needs.release-name.outputs.name }}"
+          branch: version-checker/${{ github.ref_name }}
           path: jetstack-charts
           add-paths: |
             charts/*.tgz
@@ -177,7 +178,6 @@ jobs:
           delete-branch: true
           signoff: true
           base: main
-          draft: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
       - name: Push to Quay
         if: startsWith(github.ref, 'refs/tags/')
