@@ -64,21 +64,21 @@ var (
 
 // Options is a struct to hold options for the version-checker.
 type Options struct {
-	kubeConfigFlags *genericclioptions.ConfigFlags
-
-	Client                client.Options
 	MetricsServingAddress string
-	LogLevel              string
+	PprofBindAddress      string
 
-	PprofBindAddress string
-	selfhosted       selfhosted.Options
+	DefaultTestAll bool
+	LogLevel       string
 
 	CacheTimeout            time.Duration
 	GracefulShutdownTimeout time.Duration
 	CacheSyncPeriod         time.Duration
 	RequeueDuration         time.Duration
 
-	DefaultTestAll bool
+	kubeConfigFlags *genericclioptions.ConfigFlags
+
+	selfhosted selfhosted.Options
+	Client     client.Options
 }
 
 type envMatcher struct {

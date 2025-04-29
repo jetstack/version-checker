@@ -85,6 +85,7 @@ func TestReconcile(t *testing.T) {
 				prometheus.NewRegistry(),
 				kubeClient,
 			)
+
 			controller := NewPodReconciler(5*time.Minute, metrics, imageClient, kubeClient, testLogger, 5*time.Minute, true)
 
 			ctx := context.Background()

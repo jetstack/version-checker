@@ -56,8 +56,8 @@ func NewPodReconciler(
 		Client:          kubeClient,
 		Metrics:         metrics,
 		VersionChecker:  checker.New(search),
-		defaultTestAll:  defaultTestAll,
 		RequeueDuration: requeueDuration,
+		defaultTestAll:  defaultTestAll,
 	}
 }
 

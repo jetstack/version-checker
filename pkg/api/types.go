@@ -17,10 +17,6 @@ type ImageTag struct {
 	Children []*ImageTag `json:"children,omitempty"`
 }
 
-func (i *ImageTag) HasChildren() bool {
-	return len(i.Children) > 0
-}
-
 func (i *ImageTag) MatchesSHA(sha string) bool {
 	if sha == i.SHA {
 		return true
