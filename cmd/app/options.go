@@ -369,9 +369,6 @@ func (o *Options) assignSelfhosted(envs []string) {
 	}
 
 	initOptions := func(name string) {
-		if name == "" {
-			panic("Not meant to be empty!")
-		}
 		if o.Client.Selfhosted[name] == nil {
 			o.Client.Selfhosted[name] = new(selfhosted.Options)
 		}
