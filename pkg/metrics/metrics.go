@@ -7,8 +7,6 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -16,6 +14,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	ctrmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
+
+const MetricNamespace = "version_checker"
 
 // Metrics is used to expose container image version checks as prometheus
 // metrics.
@@ -39,12 +39,13 @@ type Metrics struct {
 // func New(log *logrus.Entry, reg ctrmetrics.RegistererGatherer, kubeClient k8sclient.Client) *Metrics {
 func New(log *logrus.Entry, reg ctrmetrics.RegistererGatherer, cache k8sclient.Reader) *Metrics {
 	// Attempt to register, but ignore errors
+	// TODO: We should check for AlreadyRegisteredError err type here for better error handling
 	_ = reg.Register(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
 	_ = reg.Register(collectors.NewGoCollector())
 
 	containerImageVersion := promauto.With(reg).NewGaugeVec(
 		prometheus.GaugeOpts{
-			Namespace: "version_checker",
+			Namespace: MetricNamespace,
 			Name:      "is_latest_version",
 			Help:      "Where the container in use is using the latest upstream registry version",
 		},
@@ -54,7 +55,7 @@ func New(log *logrus.Entry, reg ctrmetrics.RegistererGatherer, cache k8sclient.R
 	)
 	containerImageChecked := promauto.With(reg).NewGaugeVec(
 		prometheus.GaugeOpts{
-			Namespace: "version_checker",
+			Namespace: MetricNamespace,
 			Name:      "last_checked",
 			Help:      "Timestamp when the image was checked",
 		},
@@ -64,7 +65,7 @@ func New(log *logrus.Entry, reg ctrmetrics.RegistererGatherer, cache k8sclient.R
 	)
 	containerImageDuration := promauto.With(reg).NewGaugeVec(
 		prometheus.GaugeOpts{
-			Namespace: "version_checker",
+			Namespace: MetricNamespace,
 			Name:      "image_lookup_duration",
 			Help:      "Time taken to lookup version.",
 		},
@@ -72,7 +73,7 @@ func New(log *logrus.Entry, reg ctrmetrics.RegistererGatherer, cache k8sclient.R
 	)
 	containerImageErrors := promauto.With(reg).NewCounterVec(
 		prometheus.CounterOpts{
-			Namespace: "version_checker",
+			Namespace: MetricNamespace,
 			Name:      "image_failures_total",
 			Help:      "Total number of errors where the version-checker was unable to get the latest upstream registry version",
 		},
@@ -104,12 +105,12 @@ func (m *Metrics) AddImage(namespace, pod, container, containerType, imageURL st
 	}
 
 	m.containerImageVersion.With(
-		m.buildFullLabels(namespace, pod, container, containerType, imageURL, currentVersion, latestVersion),
+		buildFullLabels(namespace, pod, container, containerType, imageURL, currentVersion, latestVersion),
 	).Set(isLatestF)
 
 	// Bump last updated timestamp
 	m.containerImageChecked.With(
-		m.buildLastUpdatedLabels(namespace, pod, container, containerType, imageURL),
+		buildLastUpdatedLabels(namespace, pod, container, containerType, imageURL),
 	).Set(float64(time.Now().Unix()))
 }
 
@@ -118,20 +119,14 @@ func (m *Metrics) RemoveImage(namespace, pod, container, containerType string) {
 	defer m.mu.Unlock()
 	total := 0
 
-	total += m.containerImageVersion.DeletePartialMatch(
-		m.buildPartialLabels(namespace, pod),
-	)
-	total += m.containerImageDuration.DeletePartialMatch(
-		m.buildPartialLabels(namespace, pod),
-	)
+	labels := buildContainerPartialLabels(namespace, pod, container, containerType)
 
-	total += m.containerImageChecked.DeletePartialMatch(
-		m.buildPartialLabels(namespace, pod),
-	)
-	total += m.containerImageErrors.DeletePartialMatch(
-		m.buildPartialLabels(namespace, pod),
-	)
-	m.log.Infof("Removed %d metrics for image %s/%s/%s", total, namespace, pod, container)
+	total += m.containerImageVersion.DeletePartialMatch(labels)
+	total += m.containerImageDuration.DeletePartialMatch(labels)
+	total += m.containerImageChecked.DeletePartialMatch(labels)
+	total += m.containerImageErrors.DeletePartialMatch(labels)
+
+	m.log.Infof("Removed %d metrics for image %s/%s/%s (%s)", total, namespace, pod, container, containerType)
 }
 
 func (m *Metrics) RemovePod(namespace, pod string) {
@@ -140,16 +135,16 @@ func (m *Metrics) RemovePod(namespace, pod string) {
 
 	total := 0
 	total += m.containerImageVersion.DeletePartialMatch(
-		m.buildPartialLabels(namespace, pod),
+		buildPodPartialLabels(namespace, pod),
 	)
 	total += m.containerImageDuration.DeletePartialMatch(
-		m.buildPartialLabels(namespace, pod),
+		buildPodPartialLabels(namespace, pod),
 	)
 	total += m.containerImageChecked.DeletePartialMatch(
-		m.buildPartialLabels(namespace, pod),
+		buildPodPartialLabels(namespace, pod),
 	)
 	total += m.containerImageErrors.DeletePartialMatch(
-		m.buildPartialLabels(namespace, pod),
+		buildPodPartialLabels(namespace, pod),
 	)
 
 	m.log.Infof("Removed %d metrics for pod %s/%s", total, namespace, pod)
@@ -181,40 +176,4 @@ func (m *Metrics) ReportError(namespace, pod, container, imageURL string) {
 	m.containerImageErrors.WithLabelValues(
 		namespace, pod, container, imageURL,
 	).Inc()
-}
-
-func (m *Metrics) buildFullLabels(namespace, pod, container, containerType, imageURL, currentVersion, latestVersion string) prometheus.Labels {
-	return prometheus.Labels{
-		"namespace":       namespace,
-		"pod":             pod,
-		"container_type":  containerType,
-		"container":       container,
-		"image":           imageURL,
-		"current_version": currentVersion,
-		"latest_version":  latestVersion,
-	}
-}
-
-func (m *Metrics) buildLastUpdatedLabels(namespace, pod, container, containerType, imageURL string) prometheus.Labels {
-	return prometheus.Labels{
-		"namespace":      namespace,
-		"pod":            pod,
-		"container_type": containerType,
-		"container":      container,
-		"image":          imageURL,
-	}
-}
-
-func (m *Metrics) buildPartialLabels(namespace, pod string) prometheus.Labels {
-	return prometheus.Labels{
-		"namespace": namespace,
-		"pod":       pod,
-	}
-}
-
-// This _should_ leverage the Controllers Cache
-func (m *Metrics) PodExists(ctx context.Context, ns, name string) bool {
-	pod := &corev1.Pod{}
-	err := m.cache.Get(ctx, types.NamespacedName{Name: name, Namespace: ns}, pod)
-	return err == nil && pod.GetDeletionTimestamp() == nil
 }
