@@ -13,6 +13,7 @@ concurrency:
 
 jobs:
   release-name:
+    name: Generate a clean release name from the branch/tag
     runs-on: ubuntu-latest
     outputs:
       name: ${{ steps.release_number.outputs.substring }}
@@ -116,7 +117,7 @@ jobs:
           target_branch: main
           title: "Release ${{needs.release-name.outputs.name}}"
           body: |-
-            "**Automated Release Pull Request**
+            **Automated Release Pull Request**
 
             ## Change log:
             ${{steps.github_release.outputs.changelog}}
@@ -163,7 +164,7 @@ jobs:
           cosign sign-blob -y jetstack-charts/charts/version-checker-${{ needs.release-name.outputs.name }}.tgz \
             --bundle jetstack-charts/charts/version-checker-${{ needs.release-name.outputs.name }}.tgz.cosign.bundle
 
-      - name: Creating PR
+      - name: Creating Publishing Chart's PR
         uses: peter-evans/create-pull-request@v7
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
         with:
