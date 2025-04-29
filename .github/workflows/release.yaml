@@ -23,6 +23,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
       - name: Setup Golang
         uses: actions/setup-go@v5
         with:
@@ -116,9 +117,14 @@ jobs:
 
   helm-release:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
     steps:
       - name: Checkout code
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: Setup Cosign
+        uses: sigstore/cosign-installer@main
 
       - name: checkout jetstack-charts
         uses: actions/checkout@v4
@@ -128,16 +134,22 @@ jobs:
           ref: main
           path: jetstack-charts
 
-      - uses: azure/setup-helm@v4
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
         with:
           token: ${{ github.token }}
+
+      - name: Login to Quay.io
+        run: echo "${{ secrets.QUAY_ROBOT_TOKEN }}" | helm registry login quay.io -u ${{ secrets.QUAY_USERNAME }} --password-stdin
 
       - name: package helm chart
         run: |
           helm package version-checker/deploy/charts/version-checker -d jetstack-charts/charts/
 
-      - name: Login to Quay.io
-        run: echo "${{ secrets.QUAY_ROBOT_TOKEN }}" | helm registry login quay.io -u ${{ secrets.QUAY_USERNAME }} --password-stdin
+      - name: Sign Helm Chart
+        run: |
+          cosign sign-blob -y jetstack-charts/charts/version-checker-${{steps.release_number.outputs.substring}}.tgz \
+            --bundle jetstack-charts/charts/version-checker-${{steps.release_number.outputs.substring}}.tgz.cosign.bundle
 
       - name: Creating PR
         if: startsWith(github.ref, 'refs/tags/')
@@ -148,7 +160,9 @@ jobs:
           commit-message: "Release version-checker ${{github.ref_name }}"
           branch: version-checker/${{github.ref_name}}
           path: jetstack-charts
-          add-paths: charts/*.tgz
+          add-paths: |
+            charts/*.tgz
+            charts/*.tgz.cosign.bundle
           delete-branch: true
           signoff: true
           base: main
@@ -160,9 +174,18 @@ jobs:
 
   docker-release:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
     steps:
       - name: Checkout code
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      # Install the cosign tool except on PR
+      # https://github.com/sigstore/cosign-installer
+      - name: Install cosign
+        uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20 #v3.5.0
+        with:
+          cosign-release: "v2.2.4"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -180,6 +203,7 @@ jobs:
           password: ${{ secrets.QUAY_ROBOT_TOKEN }}
 
       - name: Build and push (if applicable)
+        id: build-and-push
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -192,6 +216,21 @@ jobs:
           attests: |-
             type=sbom
             type=provenance,mode=max
+
+      # Sign the resulting Docker image digest except on PRs.
+      # This will only write to the public Rekor transparency log when the Docker
+      # repository is public to avoid leaking data.  If you would like to publish
+      # transparency data even for private images, pass --force to cosign below.
+      # https://github.com/sigstore/cosign
+      - name: Sign the published Docker image
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        env:
+          # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
+          TAGS: ${{ steps.meta.outputs.tags }}
+          DIGEST: ${{ steps.build-and-push.outputs.digest }}
+        # This step uses the identity token to provision an ephemeral certificate
+        # against the sigstore community Fulcio instance.
+        run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
 
   github-release:
     name: Create/Update GitHub Release
