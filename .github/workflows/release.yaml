@@ -6,8 +6,6 @@ on:
       - "release-v*"
     tags:
       - "v*"
-  # TODO: Added for testing....
-  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -25,6 +23,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
       - name: Setup Golang
         uses: actions/setup-go@v5
         with:
@@ -118,6 +117,8 @@ jobs:
 
   helm-release:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
     steps:
       - name: Checkout code
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
@@ -173,6 +174,8 @@ jobs:
 
   docker-release:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
     steps:
       - name: Checkout code
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
