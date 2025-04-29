@@ -126,6 +126,10 @@ func (o *Options) addAppFlags(fs *pflag.FlagSet) {
 		"If enabled, all containers will be tested, unless they have the "+
 			fmt.Sprintf(`annotation "%s/${my-container}=false".`, api.EnableAnnotationKey))
 
+	fs.StringVarP(&o.LogLevel,
+		"log-level", "v", "info",
+		"Log level (debug, info, warn, error, fatal, panic).")
+
 	fs.DurationVarP(&o.CacheTimeout,
 		"image-cache-timeout", "c", time.Minute*30,
 		"The time for an image version in the cache to be considered fresh. Images "+
@@ -135,17 +139,13 @@ func (o *Options) addAppFlags(fs *pflag.FlagSet) {
 		"requeue-duration", "r", time.Hour,
 		"The time a pod will be re-checked for new versions/tags")
 
-	fs.StringVarP(&o.LogLevel,
-		"log-level", "v", "info",
-		"Log level (debug, info, warn, error, fatal, panic).")
+	fs.DurationVarP(&o.CacheSyncPeriod,
+		"cache-sync-period", "", 5*time.Hour,
+		"The time in which all resources should be updated.")
 
 	fs.DurationVarP(&o.GracefulShutdownTimeout,
 		"graceful-shutdown-timeout", "", 10*time.Second,
 		"Time that the manager should wait for all controller to shutdown.")
-
-	fs.DurationVarP(&o.CacheSyncPeriod,
-		"cache-sync-period", "", 5*time.Hour,
-		"The time in which all resources should be updated.")
 }
 
 func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
