@@ -43,6 +43,7 @@ func NewPodReconciler(
 	imageClient *client.Client,
 	kubeClient k8sclient.Client,
 	log *logrus.Entry,
+	requeueDuration time.Duration,
 	defaultTestAll bool,
 ) *PodReconciler {
 	log = log.WithField("controller", "pod")
@@ -50,11 +51,12 @@ func NewPodReconciler(
 	search := search.New(log, cacheTimeout, versionGetter)
 
 	c := &PodReconciler{
-		Log:            log,
-		Client:         kubeClient,
-		Metrics:        metrics,
-		VersionChecker: checker.New(search),
-		defaultTestAll: defaultTestAll,
+		Log:             log,
+		Client:          kubeClient,
+		Metrics:         metrics,
+		VersionChecker:  checker.New(search),
+		RequeueDuration: requeueDuration,
+		defaultTestAll:  defaultTestAll,
 	}
 
 	return c

@@ -64,20 +64,21 @@ var (
 
 // Options is a struct to hold options for the version-checker.
 type Options struct {
-	kubeConfigFlags *genericclioptions.ConfigFlags
-
-	Client                client.Options
 	MetricsServingAddress string
-	LogLevel              string
+	PprofBindAddress      string
 
-	PprofBindAddress string
-	selfhosted       selfhosted.Options
+	DefaultTestAll bool
+	LogLevel       string
 
 	CacheTimeout            time.Duration
 	GracefulShutdownTimeout time.Duration
 	CacheSyncPeriod         time.Duration
+	RequeueDuration         time.Duration
 
-	DefaultTestAll bool
+	kubeConfigFlags *genericclioptions.ConfigFlags
+
+	selfhosted selfhosted.Options
+	Client     client.Options
 }
 
 type envMatcher struct {
@@ -137,6 +138,10 @@ func (o *Options) addAppFlags(fs *pflag.FlagSet) {
 	fs.DurationVarP(&o.GracefulShutdownTimeout,
 		"graceful-shutdown-timeout", "", 10*time.Second,
 		"Time that the manager should wait for all controller to shutdown.")
+
+	fs.DurationVarP(&o.RequeueDuration,
+		"requeue-duration", "r", time.Hour,
+		"The time a pod will be re-checked for new versions/tags")
 
 	fs.DurationVarP(&o.CacheSyncPeriod,
 		"cache-sync-period", "", 5*time.Hour,
