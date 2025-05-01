@@ -39,10 +39,11 @@ The Helm chart supports creating a [Prometheus Operator](https://github.com/prom
 
 ## Options
 
-By default, without the flag `-a, --test-all-containers`, version-checker will
-only test containers where the pod has the annotation
+By default, version-checker will only test containers where the pod has the annotation
 `enable.version-checker.io/*my-container*`, where `*my-container*` is the `name`
 of the container in the pod.
+
+However, by passing the following flag,`-a, --test-all-containers` version-checker will test all containers within the cluster.
 
 ### Supported Annotations
 
