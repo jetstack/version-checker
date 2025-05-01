@@ -12,9 +12,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  release-name:
+    name: Generate a clean release name from the branch/tag
+    runs-on: ubuntu-latest
+    outputs:
+      name: "${{ steps.release_number.outputs.substring != '' && steps.release_number.outputs.substring || github.ref_name }}"
+    steps:
+      - uses: bhowell2/github-substring-action@1.0.2
+        id: release_number
+        continue-on-error: true
+        with:
+          value: ${{github.ref_name}}
+          index_of_str: "release-"
+
   prepare-release:
     # Don't push back to a tag!
     if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+    needs:
+      - release-name
     name: Prepare release
     runs-on: ubuntu-latest
     permissions:
@@ -23,23 +38,19 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          fetch-depth: 0
 
       - name: Setup Golang
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
 
-      - uses: bhowell2/github-substring-action@1.0.2
-        id: release_number
-        with:
-          value: ${{github.ref_name}}
-          index_of_str: "release-"
-
       - name: Find and Replace Helm Chart Version
         uses: jacobtomlinson/gha-find-replace@v3
         with:
           find: 'v(\d+)\.(\d+)\.(\d+)(-rc(\d)+)?'
-          replace: "${{steps.release_number.outputs.substring}}"
+          replace: "${{needs.release-name.outputs.name}}"
           include: "deploy/charts/version-checker/Chart.yaml"
           regex: true
 
@@ -47,7 +58,7 @@ jobs:
         uses: jacobtomlinson/gha-find-replace@v3
         with:
           find: 'v(\d+)\.(\d+)\.(\d+)(-rc(\d)+)?'
-          replace: "${{steps.release_number.outputs.substring}}"
+          replace: "${{needs.release-name.outputs.name}}"
           include: "deploy/yaml/deploy.yaml"
           regex: true
 
@@ -55,7 +66,7 @@ jobs:
         uses: jacobtomlinson/gha-find-replace@v3
         with:
           find: 'v(\d+)\.(\d+)\.(\d+)(-rc(\d)+)?'
-          replace: "${{steps.release_number.outputs.substring}}"
+          replace: "${{needs.release-name.outputs.name}}"
           include: "Makefile"
           regex: true
 
@@ -84,10 +95,11 @@ jobs:
       - name: Commit files
         if: steps.filter.outputs.versions == 'true'
         run: |
+          set -x
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git status
-          git commit -a -m "Bump versions to ${{steps.release_number.outputs.substring}} "
+          git commit -a -m "Bump versions to ${{needs.release-name.outputs.name}}"
 
       - name: Push changes
         if: steps.filter.outputs.versions == 'true'
@@ -99,15 +111,17 @@ jobs:
       - name: Build Changelog
         id: github_release
         uses: mikepenz/release-changelog-builder-action@v5
+        with:
+          ignorePreReleases: true
 
       - name: Create Release PR
         uses: devops-infra/action-pull-request@v0.6.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           target_branch: main
-          title: "Release ${{steps.release_number.outputs.substring}}"
+          title: "Release ${{needs.release-name.outputs.name}}"
           body: |-
-            "**Automated Release Pull Request**
+            **Automated Release Pull Request**
 
             ## Change log:
             ${{steps.github_release.outputs.changelog}}
@@ -119,9 +133,13 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
+    needs:
+      - release-name
     steps:
       - name: Checkout code
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          path: version-checker
 
       - name: Setup Cosign
         uses: sigstore/cosign-installer@main
@@ -136,11 +154,11 @@ jobs:
 
       - name: Setup Helm
         uses: azure/setup-helm@v4
-        with:
-          token: ${{ github.token }}
 
-      - name: Login to Quay.io
-        run: echo "${{ secrets.QUAY_ROBOT_TOKEN }}" | helm registry login quay.io -u ${{ secrets.QUAY_USERNAME }} --password-stdin
+      # FIXME: We need a Repo Created in Quay ahead of time for this to work
+      # - name: Login to Quay.io for OCI Push
+      #   if: startsWith(github.ref, 'refs/tags/')
+      #   run: echo "${{ secrets.QUAY_ROBOT_TOKEN }}" | helm registry login quay.io -u ${{ secrets.QUAY_USERNAME }} --password-stdin
 
       - name: package helm chart
         run: |
@@ -148,17 +166,26 @@ jobs:
 
       - name: Sign Helm Chart
         run: |
-          cosign sign-blob -y jetstack-charts/charts/version-checker-${{steps.release_number.outputs.substring}}.tgz \
-            --bundle jetstack-charts/charts/version-checker-${{steps.release_number.outputs.substring}}.tgz.cosign.bundle
+          cosign sign-blob -y \
+            jetstack-charts/charts/version-checker-${{ needs.release-name.outputs.name }}.tgz \
+            --bundle jetstack-charts/charts/version-checker-${{ needs.release-name.outputs.name }}.tgz.cosign.bundle
 
-      - name: Creating PR
-        if: startsWith(github.ref, 'refs/tags/')
+      # FIXME: We need a Repo Created in Quay ahead of time for this to work
+      # - name: Push to Quay
+      #   if: startsWith(github.ref, 'refs/tags/')
+      #   run: |-
+      #     helm push \
+      #       jetstack-charts/charts/version-checker-${{ needs.release-name.outputs.name }}.tgz \
+      #       oci://quay.io/jetstack/version-checker/chart
+
+      - name: Creating Publishing Chart's PR
         uses: peter-evans/create-pull-request@v7
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
         with:
           token: ${{ secrets.JETSTACK_CHARTS_PAT }}
-          title: "Release version-checker ${{github.ref_name }}"
-          commit-message: "Release version-checker ${{github.ref_name }}"
-          branch: version-checker/${{github.ref_name}}
+          title: "Release version-checker ${{ needs.release-name.outputs.name }}"
+          commit-message: "Release version-checker ${{ needs.release-name.outputs.name }}"
+          branch: version-checker/${{ github.ref_name }}
           path: jetstack-charts
           add-paths: |
             charts/*.tgz
@@ -166,16 +193,13 @@ jobs:
           delete-branch: true
           signoff: true
           base: main
-          draft: ${{ !startsWith(github.ref, 'refs/tags/') }}
-
-      - name: Push to Quay
-        run: |-
-          helm push jetstack-charts/charts/version-checker-${{ github.ref_name }}.tgz oci://quay.io/quay.io/jetstack/version-checker/chart
 
   docker-release:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
+    needs:
+      - release-name
     steps:
       - name: Checkout code
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
@@ -183,7 +207,7 @@ jobs:
       # Install the cosign tool except on PR
       # https://github.com/sigstore/cosign-installer
       - name: Install cosign
-        uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20 #v3.5.0
+        uses: sigstore/cosign-installer@3454372f43399081ed03b604cb2d021dabca52bb #v3.8.2
         with:
           cosign-release: "v2.2.4"
 
@@ -217,26 +241,22 @@ jobs:
             type=sbom
             type=provenance,mode=max
 
-      # Sign the resulting Docker image digest except on PRs.
-      # This will only write to the public Rekor transparency log when the Docker
-      # repository is public to avoid leaking data.  If you would like to publish
-      # transparency data even for private images, pass --force to cosign below.
-      # https://github.com/sigstore/cosign
-      - name: Sign the published Docker image
+      - name: Sign the published Docker image (if tag)
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
         env:
           # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
-          TAGS: ${{ steps.meta.outputs.tags }}
+          TAGS: quay.io/jetstack/version-checker:${{github.ref_name}}
           DIGEST: ${{ steps.build-and-push.outputs.digest }}
-        # This step uses the identity token to provision an ephemeral certificate
-        # against the sigstore community Fulcio instance.
-        run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
+        run: |-
+          cosign sign --yes "quay.io/jetstack/version-checker:${{github.ref_name}}@${DIGEST}"
 
   github-release:
     name: Create/Update GitHub Release
     permissions:
       contents: write
     runs-on: ubuntu-latest
+    needs:
+      - release-name
     steps:
       - name: Create Release / Change Logs
         uses: softprops/action-gh-release@v2
