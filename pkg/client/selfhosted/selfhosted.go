@@ -218,17 +218,17 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 			Architecture: api.Architecture(manifestResponse.Architecture),
 		}
 
-		util.FindParentTags(tags, tag, &current)
+		util.BuildTags(tags, tag, &current)
 
 		for _, manifest := range manifestListResponse.Manifests {
 
 			// If we didn't get a SHA from the inital call,
 			// lets set it from the manifestList
-			if current.SHA != "" && manifest.Digest != "" {
+			if current.SHA == "" && manifest.Digest != "" {
 				current.SHA = manifest.Digest
 			}
 
-			util.FindParentTags(tags, tag, &current)
+			util.BuildTags(tags, tag, &current)
 		}
 	}
 	return util.TagMaptoList(tags), nil

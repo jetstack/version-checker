@@ -94,7 +94,7 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 			current := base   // copy the base
 			current.Tag = tag // set tag value
 
-			util.FindParentTags(tags, tag, &current)
+			util.BuildTags(tags, tag, &current)
 		}
 	}
 	return util.TagMaptoList(tags), nil

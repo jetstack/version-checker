@@ -81,7 +81,7 @@ func TagMaptoList(tags map[string]api.ImageTag) []api.ImageTag {
 	return taglist
 }
 
-func FindParentTags(tags map[string]api.ImageTag, tag string, current *api.ImageTag) {
+func BuildTags(tags map[string]api.ImageTag, tag string, current *api.ImageTag) {
 	// Already exists — add as child
 	if parent, exists := tags[tag]; exists {
 		parent.Children = append(parent.Children, current)
