@@ -58,3 +58,10 @@ available to view the image versions as a table.
 <p align="center">
   <b>Grafana Dashboard</b><br>
 </p>
+
+## Known configurations
+
+From time to time, version-checker may need some of the above options applied to determine the latest version,
+depending on how the maintainers publish their images. We are making a conscious effort to collate some of these configurations.
+
+See [known-configurations.md](../known-configurations.md) for more details.

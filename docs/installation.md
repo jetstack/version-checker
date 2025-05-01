@@ -83,10 +83,3 @@ However, by passing the following flag,`-a, --test-all-containers` version-check
 - `resolve-sha-to-tags.version-checker.io/my-container`: is used to
     resolve images specified using sha256 in kubernetes manifests to valid semver
     tags. To enable this the annotation value must be set to "true".
-
-## Known configurations
-
-From time to time, version-checker may need some of the above options applied to determine the latest version,
-depending on how the maintainers publish their images. We are making a conscious effort to collate some of these configurations.
-
-See [known-configurations.md](../known-configurations.md) for more details.
