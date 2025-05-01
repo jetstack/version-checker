@@ -2,10 +2,10 @@ package client
 
 import (
 	"context"
-	"reflect"
 	"testing"
 
 	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/jetstack/version-checker/pkg/client/acr"
@@ -181,20 +181,10 @@ func TestFromImageURL(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			client, host, path := handler.fromImageURL(test.url)
-			if reflect.TypeOf(client) != reflect.TypeOf(test.expClient) {
-				t.Errorf("unexpected client, exp=%v got=%v",
-					reflect.TypeOf(test.expClient), reflect.TypeOf(client))
-			}
 
-			if host != test.expHost {
-				t.Errorf("unexpected host, exp=%v got=%v",
-					test.expHost, host)
-			}
-
-			if path != test.expPath {
-				t.Errorf("unexpected path, exp=%s got=%s",
-					test.expPath, path)
-			}
+			assert.IsType(t, test.expClient, client)
+			assert.Equal(t, test.expHost, host)
+			assert.Equal(t, test.expPath, path)
 		})
 	}
 }

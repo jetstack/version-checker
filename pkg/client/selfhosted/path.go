@@ -13,6 +13,9 @@ const (
 )
 
 func (c *Client) IsHost(host string) bool {
+	if c.hostRegex == nil {
+		return c.Host == host
+	}
 	return c.hostRegex.MatchString(host)
 }
 

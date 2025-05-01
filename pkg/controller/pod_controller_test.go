@@ -48,6 +48,7 @@ func TestNewController(t *testing.T) {
 	assert.Equal(t, controller.Client, kubeClient)
 	assert.NotNil(t, controller.VersionChecker)
 }
+
 func TestReconcile(t *testing.T) {
 	imageClient := &client.Client{}
 

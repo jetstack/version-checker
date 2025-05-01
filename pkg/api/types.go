@@ -12,6 +12,26 @@ type ImageTag struct {
 	Timestamp    time.Time    `json:"timestamp"`
 	OS           OS           `json:"os,omitempty"`
 	Architecture Architecture `json:"architecture,omitempty"`
+
+	// If this is a Manifest list we need to keep them together
+	Children []*ImageTag `json:"children,omitempty"`
+}
+
+func (i *ImageTag) MatchesSHA(sha string) bool {
+	if sha == i.SHA {
+		return true
+	}
+	for _, known := range i.Children {
+		if known.SHA == sha {
+			return true
+		}
+	}
+	return false
+}
+
+type Platform struct {
+	OS           OS
+	Architecture Architecture
 }
 
 type OS string

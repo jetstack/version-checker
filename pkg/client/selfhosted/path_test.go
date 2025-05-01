@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestIsHost(t *testing.T) {
@@ -77,12 +78,28 @@ func TestIsHost(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			if isHost := handler.IsHost(test.host); isHost != test.expIs {
-				t.Errorf("%s: unexpected IsHost, exp=%t got=%t",
-					test.host, test.expIs, isHost)
-			}
+			assert.Equal(t, test.expIs,
+				handler.IsHost(test.host),
+			)
+			assert.Equal(t, test.expIs, handler.IsHost(test.host))
 		})
 	}
+
+	// t.Run("No Options set on client", func(t *testing.T) {
+	// 	handler, err := New(context.TODO(), logrus.NewEntry(logrus.New()), &Options{})
+	// 	require.NoError(t, err)
+
+	// 	assert.NotPanics(t, func() { handler.IsHost("example.com") })
+	// })
+
+	// t.Run("No Options set on client", func(t *testing.T) {
+
+	// 	handler := &Client{Options: &Options{Host: "abc"}}
+	// 	require.NoError(t, err)
+
+	// 	assert.NotPanics(t, func() { handler.IsHost("example.com") })
+	// 	assert.True(t, handler.IsHost("abc"))
+	// })
 }
 
 func TestRepoImage(t *testing.T) {
