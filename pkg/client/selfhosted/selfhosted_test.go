@@ -59,17 +59,6 @@ func TestNew(t *testing.T) {
 		assert.Contains(t, err.Error(), "failed parsing url")
 	})
 
-	// t.Run("Error on missing host", func(t *testing.T) {
-	// 	opts := &Options{
-	// 		Host:   "",
-	// 		CAPath: "invalid/path",
-	// 	}
-	// 	client, err := New(ctx, log, opts)
-	// 	assert.Nil(t, client)
-	// 	assert.Error(t, err)
-	// 	assert.Contains(t, err.Error(), "host cannot be empty")
-	// })
-
 	t.Run("error on username/password and bearer token both specified", func(t *testing.T) {
 		opts := &Options{
 			Host:     "https://testregistry.com",
