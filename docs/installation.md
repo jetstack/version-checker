@@ -33,9 +33,9 @@ REVISION: 1
 TEST SUITE: None
 ```
 
-### Prometheus Integration
+### Prometheus Operator Integration
 
-The Helm chart supports creating a Prometheus ServiceMonitor to expose the version-checker metrics.
+The Helm chart supports creating a [Prometheus Operator](https://github.com/prometheus-operator/prometheus-operator) `ServiceMonitor` to expose version-checker's metrics.
 
 ## Options
 
