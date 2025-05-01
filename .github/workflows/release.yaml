@@ -111,6 +111,8 @@ jobs:
       - name: Build Changelog
         id: github_release
         uses: mikepenz/release-changelog-builder-action@v5
+        with:
+          ignorePreReleases: true
 
       - name: Create Release PR
         uses: devops-infra/action-pull-request@v0.6.0
