@@ -26,6 +26,7 @@ const (
 )
 
 type Client struct {
+	Keyfunc keyfunc.Keyfunc
 	Options
 
 	cacheMu         sync.Mutex
@@ -62,7 +63,17 @@ func New(opts Options) (*Client, error) {
 		return nil, errors.New("cannot specify refresh token as well as username/password")
 	}
 
+	var k keyfunc.Keyfunc
+	var err error
+	if opts.JWKSURI != "" {
+		k, err = keyfunc.NewDefaultCtx(context.TODO(), []string{opts.JWKSURI})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create keyfunc: %w", err)
+		}
+	}
+
 	return &Client{
+		Keyfunc:         k,
 		Options:         opts,
 		cachedACRClient: make(map[string]*acrClient),
 	}, nil
@@ -266,13 +277,8 @@ func (c *Client) getTokenExpiration(tokenString string) (time.Time, error) {
 	jwtParser := jwt.NewParser(jwt.WithoutClaimsValidation())
 	var token *jwt.Token
 	var err error
-	if c.JWKSURI != "" {
-		var k keyfunc.Keyfunc
-		k, err = keyfunc.NewDefaultCtx(context.TODO(), []string{c.JWKSURI})
-		if err != nil {
-			return time.Time{}, err
-		}
-		token, err = jwtParser.Parse(tokenString, k.Keyfunc)
+	if c.Keyfunc != nil {
+		token, err = jwtParser.Parse(tokenString, c.Keyfunc.Keyfunc)
 	} else {
 		token, _, err = jwtParser.ParseUnverified(tokenString, jwt.MapClaims{})
 	}
