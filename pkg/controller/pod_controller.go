@@ -40,7 +40,7 @@ type PodReconciler struct {
 func NewPodReconciler(
 	cacheTimeout time.Duration,
 	metrics *metrics.Metrics,
-	imageClient *client.Client,
+	imageClient *client.ClientManager,
 	kubeClient k8sclient.Client,
 	log *logrus.Entry,
 	requeueDuration time.Duration,
@@ -95,10 +95,18 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	LeaderElect := false
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Pod{}, builder.OnlyMetadata).
-		WithOptions(controller.Options{MaxConcurrentReconciles: numWorkers, NeedLeaderElection: &LeaderElect}).
+		WithOptions(controller.Options{
+			MaxConcurrentReconciles: numWorkers,
+			NeedLeaderElection:      &LeaderElect,
+		}).
 		WithEventFilter(predicate.Funcs{
 			CreateFunc: func(_ event.TypedCreateEvent[k8sclient.Object]) bool { return true },
-			UpdateFunc: func(_ event.TypedUpdateEvent[k8sclient.Object]) bool { return true },
+			UpdateFunc: func(e event.TypedUpdateEvent[k8sclient.Object]) bool {
+				// old := options.New(e.ObjectOld.GetAnnotations())
+				// new := options.New(e.ObjectNew.GetAnnotations())
+				// return old.Hash() != new.Hash()
+				return true
+			},
 			DeleteFunc: func(e event.TypedDeleteEvent[k8sclient.Object]) bool {
 				r.Log.Infof("Pod deleted: %s/%s", e.Object.GetNamespace(), e.Object.GetName())
 				r.Metrics.RemovePod(e.Object.GetNamespace(), e.Object.GetName())

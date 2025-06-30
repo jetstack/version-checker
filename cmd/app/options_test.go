@@ -5,15 +5,15 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/jetstack/version-checker/pkg/client"
 	"github.com/jetstack/version-checker/pkg/client/acr"
-	"github.com/jetstack/version-checker/pkg/client/docker"
+	"github.com/jetstack/version-checker/pkg/client/dockerhub"
 	"github.com/jetstack/version-checker/pkg/client/ecr"
 	"github.com/jetstack/version-checker/pkg/client/gcr"
 	"github.com/jetstack/version-checker/pkg/client/ghcr"
 	"github.com/jetstack/version-checker/pkg/client/quay"
-	"github.com/jetstack/version-checker/pkg/client/selfhosted"
 )
 
 func TestComplete(t *testing.T) {
@@ -22,10 +22,8 @@ func TestComplete(t *testing.T) {
 		expOptions client.Options
 	}{
 		"no envs should give no options": {
-			envs: [][2]string{},
-			expOptions: client.Options{
-				Selfhosted: make(map[string]*selfhosted.Options),
-			},
+			envs:       [][2]string{},
+			expOptions: client.Options{},
 		},
 		"single host for all options should be included": {
 			envs: [][2]string{
@@ -55,7 +53,7 @@ func TestComplete(t *testing.T) {
 					RefreshToken: "acr-token",
 					JWKSURI:      "acr-jwks-uri",
 				},
-				Docker: docker.Options{
+				Docker: dockerhub.Options{
 					Username: "docker-username",
 					Password: "docker-password",
 					Token:    "docker-token",
@@ -75,15 +73,15 @@ func TestComplete(t *testing.T) {
 				Quay: quay.Options{
 					Token: "quay-token",
 				},
-				Selfhosted: map[string]*selfhosted.Options{
-					"FOO": {
-						Host:     "docker.joshvanl.com",
-						Username: "joshvanl",
-						Password: "password",
-						Bearer:   "my-token",
-						Insecure: false,
-					},
-				},
+				// Selfhosted: map[string]*selfhosted.Options{
+				// 	"FOO": {
+				// 		Host:     "docker.joshvanl.com",
+				// 		Username: "joshvanl",
+				// 		Password: "password",
+				// 		Bearer:   "my-token",
+				// 		Insecure: false,
+				// 	},
+				// },
 			},
 		},
 		"multiple host for all options should be included": {
@@ -125,7 +123,7 @@ func TestComplete(t *testing.T) {
 					RefreshToken: "acr-token",
 					JWKSURI:      "acr-jwks-uri",
 				},
-				Docker: docker.Options{
+				Docker: dockerhub.Options{
 					Username: "docker-username",
 					Password: "docker-password",
 					Token:    "docker-token",
@@ -145,29 +143,29 @@ func TestComplete(t *testing.T) {
 				Quay: quay.Options{
 					Token: "quay-token",
 				},
-				Selfhosted: map[string]*selfhosted.Options{
-					"FOO": {
-						Host:     "docker.joshvanl.com",
-						Username: "joshvanl",
-						Password: "password",
-						Bearer:   "my-token",
-						Insecure: true,
-					},
-					"BAR": {
-						Host:     "bar.docker.joshvanl.com",
-						Username: "bar.joshvanl",
-						Password: "bar-password",
-						Bearer:   "my-bar-token",
-						Insecure: false,
-					},
-					"BUZZ": {
-						Host:     "buzz.docker.jetstack.io",
-						Username: "buzz.davidcollom",
-						Password: "buzz-password",
-						Bearer:   "my-buzz-token",
-						Insecure: false,
-						CAPath:   "/var/run/secrets/buzz/ca.crt",
-					},
+				// Selfhosted: map[string]*selfhosted.Options{
+				// 	"FOO": {
+				// 		Host:     "docker.joshvanl.com",
+				// 		Username: "joshvanl",
+				// 		Password: "password",
+				// 		Bearer:   "my-token",
+				// 		Insecure: true,
+				// 	},
+				// 	"BAR": {
+				// 		Host:     "bar.docker.joshvanl.com",
+				// 		Username: "bar.joshvanl",
+				// 		Password: "bar-password",
+				// 		Bearer:   "my-bar-token",
+				// 		Insecure: false,
+				// 	},
+				// 	"BUZZ": {
+				// 		Host:     "buzz.docker.jetstack.io",
+				// 		Username: "buzz.davidcollom",
+				// 		Password: "buzz-password",
+				// 		Bearer:   "my-buzz-token",
+				// 		Insecure: false,
+				// 		CAPath:   "/var/run/secrets/buzz/ca.crt",
+				// 	},
 				},
 			},
 		},
@@ -180,14 +178,15 @@ func TestComplete(t *testing.T) {
 				t.Setenv(env[0], env[1])
 			}
 			o := new(Options)
-			o.complete()
+			err := o.complete()
+			require.NoError(t, err)
 
 			assert.Exactly(t, test.expOptions, o.Client)
 		})
 	}
 }
 
-func TestInvalidSelfhostedPanic(t *testing.T) {
+func TestInvalidSelfhostedEnv(t *testing.T) {
 	tests := map[string]struct {
 		envs []string
 	}{
@@ -199,12 +198,8 @@ func TestInvalidSelfhostedPanic(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			defer func() { _ = recover() }()
-
 			o := new(Options)
-			o.assignSelfhosted(test.envs)
-
-			t.Errorf("did not panic")
+			assert.Error(t, o.assignSelfhosted(test.envs))
 		})
 	}
 }
@@ -221,7 +216,7 @@ func TestInvalidSelfhostedOpts(t *testing.T) {
 		"no self hosted host provided": {
 			opts: Options{
 				Client: client.Options{
-					Selfhosted: map[string]*selfhosted.Options{"foo": &selfhosted.Options{
+					Selfhosted: map[string]*selfhosted.Options{"foo": {
 						Insecure: true,
 					}},
 				},
@@ -232,9 +227,12 @@ func TestInvalidSelfhostedOpts(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 
-			valid := validSelfHostedOpts(&test.opts)
-
-			assert.Equal(t, test.valid, valid)
+			err := validateSelfHostedOpts(&test.opts)
+			if test.valid {
+				assert.NoError(t, err)
+			} else {
+				assert.Error(t, err)
+			}
 		})
 	}
 }
@@ -353,7 +351,8 @@ func TestAssignSelfhosted(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			o := new(Options)
-			o.assignSelfhosted(test.envs)
+			err := o.assignSelfhosted(test.envs)
+			require.NoError(t, err)
 
 			assert.Exactly(t, test.expOptions.Selfhosted, o.Client.Selfhosted)
 		})
