@@ -39,7 +39,7 @@ func TestNewController(t *testing.T) {
 		prometheus.NewRegistry(),
 		kubeClient,
 	)
-	imageClient := &client.Client{}
+	imageClient := &client.ClientManager{}
 
 	controller := NewPodReconciler(5*time.Minute, metrics, imageClient, kubeClient, testLogger, time.Hour, true)
 
@@ -49,7 +49,7 @@ func TestNewController(t *testing.T) {
 	assert.NotNil(t, controller.VersionChecker)
 }
 func TestReconcile(t *testing.T) {
-	imageClient := &client.Client{}
+	imageClient := &client.ClientManager{}
 
 	tests := []struct {
 		name            string
@@ -121,7 +121,7 @@ func TestSetupWithManager(t *testing.T) {
 		prometheus.NewRegistry(),
 		kubeClient,
 	)
-	imageClient := &client.Client{}
+	imageClient := &client.ClientManager{}
 	controller := NewPodReconciler(5*time.Minute, metrics, imageClient, kubeClient, testLogger, time.Hour, true)
 
 	mgr, err := manager.New(&rest.Config{}, manager.Options{LeaderElectionConfig: nil})
