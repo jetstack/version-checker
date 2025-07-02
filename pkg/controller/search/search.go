@@ -17,6 +17,7 @@ import (
 // Searcher is the interface for Search to facilitate testing.
 type Searcher interface {
 	LatestImage(context.Context, string, *api.Options) (*api.ImageTag, error)
+	ResolveSHAToTag(ctx context.Context, imageURL string, imageSHA string) (string, error)
 }
 
 // Search is the implementation for the searching and caching of image URLs.
@@ -63,6 +64,16 @@ func (s *Search) LatestImage(ctx context.Context, imageURL string, opts *api.Opt
 	}
 
 	return lastestImage.(*api.ImageTag), nil
+}
+
+func (s *Search) ResolveSHAToTag(ctx context.Context, imageURL string, imageSHA string) (string, error) {
+
+	tag, err := s.versionGetter.ResolveSHAToTag(ctx, imageURL, imageSHA)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve sha to tag: %w", err)
+	}
+
+	return tag, err
 }
 
 // calculateHashIndex returns a hash index given an imageURL and options.

@@ -9,6 +9,8 @@ type Options struct {
 
 	// UseSHA cannot be used with any other options
 	UseSHA bool `json:"use-sha,omitempty"`
+	// Resolve SHA to a TAG
+	ResolveSHAToTags bool `json:"resolve-sha-to-tags,omitempty"`
 
 	MatchRegex *string `json:"match-regex,omitempty"`
 

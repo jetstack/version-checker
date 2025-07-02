@@ -36,7 +36,7 @@ func TestCache(t *testing.T) {
 	for i, typ := range []string{"init", "container"} {
 		version := fmt.Sprintf("0.1.%d", i)
 		mt, _ := m.containerImageVersion.GetMetricWith(
-			m.buildFullLabels("namespace", "pod", "container", typ, "url", version, version),
+			buildFullLabels("namespace", "pod", "container", typ, "url", version, version),
 		)
 		count := testutil.ToFloat64(mt)
 		assert.Equal(t, count, float64(1), "Expected to get a metric for containerImageVersion")
@@ -44,7 +44,7 @@ func TestCache(t *testing.T) {
 
 	// as well as the lastUpdated...
 	for _, typ := range []string{"init", "container"} {
-		mt, err := m.containerImageChecked.GetMetricWith(m.buildLastUpdatedLabels("namespace", "pod", "container", typ, "url"))
+		mt, err := m.containerImageChecked.GetMetricWith(buildLastUpdatedLabels("namespace", "pod", "container", typ, "url"))
 		require.NoError(t, err)
 		count := testutil.ToFloat64(mt)
 		assert.GreaterOrEqual(t, count, float64(time.Now().Unix()))
@@ -58,14 +58,14 @@ func TestCache(t *testing.T) {
 	for i, typ := range []string{"init", "container"} {
 		version := fmt.Sprintf("0.1.%d", i)
 		mt, _ := m.containerImageVersion.GetMetricWith(
-			m.buildFullLabels("namespace", "pod", "container", typ, "url", version, version),
+			buildFullLabels("namespace", "pod", "container", typ, "url", version, version),
 		)
 		count := testutil.ToFloat64(mt)
 		assert.Equal(t, count, float64(0), "Expected NOT to get a metric for containerImageVersion")
 	}
 	// And the Last Updated is removed too
 	for _, typ := range []string{"init", "container"} {
-		mt, err := m.containerImageChecked.GetMetricWith(m.buildLastUpdatedLabels("namespace", "pod", "container", typ, "url"))
+		mt, err := m.containerImageChecked.GetMetricWith(buildLastUpdatedLabels("namespace", "pod", "container", typ, "url"))
 		require.NoError(t, err)
 		count := testutil.ToFloat64(mt)
 		assert.Equal(t, count, float64(0), "Expected to get a metric for containerImageChecked")
@@ -183,4 +183,34 @@ func Test_Metrics_SkipOnDeletedPod(t *testing.T) {
 		assert.NotContains(t, *mf.Name, "image_lookup_duration", "Should not have been found: %+v", mf)
 		assert.NotContains(t, *mf.Name, "image_failures_total", "Should not have been found: %+v", mf)
 	}
+}
+
+func TestPodAnnotationsChangeAfterRegistration(t *testing.T) {
+	// Step 2: Create Metrics with fake registry
+	reg := prometheus.NewRegistry()
+	log := logrus.NewEntry(logrus.New())
+	client := fake.NewClientBuilder().Build()
+	metrics := New(log, reg, client)
+
+	// Register Metrics...
+	metrics.AddImage("default", "mypod", "my-init-container", "init", "alpine:latest", false, "1.0", "1.1")
+	metrics.AddImage("default", "mypod", "mycontainer", "container", "nginx:1.0", true, "1.0", "1.0")
+	metrics.AddImage("default", "mypod", "sidecar", "container", "alpine:1.0", false, "1.0", "1.1")
+
+	_, err := reg.Gather()
+	require.NoError(t, err, "Failed to gather metrics")
+
+	assert.Equal(t, 3,
+		testutil.CollectAndCount(metrics.containerImageVersion.MetricVec, MetricNamespace+"_is_latest_version"),
+	)
+
+	// Pod Annotations are changed, only the `mycontainer` should be checked...
+
+	// Remove Init and sidecar
+	metrics.RemoveImage("default", "mypod", "my-init-container", "init")
+	metrics.RemoveImage("default", "mypod", "sidecar", "container")
+
+	assert.Equal(t, 1,
+		testutil.CollectAndCount(metrics.containerImageVersion.MetricVec, MetricNamespace+"_is_latest_version"),
+	)
 }

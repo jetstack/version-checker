@@ -2,7 +2,9 @@ package selfhosted
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -242,6 +244,31 @@ func TestDoRequest(t *testing.T) {
 		assert.Nil(t, headers)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "unexpected")
+	})
+
+	t.Run("use basic auth in request", func(t *testing.T) {
+		username := "foo"
+		password := "bar"
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, r.Header.Get("Authorization"), fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(username+":"+password))))
+			assert.Equal(t, "/v2/repo/image/tags/list", r.URL.Path)
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"tags":["v1","v2"]}`))
+		}))
+		defer server.Close()
+
+		h, err := url.Parse(server.URL)
+		assert.NoError(t, err)
+
+		client.Username = username
+		client.Password = password
+
+		var tagResponse TagResponse
+		headers, err := client.doRequest(ctx, h.Host+"/v2/repo/image/tags/list", "", &tagResponse)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, headers)
+		assert.Equal(t, []string{"v1", "v2"}, tagResponse.Tags)
 	})
 }
 

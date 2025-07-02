@@ -114,13 +114,15 @@ func configureAuth(ctx context.Context, client *Client, opts *Options) error {
 
 	token, err := client.setupBasicAuth(ctx, opts.Host, tokenPath)
 	if httpErr, ok := selfhostederrors.IsHTTPError(err); ok {
-		return fmt.Errorf("failed to setup token auth (%d): %s",
-			httpErr.StatusCode, httpErr.Body)
-	}
-	if err != nil {
+		if httpErr.StatusCode == http.StatusNotFound {
+			client.log.Warnf("Token endpoint not found, using basic auth: %s%s %s", opts.Host, tokenPath, httpErr.Body)
+		} else {
+			return fmt.Errorf("failed to setup token auth (%d): %s",
+				httpErr.StatusCode, httpErr.Body)
+		}
+	} else if err != nil {
 		return fmt.Errorf("failed to setup token auth: %s", err)
 	}
-
 	client.Bearer = token
 	return nil
 }
@@ -229,7 +231,10 @@ func (c *Client) doRequest(ctx context.Context, url, header string, obj interfac
 	req = req.WithContext(ctx)
 	if len(c.Bearer) > 0 {
 		req.Header.Add("Authorization", "Bearer "+c.Bearer)
+	} else if c.Username != "" && c.Password != "" {
+		req.SetBasicAuth(c.Username, c.Password)
 	}
+
 	if len(header) > 0 {
 		req.Header.Set("Accept", header)
 	}

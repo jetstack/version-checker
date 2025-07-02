@@ -1,6 +1,6 @@
 # version-checker
 
-![Version: v0.8.6](https://img.shields.io/badge/Version-v0.8.6-informational?style=flat-square) ![AppVersion: v0.8.6](https://img.shields.io/badge/AppVersion-v0.8.6-informational?style=flat-square)
+![Version: v0.9.3](https://img.shields.io/badge/Version-v0.9.3-informational?style=flat-square) ![AppVersion: v0.9.3](https://img.shields.io/badge/AppVersion-v0.9.3-informational?style=flat-square)
 
 A Helm chart for version-checker
 
