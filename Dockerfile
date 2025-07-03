@@ -6,7 +6,8 @@ WORKDIR /app/
 RUN go mod download -x
 
 ARG TARGETOS TARGETARCH
-RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -o ./bin/version-checker ./cmd/.
+ENV CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH
+RUN go build -o ./bin/version-checker ./cmd/.
 
 
 FROM alpine:3.22.0

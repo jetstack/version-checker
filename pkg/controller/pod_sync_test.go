@@ -32,7 +32,7 @@ func TestController_Sync(t *testing.T) {
 		prometheus.NewRegistry(),
 		fake.NewFakeClient(),
 	)
-	imageClient := &client.Client{}
+	imageClient := &client.ClientManager{}
 	searcher := search.New(log, 5*time.Minute, version.New(log, imageClient, 5*time.Minute))
 	checker := checker.New(searcher)
 
@@ -67,7 +67,7 @@ func TestController_SyncContainer(t *testing.T) {
 	t.Parallel()
 	log := logrus.NewEntry(logrus.New())
 	metrics := metrics.New(log, prometheus.NewRegistry(), fake.NewFakeClient())
-	imageClient := &client.Client{}
+	imageClient := &client.ClientManager{}
 	searcher := search.New(log, 5*time.Minute, version.New(log, imageClient, 5*time.Minute))
 	checker := checker.New(searcher)
 
@@ -99,7 +99,7 @@ func TestController_CheckContainer(t *testing.T) {
 	t.Parallel()
 	log := logrus.NewEntry(logrus.New())
 	metrics := metrics.New(log, prometheus.NewRegistry(), fake.NewFakeClient())
-	imageClient := &client.Client{}
+	imageClient := &client.ClientManager{}
 	searcher := search.New(log, 5*time.Minute, version.New(log, imageClient, 5*time.Minute))
 	checker := checker.New(searcher)
 
@@ -129,7 +129,7 @@ func TestController_SyncContainer_NoVersionFound(t *testing.T) {
 
 	log := logrus.NewEntry(logrus.New())
 	metrics := metrics.New(log, prometheus.NewRegistry(), fake.NewFakeClient())
-	imageClient := &client.Client{}
+	imageClient := &client.ClientManager{}
 	searcher := search.New(log, 5*time.Minute, version.New(log, imageClient, 5*time.Minute))
 	checker := checker.New(searcher)
 

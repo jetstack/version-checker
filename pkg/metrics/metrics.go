@@ -126,7 +126,12 @@ func (m *Metrics) RemoveImage(namespace, pod, container, containerType string) {
 	total += m.containerImageChecked.DeletePartialMatch(labels)
 	total += m.containerImageErrors.DeletePartialMatch(labels)
 
-	m.log.Infof("Removed %d metrics for image %s/%s/%s (%s)", total, namespace, pod, container, containerType)
+	m.log.WithFields(logrus.Fields{
+		"namespace": namespace,
+		"pod":       pod,
+		"container": container,
+		"type":      containerType,
+	}).Infof("Removed %d metrics for image", total)
 }
 
 func (m *Metrics) RemovePod(namespace, pod string) {

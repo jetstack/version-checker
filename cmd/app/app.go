@@ -37,8 +37,10 @@ func NewCommand(ctx context.Context) *cobra.Command {
 		Use:   "version-checker",
 		Short: helpOutput,
 		Long:  helpOutput,
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return opts.complete()
+		},
 		RunE: func(_ *cobra.Command, _ []string) error {
-			opts.complete()
 
 			logLevel, err := logrus.ParseLevel(opts.LogLevel)
 			if err != nil {
@@ -105,14 +107,14 @@ func NewCommand(ctx context.Context) *cobra.Command {
 				metricsServer.RoundTripper,
 			)
 
-			client, err := client.New(ctx, log, opts.Client)
+			clientManager, err := client.NewManager(ctx, log, mgr.GetConfig(), opts.Client)
 			if err != nil {
 				return fmt.Errorf("failed to setup image registry clients: %s", err)
 			}
 
 			c := controller.NewPodReconciler(opts.CacheTimeout,
 				metricsServer,
-				client,
+				clientManager,
 				mgr.GetClient(),
 				log,
 				opts.RequeueDuration,
