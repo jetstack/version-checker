@@ -12,6 +12,7 @@ import (
 	"github.com/jetstack/version-checker/pkg/client/acr"
 	"github.com/jetstack/version-checker/pkg/client/docker"
 	"github.com/jetstack/version-checker/pkg/client/ecr"
+	"github.com/jetstack/version-checker/pkg/client/ecrpublic"
 	"github.com/jetstack/version-checker/pkg/client/fallback"
 	"github.com/jetstack/version-checker/pkg/client/gcr"
 	"github.com/jetstack/version-checker/pkg/client/ghcr"
@@ -38,6 +39,7 @@ type Client struct {
 type Options struct {
 	ACR        acr.Options
 	ECR        ecr.Options
+	ECRPublic  ecrpublic.Options // Add ECRPublic options
 	GCR        gcr.Options
 	GHCR       ghcr.Options
 	Docker     docker.Options
@@ -54,6 +56,7 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 	if opts.Transport != nil {
 		opts.Quay.Transporter = opts.Transport
 		opts.ECR.Transporter = opts.Transport
+		opts.ECRPublic.Transporter = opts.Transport // Add ECR public transporter
 		opts.GHCR.Transporter = opts.Transport
 		opts.GCR.Transporter = opts.Transport
 	}
@@ -106,6 +109,7 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 			selfhostedClients,
 			acrClient,
 			ecr.New(opts.ECR),
+			ecrpublic.New(opts.ECRPublic),
 			dockerClient,
 			gcr.New(opts.GCR),
 			ghcr.New(opts.GHCR),
