@@ -15,7 +15,6 @@ import (
 
 	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/jetstack/version-checker/pkg/client"
-	"github.com/jetstack/version-checker/pkg/client/selfhosted"
 )
 
 const (
@@ -42,24 +41,13 @@ const (
 
 	envQuayToken = "QUAY_TOKEN" // #nosec G101
 
-	envSelfhostedPrefix    = "SELFHOSTED"
-	envSelfhostedUsername  = "USERNAME"
-	envSelfhostedPassword  = "PASSWORD"
-	envSelfhostedHost      = "HOST"
-	envSelfhostedBearer    = "TOKEN" // #nosec G101
-	envSelfhostedTokenPath = "TOKEN_PATH"
-	envSelfhostedInsecure  = "INSECURE"
-	envSelfhostedCAPath    = "CA_PATH"
-)
-
-var (
-	selfhostedHostReg     = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_HOST_(.*)")
-	selfhostedUsernameReg = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_USERNAME_(.*)")
-	selfhostedPasswordReg = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_PASSWORD_(.*)")
-	selfhostedTokenPath   = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_TOKEN_PATH_(.*)")
-	selfhostedTokenReg    = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_TOKEN_(.*)")
-	selfhostedCAPath      = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_CA_PATH_(.*)")
-	selfhostedInsecureReg = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_INSECURE_(.*)")
+	// Used for kubernetes Credential Discovery
+	envKeychainServiceAccountName = "AUTH_SERVICE_ACCOUNT_NAME"
+	envKeychainNamespace          = "AUTH_SERVICE_ACCOUNT_NAMESPACE"
+	envKeychainImagePullSecrets   = "AUTH_IMAGE_PULL_SECRETS"
+	envKeychainUseMountSecrets    = "AUTH_USE_MOUNT_SECRETS"
+	// Duration in which to Refresh Credentials from Service Account
+	envKeychainRefreshDuration = "AUTH_REFRESH_DURATION"
 )
 
 // Options is a struct to hold options for the version-checker.
@@ -77,8 +65,7 @@ type Options struct {
 
 	kubeConfigFlags *genericclioptions.ConfigFlags
 
-	selfhosted selfhosted.Options
-	Client     client.Options
+	Client client.Options
 }
 
 type envMatcher struct {
@@ -149,6 +136,40 @@ func (o *Options) addAppFlags(fs *pflag.FlagSet) {
 }
 
 func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
+
+	/// KEYCHAIN
+	fs.StringVar(&o.Client.KeyChain.Namespace,
+		"keychain-namespace", "",
+		fmt.Sprintf(
+			"Namespace inside of which service account and imagepullsecrets belong too (%s_%s).",
+			envPrefix, envKeychainNamespace,
+		))
+
+	fs.StringVar(&o.Client.KeyChain.ServiceAccountName,
+		"keychain-service-account", "",
+		fmt.Sprintf(
+			"ServiceAccount used to fetch Image Pull Secrets from (%s_%s).",
+			envPrefix, envKeychainServiceAccountName,
+		))
+
+	fs.StringSliceVar(&o.Client.KeyChain.ImagePullSecrets,
+		"keychain-image-pull-secrets", []string{},
+		fmt.Sprintf(
+			"Set of image pull secrets to include during authentication (%s_%s).",
+			envPrefix, envKeychainImagePullSecrets,
+		))
+
+	fs.BoolVar(&o.Client.KeyChain.UseMountSecrets,
+		"keychain-use-mount-secrets", false,
+		fmt.Sprintf("Include Mount Secrets during discovery (%s_%s).",
+			envPrefix, envKeychainUseMountSecrets,
+		))
+	fs.DurationVar(&o.Client.AuthRefreshDuration,
+		"keychain-refresh-duration", time.Hour,
+		fmt.Sprintf("Duration credentials are refreshed (%s_%s).",
+			envPrefix, envKeychainRefreshDuration,
+		))
+
 	/// ACR
 	fs.StringVar(&o.Client.ACR.Username,
 		"acr-username", "",
@@ -156,12 +177,14 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 			"Username to authenticate with azure container registry (%s_%s).",
 			envPrefix, envACRUsername,
 		))
+	_ = fs.MarkDeprecated("acr-username", "use keychain instead")
 	fs.StringVar(&o.Client.ACR.Password,
 		"acr-password", "",
 		fmt.Sprintf(
 			"Password to authenticate with azure container registry (%s_%s).",
 			envPrefix, envACRPassword,
 		))
+	_ = fs.MarkDeprecated("acr-password", "use keychain instead")
 	fs.StringVar(&o.Client.ACR.RefreshToken,
 		"acr-refresh-token", "",
 		fmt.Sprintf(
@@ -169,6 +192,7 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 				"username/password (%s_%s).",
 			envPrefix, envACRRefreshToken,
 		))
+	_ = fs.MarkDeprecated("acr-refresh-token", "use keychain instead")
 	fs.StringVar(&o.Client.ACR.JWKSURI,
 		"acr-jwks-uri", "",
 		fmt.Sprintf(
@@ -184,12 +208,14 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 			"Username to authenticate with docker registry (%s_%s).",
 			envPrefix, envDockerUsername,
 		))
+	_ = fs.MarkDeprecated("docker-username", "use keychain instead")
 	fs.StringVar(&o.Client.Docker.Password,
 		"docker-password", "",
 		fmt.Sprintf(
 			"Password to authenticate with docker registry (%s_%s).",
 			envPrefix, envDockerPassword,
 		))
+	_ = fs.MarkDeprecated("docker-password", "use keychain instead")
 	fs.StringVar(&o.Client.Docker.Token,
 		"docker-token", "",
 		fmt.Sprintf(
@@ -197,6 +223,7 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 				"username/password (%s_%s).",
 			envPrefix, envDockerToken,
 		))
+	_ = fs.MarkDeprecated("docker-token", "use keychain instead")
 	///
 
 	/// ECR
@@ -233,6 +260,7 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 			"Access token for read access to private GCR registries (%s_%s).",
 			envPrefix, envGCRAccessToken,
 		))
+	_ = fs.MarkDeprecated("gcr-token", "use keychain instead")
 	///
 
 	/// GHCR
@@ -242,6 +270,7 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 			"Personal Access token for read access to GHCR releases (%s_%s).",
 			envPrefix, envGHCRAccessToken,
 		))
+	_ = fs.MarkDeprecated("gchr-token", "use keychain instead")
 	fs.StringVar(&o.Client.GHCR.Hostname,
 		"gchr-hostname", "",
 		fmt.Sprintf(
@@ -257,6 +286,7 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 			"Access token for read access to private Quay registries (%s_%s).",
 			envPrefix, envQuayToken,
 		))
+	_ = fs.MarkDeprecated("quay-token", "use keychain instead")
 	///
 
 	/// Selfhosted
@@ -266,12 +296,14 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 			"Username is authenticate with a selfhosted registry (%s_%s_%s).",
 			envPrefix, envSelfhostedPrefix, envSelfhostedUsername,
 		))
+	_ = fs.MarkDeprecated("selfhosted-username", "use keychain instead")
 	fs.StringVar(&o.selfhosted.Password,
 		"selfhosted-password", "",
 		fmt.Sprintf(
 			"Password is authenticate with a selfhosted registry (%s_%s_%s).",
 			envPrefix, envSelfhostedPrefix, envSelfhostedPassword,
 		))
+	_ = fs.MarkDeprecated("selfhosted-password", "use keychain instead")
 	fs.StringVar(&o.selfhosted.Bearer,
 		"selfhosted-token", "",
 		fmt.Sprintf(
@@ -279,6 +311,7 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 				"username/password (%s_%s_%s).",
 			envPrefix, envSelfhostedPrefix, envSelfhostedBearer,
 		))
+	_ = fs.MarkDeprecated("selfhosted-token", "use keychain instead")
 	fs.StringVar(&o.selfhosted.TokenPath,
 		"selfhosted-token-path", "",
 		fmt.Sprintf(
@@ -305,12 +338,10 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 				"THIS IS NOT RECOMMENDED AND IS INTENDED FOR DEBUGGING (%s_%s_%s)",
 			envPrefix, envSelfhostedPrefix, envSelfhostedInsecure,
 		))
-	// if !validSelfHostedOpts(o) {
-	// 	panic(fmt.Errorf("invalid self hosted configuration"))
-	// }
+	fs.MarkDeprecated("selfhosted-insecure", "No longer supported, you MUST provide the CA Chain.")
 }
 
-func (o *Options) complete() {
+func (o *Options) complete() error {
 	o.Client.Selfhosted = make(map[string]*selfhosted.Options)
 
 	envs := os.Environ()
@@ -338,6 +369,9 @@ func (o *Options) complete() {
 		{envGHCRHostname, &o.Client.GHCR.Hostname},
 
 		{envQuayToken, &o.Client.Quay.Token},
+
+		{envKeychainNamespace, &o.Client.KeyChain.Namespace},
+		{envKeychainServiceAccountName, &o.Client.KeyChain.ServiceAccountName},
 	} {
 		for _, env := range envs {
 			if o.assignEnv(env, opt.key, opt.assign) {
@@ -346,7 +380,7 @@ func (o *Options) complete() {
 		}
 	}
 
-	o.assignSelfhosted(envs)
+	return o.assignSelfhosted(envs)
 }
 
 func (o *Options) assignEnv(env, key string, assign *string) bool {
@@ -363,7 +397,24 @@ func (o *Options) assignEnv(env, key string, assign *string) bool {
 	return false
 }
 
-func (o *Options) assignSelfhosted(envs []string) {
+// assignSelfhosted processes a list of environment variables and assigns
+// self-hosted configuration options to the Options struct. It parses the
+// environment variables using predefined regular expressions to extract
+// self-hosted configuration details such as token path, bearer token, host,
+// username, password, insecure flag, and CA path.
+//
+// The function ensures that each self-hosted configuration is initialized
+// before assigning values. It also validates the self-hosted options after
+// processing all environment variables.
+//
+// Parameters:
+//   - envs: A slice of strings representing environment variables in the
+//     format "KEY=VALUE".
+//
+// Returns:
+//   - error: An error if validation of the self-hosted options fails, or nil
+//     if the operation is successful.
+func (o *Options) assignSelfhosted(envs []string) error {
 	if o.Client.Selfhosted == nil {
 		o.Client.Selfhosted = make(map[string]*selfhosted.Options)
 	}
@@ -451,26 +502,40 @@ func (o *Options) assignSelfhosted(envs []string) {
 		o.Client.Selfhosted[o.selfhosted.Host] = &o.selfhosted
 	}
 
-	if !validSelfHostedOpts(o) {
-		panic(fmt.Errorf("invalid self hosted configuration"))
-	}
+	return validateSelfHostedOpts(o)
 }
 
-func validSelfHostedOpts(opts *Options) bool {
+// validateSelfHostedOpts validates the self-hosted options provided in the
+// Options struct. It checks both the options set using environment variables
+// and those set using flags.
+//
+// For options set using environment variables, it iterates through the list
+// of self-hosted options and ensures that each host is valid.
+//
+// For options set using flags, it validates the host in the selfhosted.Options
+// struct.
+//
+// Returns an error if any of the self-hosted options contain an invalid host,
+// otherwise returns nil.
+func validateSelfHostedOpts(opts *Options) error {
 	// opts set using env vars
 	if opts.Client.Selfhosted != nil {
-		for _, selfHostedOpts := range opts.Client.Selfhosted {
-			return isValidOption(selfHostedOpts.Host, "")
+		for name, selfHostedOpts := range opts.Client.Selfhosted {
+			if err := isValidOption(selfHostedOpts.Host, ""); !err {
+				return fmt.Errorf("invalid self-hosted option for: %s", name)
+			}
 		}
 	}
 
 	// opts set using flags
 	if opts.selfhosted != (selfhosted.Options{}) {
-		return isValidOption(opts.selfhosted.Host, "")
+		if !isValidOption(opts.selfhosted.Host, "") {
+			return fmt.Errorf("invalid self-hosted option for host: %s", opts.selfhosted.Host)
+		}
 	}
-	return true
+	return nil
 }
 
-func isValidOption(option, invalid string) bool {
+func isValidOption(option, invalid any) bool {
 	return option != invalid
 }
