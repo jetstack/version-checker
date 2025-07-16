@@ -41,15 +41,6 @@ const (
 
 	envQuayToken = "QUAY_TOKEN" // #nosec G101
 
-	envSelfhostedPrefix    = "SELFHOSTED"
-	envSelfhostedUsername  = "USERNAME"
-	envSelfhostedPassword  = "PASSWORD"
-	envSelfhostedHost      = "HOST"
-	envSelfhostedBearer    = "TOKEN" // #nosec G101
-	envSelfhostedTokenPath = "TOKEN_PATH"
-	envSelfhostedInsecure  = "INSECURE"
-	envSelfhostedCAPath    = "CA_PATH"
-
 	// Used for kubernetes Credential Discovery
 	envKeychainServiceAccountName = "AUTH_SERVICE_ACCOUNT_NAME"
 	envKeychainNamespace          = "AUTH_SERVICE_ACCOUNT_NAMESPACE"
@@ -57,16 +48,6 @@ const (
 	envKeychainUseMountSecrets    = "AUTH_USE_MOUNT_SECRETS"
 	// Duration in which to Refresh Credentials from Service Account
 	envKeychainRefreshDuration = "AUTH_REFRESH_DURATION"
-)
-
-var (
-	selfhostedHostReg     = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_HOST_(.*)")
-	selfhostedUsernameReg = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_USERNAME_(.*)")
-	selfhostedPasswordReg = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_PASSWORD_(.*)")
-	selfhostedTokenPath   = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_TOKEN_PATH_(.*)")
-	selfhostedTokenReg    = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_TOKEN_(.*)")
-	selfhostedCAPath      = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_CA_PATH_(.*)")
-	selfhostedInsecureReg = regexp.MustCompile("^VERSION_CHECKER_SELFHOSTED_INSECURE_(.*)")
 )
 
 // Options is a struct to hold options for the version-checker.
@@ -84,8 +65,7 @@ type Options struct {
 
 	kubeConfigFlags *genericclioptions.ConfigFlags
 
-	selfhosted selfhosted.Options
-	Client     client.Options
+	Client client.Options
 }
 
 type envMatcher struct {
@@ -358,6 +338,7 @@ func (o *Options) addAuthFlags(fs *pflag.FlagSet) {
 				"THIS IS NOT RECOMMENDED AND IS INTENDED FOR DEBUGGING (%s_%s_%s)",
 			envPrefix, envSelfhostedPrefix, envSelfhostedInsecure,
 		))
+	fs.MarkDeprecated("selfhosted-insecure", "No longer supported, you MUST provide the CA Chain.")
 }
 
 func (o *Options) complete() error {
