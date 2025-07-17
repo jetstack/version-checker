@@ -5,6 +5,9 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/jetstack/version-checker/pkg/api"
 )
 
@@ -135,20 +138,16 @@ func TestBuild(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			options, err := New(test.annotations).Options(test.containerName)
+
 			if len(test.expErr) > 0 {
-				if err == nil || err.Error() != test.expErr {
-					t.Errorf("unexpected error, exp=%s got=%v",
-						test.expErr, err)
-				}
-			} else if err != nil {
-				t.Errorf("unexpected error, exp=%s got=%v",
-					test.expErr, err)
+				assert.Error(t, err)
+				assert.Equal(t, test.expErr, err.Error())
+
+			} else {
+				require.NoError(t, err)
 			}
 
-			if !reflect.DeepEqual(test.expOptions, options) {
-				t.Errorf("unexpected options for %s=%v exp=%#+v got=%#+v",
-					test.containerName, test.annotations, test.expOptions, options)
-			}
+			assert.Exactly(t, test.expOptions, options)
 		})
 	}
 }

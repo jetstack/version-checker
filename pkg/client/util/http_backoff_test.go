@@ -33,7 +33,7 @@ func TestHTTPBackOff(t *testing.T) {
 			attemptNum: 10,
 			resp: &http.Response{
 				StatusCode: http.StatusTooManyRequests,
-				Header:     http.Header{"Retry-After": []string{"3600"}}},
+				Header:     http.Header{"Retry-After": []string{"484289h20m8s"}}},
 			expSleep: 500 * time.Millisecond,
 		},
 		{
