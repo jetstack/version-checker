@@ -28,21 +28,21 @@ type ClientHandler interface {
 // Client is a container image registry client to list tags of given image
 // URLs.
 type Client struct {
-	clients        []api.ImageClient
 	fallbackClient api.ImageClient
 
-	log *logrus.Entry
+	log     *logrus.Entry
+	clients []api.ImageClient
 }
 
 // Options used to configure client authentication.
 type Options struct {
 	ACR        acr.Options
+	Docker     docker.Options
 	ECR        ecr.Options
 	GCR        gcr.Options
 	GHCR       ghcr.Options
-	Docker     docker.Options
-	Quay       quay.Options
 	OCI        oci.Options
+	Quay       quay.Options
 	Selfhosted map[string]*selfhosted.Options
 
 	Transport http.RoundTripper
@@ -79,7 +79,7 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 	}
 
 	// Create some of the fallback clients
-	ociclient, err := oci.New(&opts.OCI)
+	ociclient, err := oci.New(&opts.OCI, log)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OCI client: %w", err)
 	}

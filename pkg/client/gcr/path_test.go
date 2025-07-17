@@ -1,6 +1,10 @@
 package gcr
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestIsHost(t *testing.T) {
 	tests := map[string]struct {
@@ -60,10 +64,9 @@ func TestIsHost(t *testing.T) {
 	handler := new(Client)
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			if isHost := handler.IsHost(test.host); isHost != test.expIs {
-				t.Errorf("%s: unexpected IsHost, exp=%t got=%t",
-					test.host, test.expIs, isHost)
-			}
+			assert.Equal(t, test.expIs,
+				handler.IsHost(test.host),
+			)
 		})
 	}
 }
@@ -94,10 +97,8 @@ func TestRepoImage(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			repo, image := handler.RepoImageFromPath(test.path)
-			if repo != test.expRepo && image != test.expImage {
-				t.Errorf("%s: unexpected repo/image, exp=%s/%s got=%s/%s",
-					test.path, test.expRepo, test.expImage, repo, image)
-			}
+			assert.Equal(t, test.expRepo, repo)
+			assert.Equal(t, test.expImage, image)
 		})
 	}
 }

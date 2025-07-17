@@ -14,12 +14,16 @@ func (c *Client) IsHost(host string) bool {
 }
 
 func (c *Client) RepoImageFromPath(path string) (string, string) {
-	lastIndex := strings.LastIndex(path, "/")
+	split := strings.Split(path, "/")
 
-	// If there's no slash, then its a "root" level image
-	if lastIndex == -1 {
-		return "", path
+	lenSplit := len(split)
+	if lenSplit == 1 {
+		return "google-containers", split[0]
 	}
 
-	return path[:lastIndex], path[lastIndex+1:]
+	if lenSplit > 1 {
+		return strings.Join(split[:len(split)-1], "/"), split[lenSplit-1]
+	}
+
+	return path, ""
 }

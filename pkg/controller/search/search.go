@@ -20,6 +20,9 @@ type Searcher interface {
 	ResolveSHAToTag(ctx context.Context, imageURL string, imageSHA string) (string, error)
 }
 
+// Ensure The search Struct implements a cacheHandler
+var _ cache.Handler = (*Search)(nil)
+
 // Search is the implementation for the searching and caching of image URLs.
 type Search struct {
 	log *logrus.Entry
@@ -40,7 +43,7 @@ func New(log *logrus.Entry, cacheTimeout time.Duration, versionGetter *version.V
 	return s
 }
 
-func (s *Search) Fetch(ctx context.Context, imageURL string, opts *api.Options) (interface{}, error) {
+func (s *Search) Fetch(ctx context.Context, imageURL string, opts *api.Options) (any, error) {
 	latestImage, err := s.versionGetter.LatestTagFromImage(ctx, imageURL, opts)
 	if err != nil {
 		return nil, err
@@ -67,7 +70,6 @@ func (s *Search) LatestImage(ctx context.Context, imageURL string, opts *api.Opt
 }
 
 func (s *Search) ResolveSHAToTag(ctx context.Context, imageURL string, imageSHA string) (string, error) {
-
 	tag, err := s.versionGetter.ResolveSHAToTag(ctx, imageURL, imageSHA)
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve sha to tag: %w", err)
