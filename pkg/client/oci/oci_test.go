@@ -3,11 +3,16 @@ package oci
 import (
 	"context"
 	"fmt"
+	"io"
+	"log"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
+	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/registry"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
@@ -17,6 +22,8 @@ import (
 
 func TestClientTags(t *testing.T) {
 	ctx := context.Background()
+	emptySha, err := empty.Image.Digest()
+	require.NoError(t, err)
 
 	type testCase struct {
 		repo     string
@@ -32,23 +39,25 @@ func TestClientTags(t *testing.T) {
 				wantTags: []api.ImageTag{
 					{
 						Tag: "a",
+						SHA: emptySha.String(),
 					},
 					{
 						Tag: "b",
+						SHA: emptySha.String(),
 					},
 					{
 						Tag: "c",
+						SHA: emptySha.String(),
 					},
 				},
 			}
 			repo, err := name.NewRepository(fmt.Sprintf("%s/%s/%s", host, tc.repo, tc.img))
-			if err != nil {
-				t.Fatalf("unexpected error parsing repo: %s", err)
-			}
+			require.NoError(t, err)
+
 			for _, tag := range tc.wantTags {
-				if err := remote.Write(repo.Tag(tag.Tag), empty.Image); err != nil {
-					t.Fatalf("unexpected error writing image to tag: %s", err)
-				}
+				require.NoError(t,
+					remote.Write(repo.Tag(tag.Tag), empty.Image),
+				)
 			}
 			return tc
 		},
@@ -58,20 +67,21 @@ func TestClientTags(t *testing.T) {
 				wantTags: []api.ImageTag{
 					{
 						Tag: "a",
+						SHA: emptySha.String(),
 					},
 					{
 						Tag: "b",
+						SHA: emptySha.String(),
 					},
 				},
 			}
 			repo, err := name.NewRepository(fmt.Sprintf("%s/%s", host, tc.img))
-			if err != nil {
-				t.Fatalf("unexpected error parsing repo: %s", err)
-			}
+			require.NoError(t, err)
+
 			for _, tag := range tc.wantTags {
-				if err := remote.Write(repo.Tag(tag.Tag), empty.Image); err != nil {
-					t.Fatalf("unexpected error writing image to tag: %s", err)
-				}
+				require.NoError(t,
+					remote.Write(repo.Tag(tag.Tag), empty.Image),
+				)
 			}
 			return tc
 		},
@@ -82,17 +92,17 @@ func TestClientTags(t *testing.T) {
 				wantTags: []api.ImageTag{
 					{
 						Tag: "a",
+						SHA: emptySha.String(),
 					},
 				},
 			}
 			repo, err := name.NewRepository(fmt.Sprintf("%s/%s/%s", host, tc.repo, tc.img))
-			if err != nil {
-				t.Fatalf("unexpected error parsing repo: %s", err)
-			}
+			require.NoError(t, err)
+
 			for _, tag := range tc.wantTags {
-				if err := remote.Write(repo.Tag(tag.Tag), empty.Image); err != nil {
-					t.Fatalf("unexpected error writing image to tag: %s", err)
-				}
+				require.NoError(t,
+					remote.Write(repo.Tag(tag.Tag), empty.Image),
+				)
 			}
 			return tc
 		},
@@ -102,18 +112,16 @@ func TestClientTags(t *testing.T) {
 				img:  "bar",
 			}
 			repo, err := name.NewRepository(fmt.Sprintf("%s/%s/%s", host, tc.repo, tc.img))
-			if err != nil {
-				t.Fatalf("unexpected error parsing repo: %s", err)
-			}
+			require.NoError(t, err)
 
 			// Write a tag but then delete it so the repository
 			// exists but it has no tags
-			if err := remote.Write(repo.Tag("latest"), empty.Image); err != nil {
-				t.Fatalf("unexpected error writing image to tag: %s", err)
-			}
-			if err := remote.Delete(repo.Tag("latest")); err != nil {
-				t.Fatalf("unexpected error writing image to tag: %s", err)
-			}
+			require.NoError(t,
+				remote.Write(repo.Tag("latest"), empty.Image),
+			)
+			require.NoError(t,
+				remote.Delete(repo.Tag("latest")),
+			)
 			return tc
 		},
 		"should return an error when listing a repository that doesn't exist": func(t *testing.T, host string) *testCase {
@@ -129,23 +137,21 @@ func TestClientTags(t *testing.T) {
 		t.Run(testName, func(t *testing.T) {
 			host := setupRegistry(t)
 
-			c, err := New(new(Options))
-			if err != nil {
-				t.Fatalf("unexpected error creating client: %s", err)
-			}
+			c, err := New(new(Options), logrus.NewEntry(logrus.New()))
+			require.NoError(t, err)
 
 			tc := fn(t, host)
 
 			gotTags, err := c.Tags(ctx, host, tc.repo, tc.img)
-			if tc.wantErr && err == nil {
-				t.Errorf("unexpected nil error listing tags")
+
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
 			}
-			if !tc.wantErr && err != nil {
-				t.Errorf("unexpected error listing tags: %s", err)
-			}
-			if diff := cmp.Diff(tc.wantTags, gotTags); diff != "" {
-				t.Errorf("unexpected tags:\n%s", diff)
-			}
+			// We don't care about the order - but to ensure that the elements we expect
+			// exist within the output
+			assert.ElementsMatch(t, tc.wantTags, gotTags)
 		})
 	}
 }
@@ -177,27 +183,27 @@ func TestClientRepoImageFromPath(t *testing.T) {
 		},
 	}
 
-	c, err := New(new(Options))
+	c, err := New(new(Options), logrus.NewEntry(logrus.New()))
 	if err != nil {
 		t.Fatalf("unexpected error creating client: %s", err)
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			repo, image := c.RepoImageFromPath(test.path)
-			if repo != test.expRepo && image != test.expImage {
-				t.Errorf("%s: unexpected repo/image, exp=%s/%s got=%s/%s",
-					test.path, test.expRepo, test.expImage, repo, image)
-			}
+			assert.Equal(t, test.expRepo, repo)
+			assert.Equal(t, test.expImage, image)
 		})
 	}
 }
 
 func setupRegistry(t *testing.T) string {
-	r := httptest.NewServer(registry.New())
+	r := httptest.NewServer(registry.New(
+		registry.Logger(log.New(io.Discard, "", log.LstdFlags)),
+		registry.WithReferrersSupport(false),
+	))
 	t.Cleanup(r.Close)
 	u, err := url.Parse(r.URL)
-	if err != nil {
-		t.Fatalf("unexpected error parsing registry url: %s", err)
-	}
+	require.NoError(t, err)
+
 	return u.Host
 }

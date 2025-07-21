@@ -2,8 +2,9 @@ package app
 
 import (
 	"os"
-	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/jetstack/version-checker/pkg/client"
 	"github.com/jetstack/version-checker/pkg/client/acr"
@@ -31,6 +32,7 @@ func TestComplete(t *testing.T) {
 				{"VERSION_CHECKER_ACR_USERNAME", "acr-username"},
 				{"VERSION_CHECKER_ACR_PASSWORD", "acr-password"},
 				{"VERSION_CHECKER_ACR_REFRESH_TOKEN", "acr-token"},
+				{"VERSION_CHECKER_ACR_JWKS_URI", "acr-jwks-uri"},
 				{"VERSION_CHECKER_DOCKER_USERNAME", "docker-username"},
 				{"VERSION_CHECKER_DOCKER_PASSWORD", "docker-password"},
 				{"VERSION_CHECKER_DOCKER_TOKEN", "docker-token"},
@@ -51,6 +53,7 @@ func TestComplete(t *testing.T) {
 					Username:     "acr-username",
 					Password:     "acr-password",
 					RefreshToken: "acr-token",
+					JWKSURI:      "acr-jwks-uri",
 				},
 				Docker: docker.Options{
 					Username: "docker-username",
@@ -92,6 +95,7 @@ func TestComplete(t *testing.T) {
 				{"VERSION_CHECKER_ACR_USERNAME", "acr-username"},
 				{"VERSION_CHECKER_ACR_PASSWORD", "acr-password"},
 				{"VERSION_CHECKER_ACR_REFRESH_TOKEN", "acr-token"},
+				{"VERSION_CHECKER_ACR_JWKS_URI", "acr-jwks-uri"},
 				{"VERSION_CHECKER_DOCKER_USERNAME", "docker-username"},
 				{"VERSION_CHECKER_DOCKER_PASSWORD", "docker-password"},
 				{"VERSION_CHECKER_DOCKER_TOKEN", "docker-token"},
@@ -119,6 +123,7 @@ func TestComplete(t *testing.T) {
 					Username:     "acr-username",
 					Password:     "acr-password",
 					RefreshToken: "acr-token",
+					JWKSURI:      "acr-jwks-uri",
 				},
 				Docker: docker.Options{
 					Username: "docker-username",
@@ -177,14 +182,59 @@ func TestComplete(t *testing.T) {
 			o := new(Options)
 			o.complete()
 
-			if !reflect.DeepEqual(o.Client, test.expOptions) {
-				t.Errorf("unexpected client options, exp=%#+v got=%#+v",
-					test.expOptions, o.Client)
-			}
+			assert.Exactly(t, test.expOptions, o.Client)
+		})
+	}
+}
 
-			for _, env := range test.envs {
-				os.Unsetenv(env[0])
-			}
+func TestInvalidSelfhostedPanic(t *testing.T) {
+	tests := map[string]struct {
+		envs []string
+	}{
+		"single host for all options should be included": {
+			envs: []string{
+				"VERSION_CHECKER_SELFHOSTED_INSECURE_FOO=true",
+			},
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			defer func() { _ = recover() }()
+
+			o := new(Options)
+			o.assignSelfhosted(test.envs)
+
+			t.Errorf("did not panic")
+		})
+	}
+}
+
+func TestInvalidSelfhostedOpts(t *testing.T) {
+	tests := map[string]struct {
+		opts  Options
+		valid bool
+	}{
+		"no self hosted configuration": {
+			opts:  Options{},
+			valid: true,
+		},
+		"no self hosted host provided": {
+			opts: Options{
+				Client: client.Options{
+					Selfhosted: map[string]*selfhosted.Options{"foo": &selfhosted.Options{
+						Insecure: true,
+					}},
+				},
+			},
+			valid: false,
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+
+			valid := validSelfHostedOpts(&test.opts)
+
+			assert.Equal(t, test.valid, valid)
 		})
 	}
 }
@@ -305,10 +355,7 @@ func TestAssignSelfhosted(t *testing.T) {
 			o := new(Options)
 			o.assignSelfhosted(test.envs)
 
-			if !reflect.DeepEqual(o.Client.Selfhosted, test.expOptions.Selfhosted) {
-				t.Errorf("unexpected client selfhosted options, exp=%#+v got=%#+v",
-					test.expOptions.Selfhosted, o.Client.Selfhosted)
-			}
+			assert.Exactly(t, test.expOptions.Selfhosted, o.Client.Selfhosted)
 		})
 	}
 }

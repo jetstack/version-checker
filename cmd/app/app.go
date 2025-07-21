@@ -59,7 +59,7 @@ func NewCommand(ctx context.Context) *cobra.Command {
 				return fmt.Errorf("failed to build kubernetes rest config: %s", err)
 			}
 
-			log.Infof("flag --test-all-containers=%t %s", opts.DefaultTestAll, defaultTestAllInfoMsg)
+			log.Warnf("flag --test-all-containers=%t %s", opts.DefaultTestAll, defaultTestAllInfoMsg)
 
 			mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 				LeaderElection: false,
@@ -117,6 +117,7 @@ func NewCommand(ctx context.Context) *cobra.Command {
 				client,
 				mgr.GetClient(),
 				log,
+				opts.RequeueDuration,
 				opts.DefaultTestAll,
 			)
 			if err := podController.SetupWithManager(mgr); err != nil {

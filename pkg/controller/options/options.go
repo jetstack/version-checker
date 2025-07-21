@@ -36,6 +36,7 @@ func (b *Builder) Options(name string) (*api.Options, error) {
 	// Define the handlers
 	handlers := []optionsHandler{
 		b.handleSHAOption,
+		b.handleSHAToTagOption,
 		b.handleMetadataOption,
 		b.handleRegexOption,
 		b.handlePinMajorOption,
@@ -53,7 +54,9 @@ func (b *Builder) Options(name string) (*api.Options, error) {
 
 	// Ensure UseSHA is not used with other semver options
 	if opts.UseSHA && setNonSha {
-		errs = append(errs, fmt.Sprintf("cannot define %q with any semver options", b.index(name, api.UseSHAAnnotationKey)))
+		errs = append(errs,
+			fmt.Sprintf("cannot define %q with any semver options", b.index(name, api.UseSHAAnnotationKey)),
+		)
 	}
 
 	if len(errs) > 0 {
@@ -62,9 +65,17 @@ func (b *Builder) Options(name string) (*api.Options, error) {
 
 	return &opts, nil
 }
+
 func (b *Builder) handleSHAOption(name string, opts *api.Options, setNonSha *bool, errs *[]string) error {
 	if useSHA, ok := b.ans[b.index(name, api.UseSHAAnnotationKey)]; ok && useSHA == "true" {
 		opts.UseSHA = true
+	}
+	return nil
+}
+
+func (b *Builder) handleSHAToTagOption(name string, opts *api.Options, setNonSha *bool, errs *[]string) error {
+	if ResolveSHAToTags, ok := b.ans[b.index(name, api.ResolveSHAToTagsKey)]; ok && ResolveSHAToTags == "true" {
+		opts.ResolveSHAToTags = true
 	}
 	return nil
 }

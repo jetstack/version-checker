@@ -13,16 +13,19 @@ import (
 	"github.com/google/go-github/v70/github"
 )
 
+// Ensure that we are an ImageClient
+var _ api.ImageClient = (*Client)(nil)
+
 type Options struct {
+	Transporter http.RoundTripper
 	Token       string
 	Hostname    string
-	Transporter http.RoundTripper
 }
 
 type Client struct {
 	client     *github.Client
-	opts       Options
 	ownerTypes map[string]string
+	opts       Options
 }
 
 func New(opts Options) *Client {
@@ -76,7 +79,7 @@ func (c *Client) Tags(ctx context.Context, _, owner, repo string) ([]api.ImageTa
 			break
 		}
 
-		opts.ListOptions.Page = resp.NextPage
+		opts.Page = resp.NextPage
 	}
 
 	return tags, nil
@@ -106,38 +109,43 @@ func (c *Client) buildPackageListOptions() *github.PackageListOptions {
 }
 
 func (c *Client) extractImageTags(versions []*github.PackageVersion) []api.ImageTag {
-	var tags []api.ImageTag
+	tags := map[string]api.ImageTag{}
 	for _, ver := range versions {
 		if meta, ok := ver.GetMetadata(); ok {
-			if len(meta.Container.Tags) == 0 {
-				continue
-			}
 
-			sha := ""
+			var sha string
 			if strings.HasPrefix(*ver.Name, "sha") {
 				sha = *ver.Name
 			}
 
-			for _, tag := range meta.Container.Tags {
-				if c.shouldSkipTag(tag) {
-					continue
-				}
+			base := api.ImageTag{
+				Tag:       *ver.Name,
+				SHA:       sha,
+				Timestamp: ver.CreatedAt.Time,
+			}
 
-				tags = append(tags, api.ImageTag{
-					Tag:       tag,
-					SHA:       sha,
-					Timestamp: ver.CreatedAt.Time,
-				})
+			for _, tag := range meta.Container.Tags {
+				current := base   // copy the base
+				current.Tag = tag // set tag value
+
+				// Tag Already exists — add as child
+				if parent, exists := tags[tag]; exists {
+					parent.Children = append(parent.Children, &current)
+					tags[tag] = parent
+				} else {
+					// First occurrence of Tag — assign as root
+					tags[tag] = current
+				}
 			}
 		}
 	}
-	return tags
-}
 
-func (c *Client) shouldSkipTag(tag string) bool {
-	return strings.HasSuffix(tag, ".att") ||
-		strings.HasSuffix(tag, ".sig") ||
-		strings.HasSuffix(tag, ".sbom")
+	// Convert Map to Slice
+	taglist := make([]api.ImageTag, 0, len(tags))
+	for _, tag := range tags {
+		taglist = append(taglist, tag)
+	}
+	return taglist
 }
 
 func (c *Client) ownerType(ctx context.Context, owner string) (string, error) {

@@ -8,6 +8,9 @@ import (
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/jetstack/version-checker/pkg/controller/internal/fake/search"
 	"github.com/jetstack/version-checker/pkg/version/semver"
@@ -56,6 +59,54 @@ func TestContainer(t *testing.T) {
 				LatestVersion:  "v0.2.0",
 				ImageURL:       "localhost:5000/version-checker",
 				IsLatest:       true,
+			},
+		},
+		"if v0.2.0 is latest version, but sha is in a child, then latest": {
+			statusSHA: "localhost:5000/version-checker@sha:123",
+			imageURL:  "localhost:5000/version-checker:v0.2.0",
+			opts:      new(api.Options),
+			searchResp: &api.ImageTag{
+				Tag:      "v0.2.0",
+				SHA:      "sha:abc1234",
+				Children: []*api.ImageTag{{SHA: "sha:123"}},
+			},
+			expResult: &Result{
+				CurrentVersion: "v0.2.0",
+				LatestVersion:  "v0.2.0",
+				ImageURL:       "localhost:5000/version-checker",
+				IsLatest:       true,
+			},
+		},
+		"if v0.2.0 is latest version, but sha is not in cache, then not latest": {
+			statusSHA: "localhost:5000/version-checker@sha:123",
+			imageURL:  "localhost:5000/version-checker:v0.2.0",
+			opts:      new(api.Options),
+			searchResp: &api.ImageTag{
+				Tag:      "v0.2.0",
+				SHA:      "",
+				Children: []*api.ImageTag{{SHA: "sha:789"}},
+			},
+			expResult: &Result{
+				CurrentVersion: "v0.2.0@sha:123",
+				LatestVersion:  "v0.2.0@sha:789",
+				ImageURL:       "localhost:5000/version-checker",
+				IsLatest:       false,
+			},
+		},
+		"if v0.2.0 is latest version, but sha is not in cache, and multiple possible shas, then not latest": {
+			statusSHA: "localhost:5000/version-checker@123",
+			imageURL:  "localhost:5000/version-checker:v0.2.0",
+			opts:      new(api.Options),
+			searchResp: &api.ImageTag{
+				Tag:      "v0.2.0",
+				SHA:      "",
+				Children: []*api.ImageTag{{SHA: "789"}, {SHA: "sha:987"}},
+			},
+			expResult: &Result{
+				CurrentVersion: "v0.2.0@123",
+				LatestVersion:  "v0.2.0@789",
+				ImageURL:       "localhost:5000/version-checker",
+				IsLatest:       false,
 			},
 		},
 		"if v0.2.0@sha:123 is wrong sha, then not latest": {
@@ -280,14 +331,8 @@ func TestContainer(t *testing.T) {
 			}
 
 			result, err := checker.Container(context.TODO(), logrus.NewEntry(logrus.New()), pod, container, test.opts)
-			if err != nil {
-				t.Errorf("unexpected error: %s", err)
-			}
-
-			if !reflect.DeepEqual(test.expResult, result) {
-				t.Errorf("got unexpected result, exp=%#+v got=%#+v",
-					test.expResult, result)
-			}
+			require.NoError(t, err)
+			assert.Exactly(t, test.expResult, result)
 		})
 	}
 }
@@ -500,20 +545,21 @@ func TestIsLatestSHA(t *testing.T) {
 		searchResp           *api.ImageTag
 		expResult            *Result
 	}{
-		"if SHA not eqaual, then should be not equal": {
+		"if SHA not equal, then should be not equal": {
 			imageURL:   "docker.io",
 			currentSHA: "123",
 			searchResp: &api.ImageTag{
 				SHA: "456",
+				Tag: "foo",
 			},
 			expResult: &Result{
 				CurrentVersion: "123",
-				LatestVersion:  "456",
+				LatestVersion:  "foo@456",
 				IsLatest:       false,
 				ImageURL:       "docker.io",
 			},
 		},
-		"if SHA eqaual, then should be equal": {
+		"if SHA equal, then should be equal": {
 			imageURL:   "docker.io",
 			currentSHA: "123",
 			searchResp: &api.ImageTag{
@@ -523,6 +569,60 @@ func TestIsLatestSHA(t *testing.T) {
 				CurrentVersion: "123",
 				LatestVersion:  "123",
 				IsLatest:       true,
+				ImageURL:       "docker.io",
+			},
+		},
+		"if child SHA equal, then should be equal": {
+			imageURL:   "docker.io",
+			currentSHA: "123",
+			searchResp: &api.ImageTag{
+				SHA: "456",
+				Tag: "foo",
+				Children: []*api.ImageTag{
+					{
+						SHA: "123",
+					},
+				},
+			},
+			expResult: &Result{
+				CurrentVersion: "123",
+				LatestVersion:  "foo@123",
+				IsLatest:       true,
+				ImageURL:       "docker.io",
+			},
+		},
+		"if child SHA equal, and parent SHA empty, then should be equal": {
+			imageURL:   "docker.io",
+			currentSHA: "123",
+			searchResp: &api.ImageTag{
+				SHA: "",
+				Tag: "foo",
+				Children: []*api.ImageTag{
+					{SHA: "123"},
+					{SHA: "456"},
+				},
+			},
+			expResult: &Result{
+				CurrentVersion: "123",
+				LatestVersion:  "foo@123",
+				IsLatest:       true,
+				ImageURL:       "docker.io",
+			},
+		},
+		"if child SHA not equal, and parent SHA empty, then should not be equal": {
+			imageURL:   "docker.io",
+			currentSHA: "123",
+			searchResp: &api.ImageTag{
+				SHA: "",
+				Children: []*api.ImageTag{
+					{SHA: "456"},
+					{SHA: "789"},
+				},
+			},
+			expResult: &Result{
+				CurrentVersion: "123",
+				LatestVersion:  "",
+				IsLatest:       false,
 				ImageURL:       "docker.io",
 			},
 		},

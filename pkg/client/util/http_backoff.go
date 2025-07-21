@@ -8,12 +8,12 @@ import (
 )
 
 // This is a custom Backoff that enforces the Max wait duration.
-// If the sleep is greater we refuse to sleep at all
+// If the sleep is greater we only sleep for the max duration.
 func HTTPBackOff(min, max time.Duration, attemptNum int, resp *http.Response) time.Duration {
 	sleep := retryablehttp.DefaultBackoff(min, max, attemptNum, resp)
-	if sleep <= max {
-		return sleep
+	if sleep.Abs() >= max {
+		return max.Abs()
 	}
 
-	return 0
+	return sleep.Abs()
 }

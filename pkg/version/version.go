@@ -13,17 +13,18 @@ import (
 
 	"github.com/jetstack/version-checker/pkg/cache"
 	versionerrors "github.com/jetstack/version-checker/pkg/version/errors"
-	"github.com/jetstack/version-checker/pkg/version/semver"
 )
+
+var _ cache.Handler = (*Version)(nil)
 
 type Version struct {
 	log *logrus.Entry
 
-	client     *client.Client
+	client     client.ClientHandler
 	imageCache *cache.Cache
 }
 
-func New(log *logrus.Entry, client *client.Client, cacheTimeout time.Duration) *Version {
+func New(log *logrus.Entry, client client.ClientHandler, cacheTimeout time.Duration) *Version {
 	log = log.WithField("module", "version_getter")
 
 	v := &Version{
@@ -49,14 +50,14 @@ func (v *Version) LatestTagFromImage(ctx context.Context, imageURL string, opts 
 
 	// If UseSHA then return early
 	if opts.UseSHA {
-		tag, err = latestSHA(tags)
+		tag, err = latestSHA(opts, tags)
 		if err != nil {
 			return nil, err
 		}
 
 		if tag == nil {
-			return nil, versionerrors.NewVersionErrorNotFound("%s: failed to find latest image based on SHA",
-				imageURL)
+			return nil, versionerrors.NewVersionErrorNotFound(
+				"%s: failed to find latest image based on SHA", imageURL)
 		}
 	} else {
 		tag, err = latestSemver(opts, tags)
@@ -66,12 +67,30 @@ func (v *Version) LatestTagFromImage(ctx context.Context, imageURL string, opts 
 
 		if tag == nil {
 			optsBytes, _ := json.Marshal(opts)
-			return nil, versionerrors.NewVersionErrorNotFound("%s: no tags found with these option constraints: %s",
+			return nil, versionerrors.NewVersionErrorNotFound(
+				"%s: no tags found with these option constraints: %s",
 				imageURL, optsBytes)
 		}
 	}
 
 	return tag, err
+}
+
+// ResolveSHAToTag Resolve a SHA to a tag if possible
+func (v *Version) ResolveSHAToTag(ctx context.Context, imageURL string, imageSHA string) (string, error) {
+	tagsI, err := v.imageCache.Get(ctx, imageURL, imageURL, nil)
+	if err != nil {
+		return "", err
+	}
+	tags := tagsI.([]api.ImageTag)
+
+	for i := range tags {
+		if tags[i].MatchesSHA(imageSHA) {
+			return tags[i].Tag, nil
+		}
+	}
+
+	return "", nil
 }
 
 // Fetch returns the given image tags for a given image URL.
@@ -88,80 +107,7 @@ func (v *Version) Fetch(ctx context.Context, imageURL string, _ *api.Options) (i
 	if len(tags) == 0 {
 		return nil, versionerrors.NewVersionErrorNotFound("no tags found for given image URL: %q", imageURL)
 	}
+	v.log.WithField("image", imageURL).Debugf("fetched %v tags", len(tags))
 
 	return tags, nil
-}
-
-// latestSemver will return the latest ImageTag based on the given options
-// restriction, using semver. This should not be used is UseSHA has been
-// enabled.
-func latestSemver(opts *api.Options, tags []api.ImageTag) (*api.ImageTag, error) {
-	var (
-		latestImageTag *api.ImageTag
-		latestV        *semver.SemVer
-	)
-
-	for i := range tags {
-		v := semver.Parse(tags[i].Tag)
-
-		if shouldSkipTag(opts, v) {
-			continue
-		}
-
-		if isBetterTag(opts, latestV, v, latestImageTag, &tags[i]) {
-			latestV = v
-			latestImageTag = &tags[i]
-		}
-	}
-
-	if latestImageTag == nil {
-		return nil, fmt.Errorf("no suitable version found")
-	}
-
-	return latestImageTag, nil
-}
-
-func shouldSkipTag(opts *api.Options, v *semver.SemVer) bool {
-	// Handle Regex matching
-	if opts.RegexMatcher != nil {
-		return !opts.RegexMatcher.MatchString(v.String())
-	}
-
-	// Handle metadata and version pinning
-	return (!opts.UseMetaData && v.HasMetaData()) ||
-		(opts.PinMajor != nil && *opts.PinMajor != v.Major()) ||
-		(opts.PinMinor != nil && *opts.PinMinor != v.Minor()) ||
-		(opts.PinPatch != nil && *opts.PinPatch != v.Patch())
-}
-
-func isBetterTag(_ *api.Options, latestV, v *semver.SemVer, latestImageTag, currentImageTag *api.ImageTag) bool {
-	// No latest version set yet
-	if latestV == nil {
-		return true
-	}
-
-	// If the current version is greater than the latest
-	if latestV.LessThan(v) {
-		return true
-	}
-
-	// If the versions are equal, prefer the one with a later timestamp
-	if latestV.Equal(v) && currentImageTag.Timestamp.After(latestImageTag.Timestamp) {
-		return true
-	}
-
-	return false
-}
-
-// latestSHA will return the latest ImageTag based on image timestamps.
-func latestSHA(tags []api.ImageTag) (*api.ImageTag, error) {
-	var latestTag *api.ImageTag
-
-	for i := range tags {
-		if latestTag == nil || tags[i].Timestamp.After(latestTag.Timestamp) {
-			latestTag = &tags[i]
-		}
-	}
-
-	return latestTag, nil
 }
