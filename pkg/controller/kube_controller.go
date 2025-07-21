@@ -14,8 +14,7 @@ import (
 
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/jetstack/version-checker/pkg/metrics"
-
-	"github.com/Masterminds/semver/v3"
+	"github.com/jetstack/version-checker/pkg/version/semver"
 )
 
 const channelURLSuffix = "https://dl.k8s.io/release/"
@@ -83,21 +82,20 @@ func (s *ClusterVersionScheduler) reconcile(_ context.Context) error {
 		return fmt.Errorf("fetching latest stable version: %w", err)
 	}
 
-	latestSemVer, err := semver.NewVersion(latest)
-	if err != nil {
-		return err
-	}
-	currentSemVer, err := semver.NewVersion(current.GitVersion)
-	if err != nil {
-		return err
-	}
-	// Strip metadata from the versions
-	currentSemVerNoMeta, _ := currentSemVer.SetMetadata("")
-	latestSemVerNoMeta, _ := latestSemVer.SetMetadata("")
+	latestSemVer := semver.Parse(latest)
+	currentSemVer := semver.Parse(current.GitVersion)
+
+	// Create version strings without metadata for comparison
+	currentSemVerNoMeta := fmt.Sprintf("%d.%d.%d", currentSemVer.Major(), currentSemVer.Minor(), currentSemVer.Patch())
+	latestSemVerNoMeta := fmt.Sprintf("%d.%d.%d", latestSemVer.Major(), latestSemVer.Minor(), latestSemVer.Patch())
+
+	// Parse the versions without metadata for comparison
+	currentComparable := semver.Parse(currentSemVerNoMeta)
+	latestComparable := semver.Parse(latestSemVerNoMeta)
 
 	// Register metrics!
-	s.metrics.RegisterKubeVersion(!currentSemVerNoMeta.LessThan(&latestSemVerNoMeta),
-		currentSemVerNoMeta.String(), latestSemVerNoMeta.String(),
+	s.metrics.RegisterKubeVersion(!currentComparable.LessThan(latestComparable),
+		currentSemVerNoMeta, latestSemVerNoMeta,
 		s.channel,
 	)
 
