@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/url"
 	"strings"
 	"time"
 
@@ -76,10 +77,10 @@ func (s *ClusterVersionScheduler) reconcile(_ context.Context) error {
 		return fmt.Errorf("getting cluster version: %w", err)
 	}
 
-	// Get latest stable version
-	latest, err := getLatestStableVersion(s.channel)
+	// Get latest version from specified channel
+	latest, err := getLatestVersion(s.channel)
 	if err != nil {
-		return fmt.Errorf("fetching latest stable version: %w", err)
+		return fmt.Errorf("fetching latest version from channel %s: %w", s.channel, err)
 	}
 
 	latestSemVer := semver.Parse(latest)
@@ -101,20 +102,23 @@ func (s *ClusterVersionScheduler) reconcile(_ context.Context) error {
 
 	s.log.WithFields(logrus.Fields{
 		"currentVersion": currentSemVerNoMeta,
-		"latestStable":   latestSemVerNoMeta,
+		"latestVersion":  latestSemVerNoMeta,
 		"channel":        s.channel,
 	}).Info("Cluster version check complete")
 
 	return nil
 }
 
-func getLatestStableVersion(channel string) (string, error) {
+func getLatestVersion(channel string) (string, error) {
 	if !strings.HasSuffix(channel, ".txt") {
 		channel += ".txt"
 	}
 
-	// We don't need a `/` here as its should be in the channelURLSuffix
-	channelURL := fmt.Sprintf("%s%s", channelURLSuffix, channel)
+	// Use url.JoinPath to safely join the base URL and channel path
+	channelURL, err := url.JoinPath(channelURLSuffix, channel)
+	if err != nil {
+		return "", fmt.Errorf("failed to join channel URL: %w", err)
+	}
 
 	client := retryablehttp.NewClient()
 	client.RetryMax = 3
@@ -125,14 +129,27 @@ func getLatestStableVersion(channel string) (string, error) {
 
 	resp, err := client.Get(channelURL)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to fetch from channel URL %s: %w", channelURL, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			fmt.Printf("warning: failed to close response body: %v\n", cerr)
+		}
+	}()
+
+	if resp.StatusCode != 200 {
+		return "", fmt.Errorf("unexpected status code %d when fetching channel %s", resp.StatusCode, channel)
+	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	return strings.TrimSpace(string(body)), nil
+	version := strings.TrimSpace(string(body))
+	if version == "" {
+		return "", fmt.Errorf("empty version returned from channel %s", channel)
+	}
+
+	return version, nil
 }
