@@ -35,9 +35,14 @@ func NewKubeReconciler(
 	interval time.Duration,
 	channel string,
 ) *ClusterVersionScheduler {
+	// If no channel is specified, return nil to indicate disabled
+	if channel == "" {
+		log.Info("Kubernetes version checking disabled (no channel specified)")
+		return nil
+	}
 
 	return &ClusterVersionScheduler{
-		log:      log,
+		log:      log.WithField("channel", channel),
 		client:   kubernetes.NewForConfigOrDie(config),
 		interval: interval,
 		metrics:  metrics,
@@ -47,7 +52,7 @@ func NewKubeReconciler(
 
 func (s *ClusterVersionScheduler) Start(ctx context.Context) error {
 	go s.runScheduler(ctx)
-	return s.reconcile(ctx)
+	return s.reconcile()
 }
 
 func (s *ClusterVersionScheduler) runScheduler(ctx context.Context) {
@@ -63,14 +68,14 @@ func (s *ClusterVersionScheduler) runScheduler(ctx context.Context) {
 			s.log.Info("ClusterVersionScheduler stopping")
 			return
 		case <-ticker.C:
-			if err := s.reconcile(ctx); err != nil {
+			if err := s.reconcile(); err != nil {
 				s.log.Error(err, "Failed to reconcile cluster version")
 			}
 		}
 	}
 }
 
-func (s *ClusterVersionScheduler) reconcile(_ context.Context) error {
+func (s *ClusterVersionScheduler) reconcile() error {
 	// Get current cluster version
 	current, err := s.client.Discovery().ServerVersion()
 	if err != nil {
@@ -110,11 +115,21 @@ func (s *ClusterVersionScheduler) reconcile(_ context.Context) error {
 }
 
 func getLatestVersion(channel string) (string, error) {
+	// Always use upstream Kubernetes channels - this is the authoritative source
+	// Platform detection is kept for logging purposes only
+	return getLatestVersionFromUpstream(channel)
+}
+
+func getLatestVersionFromUpstream(channel string) (string, error) {
+	// Validate channel - only allow known Kubernetes channels
+	if !isValidKubernetesChannel(channel) {
+		return "", fmt.Errorf("unsupported channel: %s. Valid channels: stable, latest, latest-1.xx", channel)
+	}
+
 	if !strings.HasSuffix(channel, ".txt") {
 		channel += ".txt"
 	}
 
-	// Use url.JoinPath to safely join the base URL and channel path
 	channelURL, err := url.JoinPath(channelURLSuffix, channel)
 	if err != nil {
 		return "", fmt.Errorf("failed to join channel URL: %w", err)
@@ -124,18 +139,13 @@ func getLatestVersion(channel string) (string, error) {
 	client.RetryMax = 3
 	client.RetryWaitMin = 1 * time.Second
 	client.RetryWaitMax = 30 * time.Second
-	// Optional: Log using your own logrus/logr logger
 	client.Logger = nil
 
 	resp, err := client.Get(channelURL)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch from channel URL %s: %w", channelURL, err)
 	}
-	defer func() {
-		if cerr := resp.Body.Close(); cerr != nil {
-			fmt.Printf("warning: failed to close response body: %v\n", cerr)
-		}
-	}()
+	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
 		return "", fmt.Errorf("unexpected status code %d when fetching channel %s", resp.StatusCode, channel)
@@ -152,4 +162,21 @@ func getLatestVersion(channel string) (string, error) {
 	}
 
 	return version, nil
+}
+
+func isValidKubernetesChannel(channel string) bool {
+	// Only allow official Kubernetes channels
+	validChannels := []string{"stable", "latest"}
+
+	// Allow latest-X.Y format
+	if strings.HasPrefix(channel, "latest-1.") {
+		return true
+	}
+
+	for _, valid := range validChannels {
+		if channel == valid {
+			return true
+		}
+	}
+	return false
 }

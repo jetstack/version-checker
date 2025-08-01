@@ -29,15 +29,34 @@ version_checker_is_latest_kube_version{current_version="1.28.2", latest_version=
 - Value `1`: Cluster is running the latest version from the specified channel
 - Value `0`: Cluster is not running the latest version (update available)
 
+### Supported Channels
+
+version-checker uses official Kubernetes release channels:
+
+- `stable` - Latest stable Kubernetes release (recommended)
+- `latest` - Latest Kubernetes release (including pre-releases)
+- `latest-1.28` - Latest patch for Kubernetes 1.28.x
+- `latest-1.27` - Latest patch for Kubernetes 1.27.x
+
 ### Examples
 
 ```bash
-# Use the default stable channel
-./version-checker
+# Check against latest stable Kubernetes
+version-checker --kube-version-channel=stable
 
-# Monitor against the latest channel
-./version-checker --kube-channel=latest
+# Check against latest Kubernetes (including alpha/beta)
+version-checker --kube-version-channel=latest
+
+# Check against latest 1.28.x patch
+version-checker --kube-version-channel=latest-1.28
 
 # Monitor against a specific version channel with custom interval
 ./version-checker --kube-channel=stable-1.28 --kube-interval=1h
 ```
+
+### Managed Kubernetes Support
+
+Works with all managed Kubernetes services:
+- **Amazon EKS**: Compares `v1.28.2-eks-abc123` against upstream `v1.28.2`
+- **Google GKE**: Compares `v1.28.2-gke.1034000` against upstream `v1.28.2`  
+- **Azure AKS**: Compares `v1.28.2-aks-xyz789` against upstream `v1.28.2`

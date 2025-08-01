@@ -131,8 +131,13 @@ func NewCommand(ctx context.Context) *cobra.Command {
 				opts.KubeInterval,
 				opts.KubeChannel,
 			)
-			if err := mgr.Add(kubeController); err != nil {
-				return err
+
+			// Only add to manager if controller was created (channel was specified)
+			if kubeController != nil {
+				if err := mgr.Add(kubeController); err != nil {
+					return err
+				}
+				log.WithField("channel", opts.KubeChannel).Info("Kubernetes version checking enabled")
 			}
 
 			// Start the manager and all controllers
