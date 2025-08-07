@@ -20,7 +20,7 @@ image:
   tag: ""
   # -- Set the Image Pull Policy
   pullPolicy: IfNotPresent
-  # -- Pull secrects - name of existing secret
+  # -- Image Pull secrects required for version-checker to run.
   imagePullSecret:
 
 # -- Configure tolerations
@@ -48,6 +48,9 @@ versionChecker:
   metricsServingAddress: 0.0.0.0:8080
   # -- Enable/Disable the requirement for an enable.version-checker.io annotation on pods.
   testAllContainers: true
+
+# -- Existing Image Pull Secrets
+imagePullSecrets: []
 
 # Azure Container Registry Credentials Configuration
 acr:

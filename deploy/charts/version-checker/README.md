@@ -39,10 +39,11 @@ A Helm chart for version-checker
 | gcr.token | string | `nil` | Access token for read access to private GCR registries |
 | ghcr.hostname | string | `nil` | Hostname for Github Enterprise to override the default ghcr domains. |
 | ghcr.token | string | `nil` | Personal Access token for read access to GHCR releases |
-| image.imagePullSecret | string | `nil` | Pull secrects - name of existing secret |
+| image.imagePullSecret | string | `nil` | Image Pull secrects required for version-checker to run. |
 | image.pullPolicy | string | `"IfNotPresent"` | Set the Image Pull Policy |
 | image.repository | string | `"quay.io/jetstack/version-checker"` | Repository of the container image |
 | image.tag | string | `""` | Override the chart version. Defaults to `appVersion` of the helm chart. |
+| imagePullSecrets | list | `[]` | Existing Image Pull Secrets |
 | livenessProbe.enabled | bool | `true` | Enable/Disable the setting of a livenessProbe |
 | livenessProbe.httpGet.path | string | `"/readyz"` | Path to use for the livenessProbe |
 | livenessProbe.httpGet.port | int | `8080` | Port to use for the livenessProbe |
