@@ -65,12 +65,14 @@ func (b *Builder) Options(name string) (*api.Options, error) {
 
 	return &opts, nil
 }
+
 func (b *Builder) handleSHAOption(name string, opts *api.Options, setNonSha *bool, errs *[]string) error {
 	if useSHA, ok := b.ans[b.index(name, api.UseSHAAnnotationKey)]; ok && useSHA == "true" {
 		opts.UseSHA = true
 	}
 	return nil
 }
+
 func (b *Builder) handleSHAToTagOption(name string, opts *api.Options, setNonSha *bool, errs *[]string) error {
 	if ResolveSHAToTags, ok := b.ans[b.index(name, api.ResolveSHAToTagsKey)]; ok && ResolveSHAToTags == "true" {
 		opts.ResolveSHAToTags = true
