@@ -69,6 +69,10 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create docker client: %w", err)
 	}
+	ecrPublicClient, err := ecrpublic.New(opts.ECRPublic, log)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create ecr public client: %w", err)
+	}
 
 	var selfhostedClients []api.ImageClient
 	for _, sOpts := range opts.Selfhosted {
@@ -109,7 +113,7 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 			selfhostedClients,
 			acrClient,
 			ecr.New(opts.ECR),
-			ecrpublic.New(opts.ECRPublic),
+			ecrPublicClient,
 			dockerClient,
 			gcr.New(opts.GCR),
 			ghcr.New(opts.GHCR),

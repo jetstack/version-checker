@@ -1,10 +1,6 @@
 package ecrpublic
 
-import (
-	"testing"
-
-	"github.com/stretchr/testify/assert"
-)
+import "testing"
 
 func TestIsHost(t *testing.T) {
 	tests := map[string]struct {
@@ -19,39 +15,35 @@ func TestIsHost(t *testing.T) {
 			host:  "foobar",
 			expIs: false,
 		},
+		"path with two segments should be false": {
+			host:  "joshvanl/version-checker",
+			expIs: false,
+		},
+		"path with three segments should be false": {
+			host:  "jetstack/joshvanl/version-checker",
+			expIs: false,
+		},
 		"random string with dots should be false": {
 			host:  "foobar.foo",
 			expIs: false,
 		},
-		"just amazonawsaws.com should be false": {
-			host:  "amazonaws.com",
+		"docker.io should be false": {
+			host:  "docker.io",
 			expIs: false,
 		},
-		"ecr.foo.amazonaws.com with random sub domains should be false": {
-			host:  "bar.ecr.foo.amazonaws.com",
+		"docker.com should be false": {
+			host:  "docker.com",
 			expIs: false,
 		},
-		"dkr.ecr.foo.amazonaws.com with random sub domains should be false": {
-			host:  "dkr.ecr.foo.amazonaws.com",
-			expIs: false,
-		},
-		"hello123.dkr.ecr.foo.amazonaws.com false": {
-			host:  "hello123.dkr.ecr.foo.amazonaws.com",
-			expIs: false,
-		},
-		"123hello.hello.dkr.ecr.foo.amazonaws.com false": {
-			host:  "123hello.hello.dkr.ecr.foo.amazonaws.com",
-			expIs: false,
-		},
-		"123hello.dkr.ecr.foo.amazonaws.comfoo false": {
-			host:  "123hello.dkr.ecr.foo.amazonaws.comfoo",
-			expIs: false,
-		},
-		"public.ecr.aws should be true": {
+		"just public.ecr.aws should be true": {
 			host:  "public.ecr.aws",
 			expIs: true,
 		},
-		"public.ecr.aws with random subdomains should be false": {
+		"public.ecr.aws.foo should be false": {
+			host:  "public.ecr.aws.foo",
+			expIs: false,
+		},
+		"foo.public.ecr.aws should be false": {
 			host:  "foo.public.ecr.aws",
 			expIs: false,
 		},
@@ -68,30 +60,25 @@ func TestIsHost(t *testing.T) {
 	}
 }
 
-func TestRepoImage(t *testing.T) {
+func TestRepoImageFromPath(t *testing.T) {
 	tests := map[string]struct {
 		path              string
 		expRepo, expImage string
 	}{
-		"single image should return as image": {
-			path:     "kube-scheduler",
-			expRepo:  "",
-			expImage: "kube-scheduler",
+		"single image should return registry and image": {
+			path:     "nginx",
+			expRepo:  "nginx",
+			expImage: "",
 		},
-		"two segments to path should return both": {
-			path:     "jetstack-cre/version-checker",
-			expRepo:  "jetstack-cre",
-			expImage: "version-checker",
+		"two segments to path should return registry and repo": {
+			path:     "eks-distro/kubernetes",
+			expRepo:  "eks-distro",
+			expImage: "kubernetes",
 		},
-		"multiple segments to path should return all in repo, last segment image": {
-			path:     "k8s-artifacts-prod/ingress-nginx/nginx",
-			expRepo:  "k8s-artifacts-prod/ingress-nginx",
-			expImage: "nginx",
-		},
-		"region": {
-			path:     "000000000000.dkr.ecr.eu-west-2.amazonaws.com/version-checker",
-			expRepo:  "000000000000.dkr.ecr.eu-west-2.amazonaws.com",
-			expImage: "version-checker",
+		"three segments to path should return registry and combined repo": {
+			path:     "eks-distro/kubernetes/kube-proxy",
+			expRepo:  "eks-distro",
+			expImage: "kubernetes/kube-proxy",
 		},
 	}
 
@@ -99,8 +86,10 @@ func TestRepoImage(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			repo, image := handler.RepoImageFromPath(test.path)
-			assert.Equal(t, repo, test.expRepo)
-			assert.Equal(t, image, test.expImage)
+			if repo != test.expRepo || image != test.expImage {
+				t.Errorf("%s: unexpected repo/image, exp=%s/%s got=%s/%s",
+					test.path, test.expRepo, test.expImage, repo, image)
+			}
 		})
 	}
 }
