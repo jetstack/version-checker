@@ -12,6 +12,7 @@ import (
 	"github.com/jetstack/version-checker/pkg/client/acr"
 	"github.com/jetstack/version-checker/pkg/client/docker"
 	"github.com/jetstack/version-checker/pkg/client/ecr"
+	"github.com/jetstack/version-checker/pkg/client/ecrpublic"
 	"github.com/jetstack/version-checker/pkg/client/fallback"
 	"github.com/jetstack/version-checker/pkg/client/gcr"
 	"github.com/jetstack/version-checker/pkg/client/ghcr"
@@ -39,6 +40,7 @@ type Options struct {
 	ACR        acr.Options
 	Docker     docker.Options
 	ECR        ecr.Options
+	ECRPublic  ecrpublic.Options // Add ECRPublic options
 	GCR        gcr.Options
 	GHCR       ghcr.Options
 	OCI        oci.Options
@@ -54,6 +56,7 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 	if opts.Transport != nil {
 		opts.Quay.Transporter = opts.Transport
 		opts.ECR.Transporter = opts.Transport
+		opts.ECRPublic.Transporter = opts.Transport // Add ECR public transporter
 		opts.GHCR.Transporter = opts.Transport
 		opts.GCR.Transporter = opts.Transport
 	}
@@ -65,6 +68,10 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 	dockerClient, err := docker.New(opts.Docker, log)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create docker client: %w", err)
+	}
+	ecrPublicClient, err := ecrpublic.New(opts.ECRPublic, log)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create ecr public client: %w", err)
 	}
 
 	var selfhostedClients []api.ImageClient
@@ -106,6 +113,7 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 			selfhostedClients,
 			acrClient,
 			ecr.New(opts.ECR),
+			ecrPublicClient,
 			dockerClient,
 			gcr.New(opts.GCR),
 			ghcr.New(opts.GHCR),
