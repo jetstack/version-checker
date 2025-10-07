@@ -6,20 +6,29 @@
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/jetstack/version-checker)
 
 version-checker is a Kubernetes utility for observing the current versions of
-images running in the cluster, as well as the latest available upstream. These
-checks get exposed as Prometheus metrics to be viewed on a dashboard, or _soft_
-alert cluster operators.
+images running in the cluster, as well as the latest available upstream. Additionally,
+it monitors the Kubernetes cluster version against the latest available releases
+using official Kubernetes release channels. These checks get exposed as Prometheus
+metrics to be viewed on a dashboard, or _soft_ alert cluster operators.
+
+## Features
+
+- **Container Image Version Checking**: Monitor and compare container image versions running in the cluster against their latest upstream versions
+- **Kubernetes Version Monitoring**: Track your cluster's Kubernetes version against the latest available releases from official Kubernetes channels
+- **Prometheus Metrics Integration**: Export all version information as Prometheus metrics for monitoring and alerting
+- **Flexible Channel Selection**: Configure which Kubernetes release channel to track (stable, latest, etc.)
 
 ---
 
 ## Why Use version-checker?
 
-- **Improved Security**: Ensures images are up-to-date, reducing the risk of using vulnerable or compromised versions.
-- **Enhanced Visibility**: Provides a clear overview of all running container versions across clusters.
-- **Operational Efficiency**: Automates image tracking and reduces manual intervention in version management.
-- **Compliance and Policy**: Enforcement: Helps maintain version consistency and adherence to organizational policies.
+- **Improved Security**: Ensures images and Kubernetes clusters are up-to-date, reducing the risk of using vulnerable or compromised versions.
+- **Enhanced Visibility**: Provides a clear overview of all running container versions and cluster versions across clusters.
+- **Operational Efficiency**: Automates image and Kubernetes version tracking and reduces manual intervention in version management.
+- **Compliance and Policy Enforcement**: Helps maintain version consistency and adherence to organizational policies for both applications and infrastructure.
 - **Incremental Upgrades**: Facilitates frequent, incremental updates to reduce the risk of large, disruptive upgrades.
 - **Add-On Compatibility**: Ensures compatibility with the latest versions of Kubernetes add-ons and dependencies.
+- **Proactive Cluster Management**: Stay informed about Kubernetes security updates and new features through automated version monitoring.
 
 ---
 
@@ -45,6 +54,7 @@ These registries support authentication.
 
 - [Installation Guide](docs/installation.md)
 - [Metrics](docs/metrics.md)
+- [New Features](docs/new_features.md)
 
 ---
 

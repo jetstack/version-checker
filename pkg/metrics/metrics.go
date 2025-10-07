@@ -28,6 +28,9 @@ type Metrics struct {
 	containerImageDuration *prometheus.GaugeVec
 	containerImageErrors   *prometheus.CounterVec
 
+	// Kubernetes version metric
+	kubernetesVersion *prometheus.GaugeVec
+
 	cache k8sclient.Reader
 
 	// Contains all metrics for the roundtripper
@@ -81,6 +84,16 @@ func New(log *logrus.Entry, reg ctrmetrics.RegistererGatherer, cache k8sclient.R
 			"namespace", "pod", "container", "image",
 		},
 	)
+	kubernetesVersion := promauto.With(reg).NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "version_checker",
+			Name:      "is_latest_kube_version",
+			Help:      "Where the current cluster is using the latest release channel version",
+		},
+		[]string{
+			"current_version", "latest_version", "channel",
+		},
+	)
 
 	return &Metrics{
 		log:   log.WithField("module", "metrics"),
@@ -91,6 +104,7 @@ func New(log *logrus.Entry, reg ctrmetrics.RegistererGatherer, cache k8sclient.R
 		containerImageDuration: containerImageDuration,
 		containerImageChecked:  containerImageChecked,
 		containerImageErrors:   containerImageErrors,
+		kubernetesVersion:      kubernetesVersion,
 		roundTripper:           NewRoundTripper(reg),
 	}
 }
