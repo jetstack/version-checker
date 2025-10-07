@@ -4,7 +4,7 @@ profile: coverage.out
 
 # (optional)
 # When specified reported file paths will not contain local prefix in the output
-# local-prefix: "github.com/org/project"
+local-prefix: "github.com/jetstack/version-checker"
 
 # Holds coverage thresholds percentages, values should be in range [0-100]
 threshold:
@@ -14,12 +14,11 @@ threshold:
 
   # (optional; default 0)
   # The minimum coverage that each package should have
-  package: 0
+  package: 10
 
   # (optional; default 0)
   # The minimum total coverage project should have
-  total: 0
-
+  total: 40
 # Holds regexp rules which will override thresholds for matched files or packages
 # override:
 #   # Increase coverage threshold to 100% for `foo` package (default is 80, as configured above)
