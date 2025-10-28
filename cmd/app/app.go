@@ -110,7 +110,9 @@ func NewCommand(ctx context.Context) *cobra.Command {
 				return fmt.Errorf("failed to setup image registry clients: %s", err)
 			}
 
-			c := controller.NewPodReconciler(opts.CacheTimeout,
+			_ = client
+
+			podController := controller.NewPodReconciler(opts.CacheTimeout,
 				metricsServer,
 				client,
 				mgr.GetClient(),
@@ -118,9 +120,24 @@ func NewCommand(ctx context.Context) *cobra.Command {
 				opts.RequeueDuration,
 				opts.DefaultTestAll,
 			)
-
-			if err := c.SetupWithManager(mgr); err != nil {
+			if err := podController.SetupWithManager(mgr); err != nil {
 				return err
+			}
+
+			kubeController := controller.NewKubeReconciler(
+				log,
+				mgr.GetConfig(),
+				metricsServer,
+				opts.KubeInterval,
+				opts.KubeChannel,
+			)
+
+			// Only add to manager if controller was created (channel was specified)
+			if kubeController != nil {
+				if err := mgr.Add(kubeController); err != nil {
+					return err
+				}
+				log.WithField("channel", opts.KubeChannel).Info("Kubernetes version checking enabled")
 			}
 
 			// Start the manager and all controllers
