@@ -313,11 +313,12 @@ func TestClusterVersionScheduler_reconcile_Integration(t *testing.T) {
 			expectedError:      true,
 		},
 		// Platform-specific version format tests (metadata handling)
+		// EKS and GKE platform versions
 		{
 			name:             "EKS version format - up to date",
 			currentVersion:   "v1.28.2-eks-a5565ad",
 			latestVersion:    "v1.28.2",
-			channel:          "stable", // Always compare against upstream Kubernetes
+			channel:          "stable",
 			expectedUpToDate: true,
 			expectedError:    false,
 		},
@@ -709,13 +710,12 @@ func TestClusterVersionScheduler_runScheduler(t *testing.T) {
 			client:   fakeClient,
 			log:      logger,
 			metrics:  metricsInstance,
-			interval: 30 * time.Millisecond, // Very short interval for testing
+			interval: 30 * time.Millisecond,
 			channel:  "stable",
 		},
 		testServerURL: server.URL,
 	}
 
-	// Run the scheduler for a short time
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
