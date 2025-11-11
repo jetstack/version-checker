@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	reg = regexp.MustCompile(`(^(.*\.)?quay.io$)`)
+	reg = regexp.MustCompile(`(^(.*\.)?quay\.io$)`)
 )
 
 func (c *Client) IsHost(host string) bool {
