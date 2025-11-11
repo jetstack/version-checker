@@ -220,7 +220,10 @@ func TestGetLatestVersion(t *testing.T) {
 				if err != nil {
 					return "", err
 				}
-				defer resp.Body.Close()
+
+				defer func() {
+					require.NoError(t, resp.Body.Close())
+				}()
 
 				if resp.StatusCode != http.StatusOK {
 					return "", assert.AnError
