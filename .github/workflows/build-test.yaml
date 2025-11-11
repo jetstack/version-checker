@@ -8,12 +8,15 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Setting some default permissions for all jobs
+permissions:
+  contents: read
+  security-events: read
+  pull-requests: read
+  checks: write
+
 jobs:
   lint:
-    permissions:
-      contents: read # for actions/checkout to fetch code
-      pull-requests: read # for golangci/golangci-lint-action to fetch pull requests
-      checks: write # for golangci/golangci-lint-action to annotate Pull Requests
     name: Lint Go code
     runs-on: ubuntu-latest
     steps:
@@ -35,6 +38,8 @@ jobs:
   code-scan:
     name: Code Scan
     runs-on: ubuntu-latest
+    permissions:
+      security-events: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -58,6 +63,8 @@ jobs:
   govulncheck:
     runs-on: ubuntu-latest
     name: Run govulncheck
+    permissions:
+      security-events: write
     steps:
       # We only need to checkout as govuln does the go setup...
       - name: Checkout code

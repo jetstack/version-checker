@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	dockerReg = regexp.MustCompile(`(^(.*\.)?docker.com$)|(^(.*\.)?docker.io$)`)
+	dockerReg = regexp.MustCompile(`(^(.*\.)?docker\.com$)|(^(.*\.)?docker\.io$)`)
 )
 
 func (c *Client) IsHost(host string) bool {
