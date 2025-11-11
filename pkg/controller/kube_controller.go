@@ -16,6 +16,7 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/hashicorp/go-retryablehttp"
+	leveledlogger "github.com/jetstack/version-checker/pkg/leveledlogrus"
 	"github.com/jetstack/version-checker/pkg/metrics"
 	"github.com/jetstack/version-checker/pkg/version/semver"
 )
@@ -24,7 +25,7 @@ const channelURLSuffix = "https://dl.k8s.io/release/"
 
 type ClusterVersionScheduler struct {
 	client   kubernetes.Interface
-	http     http.Client
+	http     *http.Client
 	log      *logrus.Entry
 	metrics  *metrics.Metrics
 	interval time.Duration
@@ -49,12 +50,12 @@ func NewKubeReconciler(
 	httpClient.RetryMax = 3
 	httpClient.RetryWaitMin = 1 * time.Second
 	httpClient.RetryWaitMax = 30 * time.Second
-	httpClient.Logger = log
+	httpClient.Logger = retryablehttp.LeveledLogger(&leveledlogger.Logger{Entry: log})
 
 	return &ClusterVersionScheduler{
 		log:      log.WithField("channel", channel),
 		client:   kubernetes.NewForConfigOrDie(config),
-		http:     *httpClient.StandardClient(),
+		http:     httpClient.StandardClient(),
 		interval: interval,
 		metrics:  metrics,
 		channel:  channel,
