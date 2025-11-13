@@ -116,7 +116,7 @@ jobs:
         uses: mikepenz/release-changelog-builder-action@v6
         with:
           ignorePreReleases: true
-          mode: "HYBRID"
+          toTag: "main"
 
       - name: Create Release PR
         uses: devops-infra/action-pull-request@v1.0.2
