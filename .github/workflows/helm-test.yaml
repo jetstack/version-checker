@@ -30,6 +30,8 @@ jobs:
           go-version-file: go.mod
 
       - uses: azure/setup-helm@v4
+        with:
+          version: v3.19.0
 
       - run: helm lint deploy/charts/version-checker
 
@@ -46,6 +48,8 @@ jobs:
           go-version-file: go.mod
 
       - uses: azure/setup-helm@v4
+        with:
+          version: v3.19.0
 
       - name: Install helm Plugins
         run: |
