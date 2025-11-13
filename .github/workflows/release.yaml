@@ -158,6 +158,8 @@ jobs:
 
       - name: Setup Helm
         uses: azure/setup-helm@v4
+        with:
+          version: v3.19.0
 
       # FIXME: We need a Repo Created in Quay ahead of time for this to work
       # - name: Login to Quay.io for OCI Push
