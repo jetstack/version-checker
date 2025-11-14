@@ -11,11 +11,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  pull-requests: read
+  checks: write
+
 jobs:
   lint:
-    permissions:
-      contents: read # for actions/checkout to fetch code
-      pull-requests: read # for golangci/golangci-lint-action to fetch pull requests
     name: Lint Helm Chart
     runs-on: ubuntu-latest
     steps:
@@ -28,6 +30,8 @@ jobs:
           go-version-file: go.mod
 
       - uses: azure/setup-helm@v4
+        with:
+          version: v3.19.0
 
       - run: helm lint deploy/charts/version-checker
 
@@ -44,6 +48,8 @@ jobs:
           go-version-file: go.mod
 
       - uses: azure/setup-helm@v4
+        with:
+          version: v3.19.0
 
       - name: Install helm Plugins
         run: |
