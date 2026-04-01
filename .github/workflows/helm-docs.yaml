@@ -26,7 +26,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
       - name: Check for values.yaml changes
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
@@ -45,7 +45,7 @@ jobs:
           cd deploy/charts/version-checker
           helm-docs
       - name: Check for README.md changes
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         id: filter-readme
         with:
           base: HEAD
