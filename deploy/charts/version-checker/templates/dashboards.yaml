@@ -10,6 +10,10 @@ metadata:
     {{- if .Values.dashboards.labels }}
     {{ .Values.dashboards.labels | toYaml | nindent 4}}
     {{- end }}
+  {{- if .Values.dashboards.annotations }}
+  annotations:
+    {{- .Values.dashboards.annotations | toYaml | nindent 4}}
+  {{- end }}
 data:
   internal.json: |-
     {{- .Files.Get "dashboards/internal.json" | nindent 4 }}
@@ -27,6 +31,10 @@ metadata:
     {{- if .Values.dashboards.labels }}
     {{- .Values.dashboards.labels | toYaml }}
     {{- end }}
+  {{- if .Values.dashboards.annotations }}
+  annotations:
+    {{- .Values.dashboards.annotations | toYaml | nindent 4}}
+  {{- end }}
 spec:
   instanceSelector:
     matchLabels:
@@ -45,6 +53,10 @@ metadata:
     {{- if .Values.dashboards.labels }}
     {{- .Values.dashboards.labels | toYaml }}
     {{- end }}
+  {{- if .Values.dashboards.annotations }}
+  annotations:
+    {{- .Values.dashboards.annotations | toYaml | nindent 4}}
+  {{- end }}
 spec:
   instanceSelector:
     matchLabels:

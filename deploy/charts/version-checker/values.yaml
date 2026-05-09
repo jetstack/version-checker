@@ -216,6 +216,8 @@ prometheus:
 dashboards:
   # -- Deploy Grafana Dashboard(s) for version-checker
   enabled: false
+  # -- Additional annotations to add to the Grafana Dashboard resources
+  annotations: {}
   # -- Additional labels to add to the Grafana Dashboard
   labels: {}
   # -- Grafana instance to associate the Dashboard with when using GrafanaOperator
