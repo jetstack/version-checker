@@ -29,7 +29,7 @@ metadata:
   labels:
     {{- include "version-checker.labels" . | nindent 4 }}
     {{- if .Values.dashboards.labels }}
-    {{- .Values.dashboards.labels | toYaml }}
+    {{- .Values.dashboards.labels | toYaml | nindent 4}}
     {{- end }}
   {{- if .Values.dashboards.annotations }}
   annotations:
@@ -51,7 +51,7 @@ metadata:
   labels:
     {{- include "version-checker.labels" . | nindent 4 }}
     {{- if .Values.dashboards.labels }}
-    {{- .Values.dashboards.labels | toYaml }}
+    {{- .Values.dashboards.labels | toYaml | nindent 4}}
     {{- end }}
   {{- if .Values.dashboards.annotations }}
   annotations:
