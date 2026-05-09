@@ -42,3 +42,12 @@ Velero contains an image `1220` which is always the latest.
 | Annotation |
 |-|
 | `match-regex.version-checker.io/velero: 'v(\d+)\.(\d+)\.(\d+)'` |
+
+### n8n: ghcr.io/n8n-io/n8n
+
+n8n publishes the versions to compare against via GitHub Releases rather than
+using GHCR package tags with enough specificity.
+
+| Annotation |
+|-|
+| `use-github-release.version-checker.io/n8n: "true"` |

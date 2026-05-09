@@ -4,9 +4,11 @@ import (
 	"context"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/google/go-github/v70/github"
 	"github.com/jarcoal/httpmock"
+	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -55,6 +57,27 @@ func registerTagResponders() {
 						}
 					},
 					"created_at": "2023-07-08T12:34:56Z"
+				}
+			]`), nil
+		})
+}
+
+func registerReleaseResponders() {
+	httpmock.RegisterResponder("GET", "https://api.github.com/repos/test-user-owner/test-repo/releases",
+		func(req *http.Request) (*http.Response, error) {
+			return httpmock.NewStringResponse(200, `[
+				{
+					"tag_name": "v1.0.0",
+					"published_at": "2023-07-08T12:34:56Z"
+				},
+				{
+					"tag_name": "v1.1.0",
+					"created_at": "2023-08-08T12:34:56Z"
+				},
+				{
+					"tag_name": "v9.9.9",
+					"draft": true,
+					"published_at": "2023-09-08T12:34:56Z"
 				}
 			]`), nil
 		})
@@ -161,4 +184,33 @@ func TestClient_Tags(t *testing.T) {
 		assert.Len(t, tags, 2)
 		assert.ElementsMatch(t, []string{"tag1", "tag2"}, []string{tags[0].Tag, tags[1].Tag})
 	})
+}
+
+func TestClient_ReleaseTags(t *testing.T) {
+	setup()
+	defer teardown()
+
+	ctx := context.Background()
+
+	httpmock.Reset()
+	registerReleaseResponders()
+
+	client := New(Options{})
+	client.client = github.NewClient(nil)
+
+	tags, err := client.ReleaseTags(ctx, "test-user-owner", "test-repo/subpath")
+	assert.NoError(t, err)
+	assert.Equal(t, []api.ImageTag{
+		{Tag: "v1.0.0", Timestamp: parseTime("2023-07-08T12:34:56Z")},
+		{Tag: "v1.1.0", Timestamp: parseTime("2023-08-08T12:34:56Z")},
+	}, tags)
+}
+
+func parseTime(value string) time.Time {
+	parsed, err := time.Parse(time.RFC3339, value)
+	if err != nil {
+		panic(err)
+	}
+
+	return parsed
 }

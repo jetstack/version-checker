@@ -75,6 +75,15 @@ func TestBuild(t *testing.T) {
 			expOptions: nil,
 			expErr:     `cannot define "use-sha.version-checker.io/test-name" with any semver options`,
 		},
+		"cannot use sha with github releases": {
+			containerName: "test-name",
+			annotations: map[string]string{
+				api.UseGitHubReleaseAnnotationKey + "/test-name": "true",
+				api.UseSHAAnnotationKey + "/test-name":           "true",
+			},
+			expOptions: nil,
+			expErr:     `cannot define "use-sha.version-checker.io/test-name" with any semver options`,
+		},
 		"output options for pins and add metadata": {
 			containerName: "test-name",
 			annotations: map[string]string{
@@ -111,6 +120,16 @@ func TestBuild(t *testing.T) {
 			},
 			expOptions: &api.Options{
 				UseSHA: true,
+			},
+			expErr: "",
+		},
+		"output options for github releases": {
+			containerName: "test-name",
+			annotations: map[string]string{
+				api.UseGitHubReleaseAnnotationKey + "/test-name": "true",
+			},
+			expOptions: &api.Options{
+				UseGitHubRelease: true,
 			},
 			expErr: "",
 		},

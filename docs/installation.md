@@ -75,6 +75,10 @@ However, by passing the following flag,`-a, --test-all-containers` version-check
     `use-metadata.version-checker.io` is not required when this is set. All
     other options, apart from URL overrides, are ignored when this is set.
 
+- `use-github-release.version-checker.io/my-container: "true"`: is used to
+    source the latest version for `ghcr.io` images from the backing GitHub
+    repository releases instead of GHCR package tags.
+
 - `override-url.version-checker.io/my-container: docker.io/bitnami/etcd`: is
     used to change the URL for where to lookup where the latest image version
     is. In this example, the current version of `my-container` will be compared

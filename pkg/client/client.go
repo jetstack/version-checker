@@ -22,7 +22,7 @@ import (
 
 // Used for testing/mocking purposes
 type ClientHandler interface {
-	Tags(ctx context.Context, imageURL string) ([]api.ImageTag, error)
+	Tags(ctx context.Context, imageURL string, opts *api.Options) ([]api.ImageTag, error)
 }
 
 // Client is a container image registry client to list tags of given image
@@ -123,11 +123,17 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 }
 
 // Tags returns the full list of image tags available, for a given image URL.
-func (c *Client) Tags(ctx context.Context, imageURL string) ([]api.ImageTag, error) {
+func (c *Client) Tags(ctx context.Context, imageURL string, opts *api.Options) ([]api.ImageTag, error) {
 	client, host, path := c.fromImageURL(imageURL)
 
 	c.log.Debugf("using client %q for image URL %q", client.Name(), imageURL)
 	repo, image := client.RepoImageFromPath(path)
+
+	if opts != nil && opts.UseGitHubRelease {
+		if ghcrClient, ok := client.(*ghcr.Client); ok {
+			return ghcrClient.ReleaseTags(ctx, repo, image)
+		}
+	}
 
 	return client.Tags(ctx, host, repo, image)
 }
