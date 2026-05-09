@@ -201,16 +201,7 @@ func TestClient_ReleaseTags(t *testing.T) {
 	tags, err := client.ReleaseTags(ctx, "test-user-owner", "test-repo/subpath")
 	assert.NoError(t, err)
 	assert.Equal(t, []api.ImageTag{
-		{Tag: "v1.0.0", Timestamp: parseTime("2023-07-08T12:34:56Z")},
-		{Tag: "v1.1.0", Timestamp: parseTime("2023-08-08T12:34:56Z")},
+		{Tag: "v1.0.0", Timestamp: time.Date(2023, time.July, 8, 12, 34, 56, 0, time.UTC)},
+		{Tag: "v1.1.0", Timestamp: time.Date(2023, time.August, 8, 12, 34, 56, 0, time.UTC)},
 	}, tags)
-}
-
-func parseTime(value string) time.Time {
-	parsed, err := time.Parse(time.RFC3339, value)
-	if err != nil {
-		panic(err)
-	}
-
-	return parsed
 }

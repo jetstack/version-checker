@@ -218,15 +218,6 @@ func TestTagsUsesGitHubReleasesForGHCR(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, []api.ImageTag{
-		{Tag: "v1.2.3", Timestamp: parseTime("2023-07-08T12:34:56Z")},
+		{Tag: "v1.2.3", Timestamp: time.Date(2023, time.July, 8, 12, 34, 56, 0, time.UTC)},
 	}, tags)
-}
-
-func parseTime(value string) time.Time {
-	parsed, err := time.Parse(time.RFC3339, value)
-	if err != nil {
-		panic(err)
-	}
-
-	return parsed
 }
