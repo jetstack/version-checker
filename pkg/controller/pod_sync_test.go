@@ -185,7 +185,7 @@ func TestController_SyncContainer_NoVersionFoundReportsFailureMetric(t *testing.
 	kubeClient := fake.NewClientBuilder().WithObjects(pod).Build()
 	metrics := metrics.New(log, reg, kubeClient)
 	checker := checker.New(
-		fakesearch.New().With(nil, versionerrors.NewVersionErrorNotFound("no tags found for given image URL: %q", "docker.io/example/missing")),
+		fakesearch.New().With(nil, versionerrors.NewVersionErrorNotFound("%s", fmt.Sprintf("no tags found for given image URL: %q", "docker.io/example/missing"))),
 	)
 
 	controller := &PodReconciler{
