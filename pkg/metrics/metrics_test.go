@@ -72,6 +72,33 @@ func TestCache(t *testing.T) {
 	}
 }
 
+func TestAddImageReplacesExistingVersionMetrics(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	m := New(logrus.NewEntry(logrus.New()), reg, fakek8s)
+
+	m.AddImage("namespace", "pod", "container", "container", "url", false, "1.0.0", "1.1.0")
+	m.AddImage("namespace", "pod", "container", "container", "url", true, "1.1.0", "1.1.0")
+
+	assert.Equal(t, 1,
+		testutil.CollectAndCount(m.containerImageVersion.MetricVec, MetricNamespace+"_is_latest_version"),
+	)
+	assert.Equal(t, 1,
+		testutil.CollectAndCount(m.containerImageChecked.MetricVec, MetricNamespace+"_last_checked"),
+	)
+
+	staleMetric, err := m.containerImageVersion.GetMetricWith(
+		buildFullLabels("namespace", "pod", "container", "container", "url", "1.0.0", "1.1.0"),
+	)
+	require.NoError(t, err)
+	assert.Equal(t, float64(0), testutil.ToFloat64(staleMetric))
+
+	currentMetric, err := m.containerImageVersion.GetMetricWith(
+		buildFullLabels("namespace", "pod", "container", "container", "url", "1.1.0", "1.1.0"),
+	)
+	require.NoError(t, err)
+	assert.Equal(t, float64(1), testutil.ToFloat64(currentMetric))
+}
+
 // TestErrorsReporting verifies that the error metric increments correctly
 func TestErrorsReporting(t *testing.T) {
 	m := New(logrus.NewEntry(logrus.New()), prometheus.NewRegistry(), fakek8s)
