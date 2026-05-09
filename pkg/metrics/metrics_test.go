@@ -15,6 +15,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
+	dto "github.com/prometheus/client_model/go"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -86,17 +87,53 @@ func TestAddImageReplacesExistingVersionMetrics(t *testing.T) {
 		testutil.CollectAndCount(m.containerImageChecked.MetricVec, MetricNamespace+"_last_checked"),
 	)
 
-	staleMetric, err := m.containerImageVersion.GetMetricWith(
-		buildFullLabels("namespace", "pod", "container", "container", "url", "1.0.0", "1.1.0"),
-	)
+	metricFamilies, err := reg.Gather()
 	require.NoError(t, err)
-	assert.Equal(t, float64(0), testutil.ToFloat64(staleMetric))
+	assert.False(t, hasMetricWithLabels(metricFamilies, MetricNamespace+"_is_latest_version", map[string]string{
+		"namespace":       "namespace",
+		"pod":             "pod",
+		"container":       "container",
+		"container_type":  "container",
+		"image":           "url",
+		"current_version": "1.0.0",
+		"latest_version":  "1.1.0",
+	}))
 
 	currentMetric, err := m.containerImageVersion.GetMetricWith(
 		buildFullLabels("namespace", "pod", "container", "container", "url", "1.1.0", "1.1.0"),
 	)
 	require.NoError(t, err)
 	assert.Equal(t, float64(1), testutil.ToFloat64(currentMetric))
+}
+
+func hasMetricWithLabels(metricFamilies []*dto.MetricFamily, name string, labels map[string]string) bool {
+	for _, metricFamily := range metricFamilies {
+		if metricFamily.GetName() != name {
+			continue
+		}
+
+		for _, metric := range metricFamily.GetMetric() {
+			if metricHasLabels(metric, labels) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func metricHasLabels(metric *dto.Metric, labels map[string]string) bool {
+	if len(metric.GetLabel()) != len(labels) {
+		return false
+	}
+
+	for _, label := range metric.GetLabel() {
+		if labels[label.GetName()] != label.GetValue() {
+			return false
+		}
+	}
+
+	return true
 }
 
 // TestErrorsReporting verifies that the error metric increments correctly
