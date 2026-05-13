@@ -221,3 +221,29 @@ func TestTagsUsesGitHubReleasesForGHCR(t *testing.T) {
 		{Tag: "v1.2.3", Timestamp: time.Date(2023, time.July, 8, 12, 34, 56, 0, time.UTC)},
 	}, tags)
 }
+
+func TestTagsUsesGitHubReleasesForGHCRWithoutToken(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	httpmock.RegisterResponder("GET", "https://api.github.com/repos/test-user-owner/test-repo/releases",
+		func(req *http.Request) (*http.Response, error) {
+			return httpmock.NewStringResponse(200, `[
+				{
+					"tag_name": "v2.3.4",
+					"published_at": "2024-01-01T10:20:30Z"
+				}
+			]`), nil
+		})
+
+	handler, err := New(context.TODO(), logrus.NewEntry(logrus.New()), Options{})
+	assert.NoError(t, err)
+
+	tags, err := handler.Tags(context.Background(), "ghcr.io/test-user-owner/test-repo", &api.Options{
+		UseGitHubRelease: true,
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, []api.ImageTag{
+		{Tag: "v2.3.4", Timestamp: time.Date(2024, time.January, 1, 10, 20, 30, 0, time.UTC)},
+	}, tags)
+}

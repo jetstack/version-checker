@@ -29,6 +29,8 @@ type ClientHandler interface {
 // URLs.
 type Client struct {
 	fallbackClient api.ImageClient
+	ghcrClient     *ghcr.Client
+	ghcrHostname   string
 
 	log     *logrus.Entry
 	clients []api.ImageClient
@@ -99,8 +101,11 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create fallback client: %w", err)
 	}
+	ghcrClient := ghcr.New(opts.GHCR)
 
 	c := &Client{
+		ghcrClient:   ghcrClient,
+		ghcrHostname: opts.GHCR.Hostname,
 		// Append all the clients in order of which we want to check against
 		clients: append(
 			selfhostedClients,
@@ -108,7 +113,7 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 			ecr.New(opts.ECR),
 			dockerClient,
 			gcr.New(opts.GCR),
-			ghcr.New(opts.GHCR),
+			ghcrClient,
 			quay.New(opts.Quay, log),
 		),
 		fallbackClient: fallbackClient,
@@ -133,9 +138,22 @@ func (c *Client) Tags(ctx context.Context, imageURL string, opts *api.Options) (
 		if ghcrClient, ok := client.(*ghcr.Client); ok {
 			return ghcrClient.ReleaseTags(ctx, repo, image)
 		}
+
+		if c.ghcrClient != nil && isGHCRHost(host, c.ghcrHostname) {
+			repo, image := c.ghcrClient.RepoImageFromPath(path)
+			return c.ghcrClient.ReleaseTags(ctx, repo, image)
+		}
 	}
 
 	return client.Tags(ctx, host, repo, image)
+}
+
+func isGHCRHost(host, configuredHostname string) bool {
+	if configuredHostname != "" && configuredHostname == host {
+		return true
+	}
+
+	return ghcr.HostReg.MatchString(host)
 }
 
 // fromImageURL will return the appropriate registry client for a given
