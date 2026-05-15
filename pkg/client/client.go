@@ -134,7 +134,7 @@ func (c *Client) Tags(ctx context.Context, imageURL string, opts *api.Options) (
 	c.log.Debugf("using client %q for image URL %q", client.Name(), imageURL)
 	repo, image := client.RepoImageFromPath(path)
 
-	if opts != nil && opts.UseGitHubRelease {
+	if opts != nil && opts.UseGitHubRelease && !opts.UseSHA {
 		if ghcrClient, ok := client.(*ghcr.Client); ok {
 			return ghcrClient.ReleaseTags(ctx, repo, image)
 		}

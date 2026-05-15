@@ -113,9 +113,9 @@ func (v *Version) Fetch(ctx context.Context, imageURL string, opts *api.Options)
 }
 
 func imageCacheIndex(imageURL string, opts *api.Options) string {
-	if opts != nil && opts.UseGitHubRelease {
-		return "github-release:" + imageURL
-	}
+       if opts != nil && opts.UseGitHubRelease && !opts.UseSHA {
+	       return "github-release:" + imageURL
+       }
 
-	return imageURL
+       return imageURL
 }

@@ -51,3 +51,5 @@ using GHCR package tags with enough specificity.
 | Annotation |
 |-|
 | `use-github-release.version-checker.io/n8n: "true"` |
+
+> Note: This annotation only affects semver/latest checks. If `use-sha.version-checker.io/n8n: "true"` is set or the tag is omitted/`latest`, version-checker will fall back to GHCR package tags, as GitHub Releases do not provide SHA information.
