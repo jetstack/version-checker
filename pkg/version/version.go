@@ -40,7 +40,7 @@ func New(log *logrus.Entry, client client.ClientHandler, cacheTimeout time.Durat
 // LatestTagFromImage will return the latest tag given an imageURL, according
 // to the given options.
 func (v *Version) LatestTagFromImage(ctx context.Context, imageURL string, opts *api.Options) (*api.ImageTag, error) {
-	tagsI, err := v.imageCache.Get(ctx, imageURL, imageURL, nil)
+	tagsI, err := v.imageCache.Get(ctx, imageCacheIndex(imageURL, opts), imageURL, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -94,9 +94,9 @@ func (v *Version) ResolveSHAToTag(ctx context.Context, imageURL string, imageSHA
 }
 
 // Fetch returns the given image tags for a given image URL.
-func (v *Version) Fetch(ctx context.Context, imageURL string, _ *api.Options) (interface{}, error) {
+func (v *Version) Fetch(ctx context.Context, imageURL string, opts *api.Options) (interface{}, error) {
 	// fetch tags from image URL
-	tags, err := v.client.Tags(ctx, imageURL)
+	tags, err := v.client.Tags(ctx, imageURL, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tags from remote registry for %q: %s",
 			imageURL, err)
@@ -110,4 +110,12 @@ func (v *Version) Fetch(ctx context.Context, imageURL string, _ *api.Options) (i
 	v.log.WithField("image", imageURL).Debugf("fetched %v tags", len(tags))
 
 	return tags, nil
+}
+
+func imageCacheIndex(imageURL string, opts *api.Options) string {
+       if opts != nil && opts.UseGitHubRelease && !opts.UseSHA {
+	       return "github-release:" + imageURL
+       }
+
+       return imageURL
 }

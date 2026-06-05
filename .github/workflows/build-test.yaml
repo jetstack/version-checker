@@ -34,6 +34,7 @@ jobs:
           version: v2.1.0
           args: --timeout 10m --verbose --issues-exit-code=0
           only-new-issues: true
+          install-mode: goinstall
 
   code-scan:
     name: Code Scan
@@ -66,9 +67,11 @@ jobs:
     permissions:
       security-events: write
     steps:
-      # We only need to checkout as govuln does the go setup...
+      # We only need to checkout as govuln does the go setup using the go.mod file.
       - name: Checkout code
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        with:
+          persist-credentials: false
 
       - id: govulncheck
         uses: golang/govulncheck-action@v1
