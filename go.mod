@@ -1,6 +1,6 @@
 module github.com/jetstack/version-checker
 
-go 1.26.3
+go 1.26.4
 
 // Do not remove this comment:
 // please place any replace statements here at the top for visibility and add a

@@ -31,7 +31,7 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@82606bf257cbaff209d206a39f5134f0cfbfd2ee # v9.2.1
         with:
-          version: latest
+          version: v2.12.2
           install-mode: goinstall
           args: --timeout 10m --verbose --issues-exit-code=0
           only-new-issues: true
@@ -70,7 +70,6 @@ jobs:
       # We only need to checkout as govuln does the go setup...
       - name: Checkout code
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
-
 
       - id: govulncheck
         uses: golang/govulncheck-action@v1
