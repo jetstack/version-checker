@@ -57,35 +57,43 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 
 	repoName := util.JoinRepoImage(repo, image)
 
-	images, err := client.DescribeImages(ctx, &ecr.DescribeImagesInput{
+	tags := map[string]api.ImageTag{}
+	input := &ecr.DescribeImagesInput{
 		RepositoryName: &repoName,
 		RegistryId:     aws.String(id),
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to describe images: %s", err)
 	}
 
-	tags := map[string]api.ImageTag{}
-	for _, img := range images.ImageDetails {
-		// Base data shared across tags
-		base := api.ImageTag{
-			SHA:       *img.ImageDigest,
-			Timestamp: *img.ImagePushedAt,
+	for {
+		images, err := client.DescribeImages(ctx, input)
+		if err != nil {
+			return nil, fmt.Errorf("failed to describe images: %s", err)
 		}
 
-		// Continue early if no tags available
-		if len(img.ImageTags) == 0 {
-			tags[base.SHA] = base
-			continue
+		for _, img := range images.ImageDetails {
+			// Base data shared across tags
+			base := api.ImageTag{
+				SHA:       *img.ImageDigest,
+				Timestamp: *img.ImagePushedAt,
+			}
+
+			// Continue early if no tags available
+			if len(img.ImageTags) == 0 {
+				tags[base.SHA] = base
+				continue
+			}
+
+			for _, tag := range img.ImageTags {
+				current := base   // copy the base
+				current.Tag = tag // set tag value
+
+				util.BuildTags(tags, tag, &current)
+			}
 		}
 
-		for _, tag := range img.ImageTags {
-			current := base   // copy the base
-			current.Tag = tag // set tag value
-
-			util.BuildTags(tags, tag, &current)
+		if images.NextToken == nil {
+			break
 		}
+		input.NextToken = images.NextToken
 	}
 
 	return util.TagMaptoList(tags), nil
