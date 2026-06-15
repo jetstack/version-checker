@@ -40,7 +40,7 @@ type Options struct {
 	ACR        acr.Options
 	Docker     docker.Options
 	ECR        ecr.Options
-	ECRPublic  ecrpublic.Options // Add ECRPublic options
+	ECRPublic  ecrpublic.Options
 	GCR        gcr.Options
 	GHCR       ghcr.Options
 	OCI        oci.Options
