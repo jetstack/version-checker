@@ -109,7 +109,7 @@ func (c *Client) doRequest(ctx context.Context, url string) (*TagResponse, error
 
 	resp, err := c.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get %q image: %s", c.Name(), err)
+		return nil, fmt.Errorf("failed to get %q image: %w", c.Name(), err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
