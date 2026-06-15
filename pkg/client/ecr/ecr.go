@@ -90,7 +90,7 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 			}
 		}
 
-		if images.NextToken == nil || aws.ToString(images.NextToken) == "" {
+		if aws.ToString(images.NextToken) == "" {
 			break
 		}
 		input.NextToken = images.NextToken
