@@ -57,7 +57,12 @@ func (c *Client) Name() string {
 }
 
 func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTag, error) {
-	url := fmt.Sprintf(ecrPublicLookupURL, repo, image)
+	var url string
+	if image == "" {
+		url = fmt.Sprintf("https://public.ecr.aws/v2/%s/tags/list", repo)
+	} else {
+		url = fmt.Sprintf(ecrPublicLookupURL, repo, image)
+	}
 
 	var tags []api.ImageTag
 	for url != "" {
