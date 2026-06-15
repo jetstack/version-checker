@@ -66,7 +66,7 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 	for {
 		images, err := client.DescribeImages(ctx, input)
 		if err != nil {
-			return nil, fmt.Errorf("failed to describe images: %s", err)
+			return nil, fmt.Errorf("failed to describe images: %w", err)
 		}
 
 		for _, img := range images.ImageDetails {
@@ -90,7 +90,7 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 			}
 		}
 
-		if images.NextToken == nil {
+		if images.NextToken == nil || aws.ToString(images.NextToken) == "" {
 			break
 		}
 		input.NextToken = images.NextToken
