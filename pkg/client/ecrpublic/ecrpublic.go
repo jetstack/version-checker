@@ -98,7 +98,7 @@ func (c *Client) doRequest(ctx context.Context, url string) (*TagResponse, error
 	// Always get a token for ECR Public
 	token, err := getAnonymousToken(ctx, c.Client)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get anonymous token: %s", err)
+		return nil, fmt.Errorf("failed to get anonymous token: %w", err)
 	}
 
 	req.URL.Scheme = "https"
