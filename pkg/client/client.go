@@ -56,7 +56,7 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 	if opts.Transport != nil {
 		opts.Quay.Transporter = opts.Transport
 		opts.ECR.Transporter = opts.Transport
-		opts.ECRPublic.Transporter = opts.Transport // Add ECR public transporter
+		opts.ECRPublic.Transporter = opts.Transport
 		opts.GHCR.Transporter = opts.Transport
 		opts.GCR.Transporter = opts.Transport
 	}
