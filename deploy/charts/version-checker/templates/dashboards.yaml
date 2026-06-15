@@ -10,6 +10,10 @@ metadata:
     {{- if .Values.dashboards.labels }}
     {{ .Values.dashboards.labels | toYaml | nindent 4}}
     {{- end }}
+  {{- if .Values.dashboards.annotations }}
+  annotations:
+    {{- .Values.dashboards.annotations | toYaml | nindent 4}}
+  {{- end }}
 data:
   internal.json: |-
     {{- .Files.Get "dashboards/internal.json" | nindent 4 }}
@@ -25,8 +29,12 @@ metadata:
   labels:
     {{- include "version-checker.labels" . | nindent 4 }}
     {{- if .Values.dashboards.labels }}
-    {{- .Values.dashboards.labels | toYaml }}
+    {{- .Values.dashboards.labels | toYaml | nindent 4}}
     {{- end }}
+  {{- if .Values.dashboards.annotations }}
+  annotations:
+    {{- .Values.dashboards.annotations | toYaml | nindent 4}}
+  {{- end }}
 spec:
   instanceSelector:
     matchLabels:
@@ -43,8 +51,12 @@ metadata:
   labels:
     {{- include "version-checker.labels" . | nindent 4 }}
     {{- if .Values.dashboards.labels }}
-    {{- .Values.dashboards.labels | toYaml }}
+    {{- .Values.dashboards.labels | toYaml | nindent 4}}
     {{- end }}
+  {{- if .Values.dashboards.annotations }}
+  annotations:
+    {{- .Values.dashboards.annotations | toYaml | nindent 4}}
+  {{- end }}
 spec:
   instanceSelector:
     matchLabels:
