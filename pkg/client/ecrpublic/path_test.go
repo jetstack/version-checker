@@ -65,7 +65,7 @@ func TestRepoImageFromPath(t *testing.T) {
 		path              string
 		expRepo, expImage string
 	}{
-		"single image should return registry and image": {
+		"single segment path should return repo with empty image": {
 			path:     "nginx",
 			expRepo:  "nginx",
 			expImage: "",
