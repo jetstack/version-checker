@@ -32,6 +32,7 @@ type Client struct {
 	Options
 }
 
+var _ api.ImageClient = (*Client)(nil)
 func New(opts Options, log *logrus.Entry) (*Client, error) {
 	retryclient := retryablehttp.NewClient()
 	if opts.Transporter != nil {
