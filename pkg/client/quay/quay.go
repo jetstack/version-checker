@@ -40,7 +40,7 @@ func New(opts Options, log *logrus.Entry) *Client {
 	if opts.Transporter != nil {
 		client.HTTPClient.Transport = opts.Transporter
 	}
-	client.Logger = leveledlogger.Logger{Entry: log.WithField("client", "quay")}
+	client.Logger = &leveledlogger.Logger{Entry: log.WithField("client", "quay")}
 
 	return &Client{
 		Options: opts,

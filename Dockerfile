@@ -9,10 +9,10 @@ ARG TARGETOS TARGETARCH
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -o ./bin/version-checker ./cmd/.
 
 
-FROM alpine:3.23.4
+FROM alpine:3.24
 LABEL description="Kubernetes utility for exposing used image versions compared to the latest version, as metrics."
 
-RUN apk --no-cache add ca-certificates
+RUN apk --no-cache upgrade && apk --no-cache add ca-certificates
 
 COPY --from=builder /app/bin/version-checker /usr/bin/version-checker
 
