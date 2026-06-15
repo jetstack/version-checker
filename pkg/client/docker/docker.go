@@ -70,7 +70,7 @@ func New(opts Options, log *logrus.Entry) (*Client, error) {
 	retryclient.RetryWaitMin = 1 * time.Second
 	// This custom backoff will fail requests that have a max wait of the RetryWaitMax
 	retryclient.Backoff = util.HTTPBackOff
-	retryclient.Logger = leveledlogger.Logger{Entry: log.WithField("client", "docker")}
+	retryclient.Logger = &leveledlogger.Logger{Entry: log.WithField("client", "docker")}
 	client := retryclient.StandardClient()
 
 	// Setup Auth if username and password used.
