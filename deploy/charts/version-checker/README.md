@@ -1,6 +1,6 @@
 # version-checker
 
-![Version: v0.10.0](https://img.shields.io/badge/Version-v0.10.0-informational?style=flat-square) ![AppVersion: v0.10.0](https://img.shields.io/badge/AppVersion-v0.10.0-informational?style=flat-square)
+![Version: v0.11.0](https://img.shields.io/badge/Version-v0.11.0-informational?style=flat-square) ![AppVersion: v0.11.0](https://img.shields.io/badge/AppVersion-v0.11.0-informational?style=flat-square)
 
 A Helm chart for version-checker
 
@@ -22,8 +22,8 @@ A Helm chart for version-checker
 | additionalAnnotations | object | `{}` | Additional Annotations to apply to Service and Deployment/Pod Objects |
 | additionalLabels | object | `{}` | Additional Labels to apply to Service and Deployment/Pod Objects |
 | affinity | object | `{}` | Set affinity |
-| dashboards.enabled | bool | `false` | Deploy Grafana Dashboard(s) for version-checker |
 | dashboards.annotations | object | `{}` | Additional annotations to add to the Grafana Dashboard resources |
+| dashboards.enabled | bool | `false` | Deploy Grafana Dashboard(s) for version-checker |
 | dashboards.grafana | string | `""` | Grafana instance to associate the Dashboard with when using GrafanaOperator |
 | dashboards.labels | object | `{}` | Additional labels to add to the Grafana Dashboard |
 | docker.password | string | `nil` | Password to authenticate with docker registry |
