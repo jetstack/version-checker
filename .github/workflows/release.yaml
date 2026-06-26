@@ -148,13 +148,14 @@ jobs:
       - name: Setup Cosign
         uses: sigstore/cosign-installer@main
 
-      - name: checkout jetstack-charts
-        uses: actions/checkout@v6
-        with:
-          token: ${{ secrets.JETSTACK_CHARTS_PAT }}
-          repository: jetstack/jetstack-charts
-          ref: main
-          path: jetstack-charts
+      # Temporarily disabled while org auth is being sorted.
+      # - name: checkout jetstack-charts
+      #   uses: actions/checkout@v6
+      #   with:
+      #     token: ${{ secrets.JETSTACK_CHARTS_PAT }}
+      #     repository: jetstack/jetstack-charts
+      #     ref: main
+      #     path: jetstack-charts
 
       - name: Setup Helm
         uses: azure/setup-helm@v5
@@ -168,6 +169,7 @@ jobs:
 
       - name: package helm chart
         run: |
+          mkdir -p jetstack-charts/charts
           helm package version-checker/deploy/charts/version-checker -d jetstack-charts/charts/
 
       - name: Sign Helm Chart
@@ -184,21 +186,29 @@ jobs:
       #       jetstack-charts/charts/version-checker-${{ needs.release-name.outputs.name }}.tgz \
       #       oci://quay.io/jetstack/version-checker/chart
 
-      - name: Creating Publishing Chart's PR
-        uses: peter-evans/create-pull-request@v8
-        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+      # Temporarily disabled while org auth is being sorted.
+      # - name: Creating Publishing Chart's PR
+      #   uses: peter-evans/create-pull-request@v8
+      #   if: ${{ startsWith(github.ref, 'refs/tags/') }}
+      #   with:
+      #     token: ${{ secrets.JETSTACK_CHARTS_PAT }}
+      #     title: "Release version-checker ${{ needs.release-name.outputs.name }}"
+      #     commit-message: "Release version-checker ${{ needs.release-name.outputs.name }}"
+      #     branch: version-checker/${{ github.ref_name }}
+      #     path: jetstack-charts
+      #     add-paths: |
+      #       charts/*.tgz
+      #       charts/*.tgz.cosign.bundle
+      #     delete-branch: true
+      #     signoff: true
+      #     base: main
+
+      - name: Upload chart artifacts for manual publishing
+        uses: actions/upload-artifact@v4
         with:
-          token: ${{ secrets.JETSTACK_CHARTS_PAT }}
-          title: "Release version-checker ${{ needs.release-name.outputs.name }}"
-          commit-message: "Release version-checker ${{ needs.release-name.outputs.name }}"
-          branch: version-checker/${{ github.ref_name }}
-          path: jetstack-charts
-          add-paths: |
-            charts/*.tgz
-            charts/*.tgz.cosign.bundle
-          delete-branch: true
-          signoff: true
-          base: main
+          name: helm-chart-${{ needs.release-name.outputs.name }}
+          path: jetstack-charts/charts/*
+          if-no-files-found: error
 
   docker-release:
     runs-on: ubuntu-latest
