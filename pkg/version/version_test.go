@@ -368,7 +368,7 @@ func TestFetch(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockClient := &MockClient{}
-			mockClient.On("Tags", mock.Anything, tt.imageURL).Return(tt.clientTags, tt.clientError)
+			mockClient.On("Tags", mock.Anything, tt.imageURL, (*api.Options)(nil)).Return(tt.clientTags, tt.clientError)
 
 			v := &Version{
 				log:    logrus.NewEntry(logrus.New()),
@@ -455,7 +455,7 @@ func TestLatestTagFromImage(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockClient := &MockClient{}
-			mockClient.On("Tags", mock.Anything, tt.imageURL).Return(tt.clientTags, tt.clientError)
+			mockClient.On("Tags", mock.Anything, tt.imageURL, tt.options).Return(tt.clientTags, tt.clientError)
 
 			log := logrus.NewEntry(logrus.New())
 			v := &Version{
@@ -529,7 +529,7 @@ type MockClient struct {
 	mock.Mock
 }
 
-func (m *MockClient) Tags(ctx context.Context, img string) ([]api.ImageTag, error) {
-	args := m.Called(ctx, img)
+func (m *MockClient) Tags(ctx context.Context, img string, opts *api.Options) ([]api.ImageTag, error) {
+	args := m.Called(ctx, img, opts)
 	return args.Get(0).([]api.ImageTag), args.Error(1)
 }
