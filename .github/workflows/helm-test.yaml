@@ -31,7 +31,7 @@ jobs:
 
       - uses: azure/setup-helm@v5
         with:
-          version: v3.19.0
+          version: v4.2.2
 
       - run: helm lint deploy/charts/version-checker
 
@@ -49,12 +49,12 @@ jobs:
 
       - uses: azure/setup-helm@v5
         with:
-          version: v3.19.0
+          version: v4.2.2
 
       - name: Install helm Plugins
         run: |
           if [ ! -e "${HELM_PLUGINS}/helm-unittest" ]; then
-            helm plugin install https://github.com/helm-unittest/helm-unittest.git
+            helm plugin install --verify=false https://github.com/helm-unittest/helm-unittest.git
           fi
 
       - name: Run Tests
