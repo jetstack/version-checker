@@ -40,7 +40,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
 
@@ -119,7 +119,7 @@ jobs:
           toTag: "main"
 
       - name: Create Release PR
-        uses: devops-infra/action-pull-request@v1.2.1
+        uses: devops-infra/action-pull-request@v1.3.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           target_branch: main
@@ -141,25 +141,26 @@ jobs:
       - release-name
     steps:
       - name: Checkout code
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: version-checker
 
       - name: Setup Cosign
         uses: sigstore/cosign-installer@main
 
-      - name: checkout jetstack-charts
-        uses: actions/checkout@v6
-        with:
-          token: ${{ secrets.JETSTACK_CHARTS_PAT }}
-          repository: jetstack/jetstack-charts
-          ref: main
-          path: jetstack-charts
+      # Temporarily disabled while org auth is being sorted.
+      # - name: checkout jetstack-charts
+      #   uses: actions/checkout@v6
+      #   with:
+      #     token: ${{ secrets.JETSTACK_CHARTS_PAT }}
+      #     repository: jetstack/jetstack-charts
+      #     ref: main
+      #     path: jetstack-charts
 
       - name: Setup Helm
         uses: azure/setup-helm@v5
         with:
-          version: v3.19.0
+          version: v4.2.2
 
       # FIXME: We need a Repo Created in Quay ahead of time for this to work
       # - name: Login to Quay.io for OCI Push
@@ -168,6 +169,7 @@ jobs:
 
       - name: package helm chart
         run: |
+          mkdir -p jetstack-charts/charts
           helm package version-checker/deploy/charts/version-checker -d jetstack-charts/charts/
 
       - name: Sign Helm Chart
@@ -184,21 +186,29 @@ jobs:
       #       jetstack-charts/charts/version-checker-${{ needs.release-name.outputs.name }}.tgz \
       #       oci://quay.io/jetstack/version-checker/chart
 
-      - name: Creating Publishing Chart's PR
-        uses: peter-evans/create-pull-request@v8
-        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+      # Temporarily disabled while org auth is being sorted.
+      # - name: Creating Publishing Chart's PR
+      #   uses: peter-evans/create-pull-request@v8
+      #   if: ${{ startsWith(github.ref, 'refs/tags/') }}
+      #   with:
+      #     token: ${{ secrets.JETSTACK_CHARTS_PAT }}
+      #     title: "Release version-checker ${{ needs.release-name.outputs.name }}"
+      #     commit-message: "Release version-checker ${{ needs.release-name.outputs.name }}"
+      #     branch: version-checker/${{ github.ref_name }}
+      #     path: jetstack-charts
+      #     add-paths: |
+      #       charts/*.tgz
+      #       charts/*.tgz.cosign.bundle
+      #     delete-branch: true
+      #     signoff: true
+      #     base: main
+
+      - name: Upload chart artifacts for manual publishing
+        uses: actions/upload-artifact@v7
         with:
-          token: ${{ secrets.JETSTACK_CHARTS_PAT }}
-          title: "Release version-checker ${{ needs.release-name.outputs.name }}"
-          commit-message: "Release version-checker ${{ needs.release-name.outputs.name }}"
-          branch: version-checker/${{ github.ref_name }}
-          path: jetstack-charts
-          add-paths: |
-            charts/*.tgz
-            charts/*.tgz.cosign.bundle
-          delete-branch: true
-          signoff: true
-          base: main
+          name: helm-chart-${{ needs.release-name.outputs.name }}
+          path: jetstack-charts/charts/*
+          if-no-files-found: error
 
   docker-release:
     runs-on: ubuntu-latest
@@ -208,7 +218,7 @@ jobs:
       - release-name
     steps:
       - name: Checkout code
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       # Install the cosign tool except on PR
       # https://github.com/sigstore/cosign-installer
@@ -267,6 +277,8 @@ jobs:
       - name: Create Release / Change Logs
         uses: softprops/action-gh-release@v3
         with:
+          tag_name: ${{ needs.release-name.outputs.name }}
+          target_commitish: ${{ github.ref_name }}
           draft: ${{ !startsWith(github.ref, 'refs/tags/') }}
           prerelease: ${{ contains('-rc', github.ref_name) || !startsWith(github.ref, 'refs/tags/') }}
           generate_release_notes: true
