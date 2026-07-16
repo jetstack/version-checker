@@ -241,6 +241,12 @@ func (m *Metrics) ImageTimestamp(namespace, pod, container, containerType, image
 		return
 	}
 
+	// Ensure we don't leave a stale timestamp series behind if the image label
+	// changes or if the registry stops reporting a valid creation time.
+	m.containerImageTimestamp.DeletePartialMatch(
+		buildContainerPartialLabels(namespace, pod, container, containerType),
+	)
+
 	// An unpopulated time.Time has a huge negative Unix() value, and some
 	// registry clients report an epoch-0 (1970) timestamp when they cannot
 	// determine a creation time. Both would be garbage in Prometheus (and read
