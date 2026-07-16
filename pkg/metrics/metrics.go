@@ -269,6 +269,11 @@ func (m *Metrics) ImageAvailable(namespace, pod, container, containerType, image
 		return
 	}
 
+	// Ensure we don't leave stale series behind if the image label changes.
+	m.containerImageAvailable.DeletePartialMatch(
+		buildContainerPartialLabels(namespace, pod, container, containerType),
+	)
+
 	value := 0.0
 	if available {
 		value = 1.0
