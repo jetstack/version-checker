@@ -22,11 +22,13 @@ const MetricNamespace = "version_checker"
 type Metrics struct {
 	log *logrus.Entry
 
-	registry               ctrmetrics.RegistererGatherer
-	containerImageVersion  *prometheus.GaugeVec
-	containerImageChecked  *prometheus.GaugeVec
-	containerImageDuration *prometheus.GaugeVec
-	containerImageErrors   *prometheus.CounterVec
+	registry                ctrmetrics.RegistererGatherer
+	containerImageVersion   *prometheus.GaugeVec
+	containerImageChecked   *prometheus.GaugeVec
+	containerImageDuration  *prometheus.GaugeVec
+	containerImageErrors    *prometheus.CounterVec
+	containerImageTimestamp *prometheus.GaugeVec
+	containerImageAvailable *prometheus.GaugeVec
 
 	// Kubernetes version metric
 	kubernetesVersion *prometheus.GaugeVec
@@ -94,18 +96,40 @@ func New(log *logrus.Entry, reg ctrmetrics.RegistererGatherer, cache k8sclient.R
 			"current_version", "latest_version", "channel",
 		},
 	)
+	containerImageTimestamp := promauto.With(reg).NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: MetricNamespace,
+			Name:      "image_timestamp",
+			Help:      "Creation timestamp (unix seconds) of the currently running image",
+		},
+		[]string{
+			"namespace", "pod", "container", "container_type", "image",
+		},
+	)
+	containerImageAvailable := promauto.With(reg).NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: MetricNamespace,
+			Name:      "is_available",
+			Help:      "Whether the currently running image was found upstream (1) or no longer exists (0)",
+		},
+		[]string{
+			"namespace", "pod", "container", "container_type", "image",
+		},
+	)
 
 	return &Metrics{
 		log:   log.WithField("module", "metrics"),
 		cache: cache,
 
-		registry:               reg,
-		containerImageVersion:  containerImageVersion,
-		containerImageDuration: containerImageDuration,
-		containerImageChecked:  containerImageChecked,
-		containerImageErrors:   containerImageErrors,
-		kubernetesVersion:      kubernetesVersion,
-		roundTripper:           NewRoundTripper(reg),
+		registry:                reg,
+		containerImageVersion:   containerImageVersion,
+		containerImageDuration:  containerImageDuration,
+		containerImageChecked:   containerImageChecked,
+		containerImageErrors:    containerImageErrors,
+		kubernetesVersion:       kubernetesVersion,
+		containerImageTimestamp: containerImageTimestamp,
+		containerImageAvailable: containerImageAvailable,
+		roundTripper:            NewRoundTripper(reg),
 	}
 }
 
@@ -147,6 +171,8 @@ func (m *Metrics) RemoveImage(namespace, pod, container, containerType string) {
 	total += m.containerImageDuration.DeletePartialMatch(labels)
 	total += m.containerImageChecked.DeletePartialMatch(labels)
 	total += m.containerImageErrors.DeletePartialMatch(labels)
+	total += m.containerImageTimestamp.DeletePartialMatch(labels)
+	total += m.containerImageAvailable.DeletePartialMatch(labels)
 
 	m.log.Infof("Removed %d metrics for image %s/%s/%s (%s)", total, namespace, pod, container, containerType)
 }
@@ -166,6 +192,12 @@ func (m *Metrics) RemovePod(namespace, pod string) {
 		buildPodPartialLabels(namespace, pod),
 	)
 	total += m.containerImageErrors.DeletePartialMatch(
+		buildPodPartialLabels(namespace, pod),
+	)
+	total += m.containerImageTimestamp.DeletePartialMatch(
+		buildPodPartialLabels(namespace, pod),
+	)
+	total += m.containerImageAvailable.DeletePartialMatch(
 		buildPodPartialLabels(namespace, pod),
 	)
 
@@ -198,4 +230,56 @@ func (m *Metrics) ReportError(namespace, pod, container, imageURL string) {
 	m.containerImageErrors.WithLabelValues(
 		namespace, pod, container, imageURL,
 	).Inc()
+}
+
+func (m *Metrics) ImageTimestamp(namespace, pod, container, containerType, imageURL string, timestamp time.Time) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if !m.PodExists(context.Background(), namespace, pod) {
+		m.log.WithField("metric", "ImageTimestamp").Warnf("pod %s/%s not found, not registering timestamp", namespace, pod)
+		return
+	}
+
+	// Ensure we don't leave a stale timestamp series behind if the image label
+	// changes or if the registry stops reporting a valid creation time.
+	m.containerImageTimestamp.DeletePartialMatch(
+		buildContainerPartialLabels(namespace, pod, container, containerType),
+	)
+
+	// An unpopulated time.Time has a huge negative Unix() value, and some
+	// registry clients report an epoch-0 (1970) timestamp when they cannot
+	// determine a creation time. Both would be garbage in Prometheus (and read
+	// as "infinitely old"), so only record strictly-positive timestamps.
+	if timestamp.IsZero() || timestamp.Unix() <= 0 {
+		return
+	}
+
+	m.containerImageTimestamp.With(
+		buildLastUpdatedLabels(namespace, pod, container, containerType, imageURL),
+	).Set(float64(timestamp.Unix()))
+}
+
+func (m *Metrics) ImageAvailable(namespace, pod, container, containerType, imageURL string, available bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if !m.PodExists(context.Background(), namespace, pod) {
+		m.log.WithField("metric", "ImageAvailable").Warnf("pod %s/%s not found, not registering availability", namespace, pod)
+		return
+	}
+
+	// Ensure we don't leave stale series behind if the image label changes.
+	m.containerImageAvailable.DeletePartialMatch(
+		buildContainerPartialLabels(namespace, pod, container, containerType),
+	)
+
+	value := 0.0
+	if available {
+		value = 1.0
+	}
+
+	m.containerImageAvailable.With(
+		buildLastUpdatedLabels(namespace, pod, container, containerType, imageURL),
+	).Set(value)
 }
