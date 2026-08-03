@@ -23,7 +23,6 @@ image:
   tag: ""
   # -- Set the Image Pull Policy
   pullPolicy: IfNotPresent
-  
 
 # -- Configure tolerations
 tolerations: []
