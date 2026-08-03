@@ -80,6 +80,10 @@ spec:
         volumeMounts:
           {{- toYaml . | nindent 10 }}
         {{- end }}
+      {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+      {{ toYaml .Values.imagePullSecrets | indent 2 }}
+      {{- end }}
       {{- with .Values.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}

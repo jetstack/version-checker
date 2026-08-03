@@ -8,6 +8,9 @@ nameOverride: ""
 # -- Replica Count for version-checker
 replicaCount: 1
 
+# -- Pull secrects - names of existing secrets
+imagePullSecrets: []
+
 # -- Additional Labels to apply to Service and Deployment/Pod Objects
 additionalLabels: {}
 # -- Additional Annotations to apply to Service and Deployment/Pod Objects
@@ -20,8 +23,7 @@ image:
   tag: ""
   # -- Set the Image Pull Policy
   pullPolicy: IfNotPresent
-  # -- Pull secrects - name of existing secret
-  imagePullSecret:
+  
 
 # -- Configure tolerations
 tolerations: []
