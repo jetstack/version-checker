@@ -75,6 +75,7 @@ jobs:
         uses: golang/govulncheck-action@v1
         with:
           go-version-file: go.mod
+          go-version-input: "" # This is to override the 'default' of "stable"
           go-package: ./...
           repo-checkout: false # Disable the default checkout as we have already done it in the previous step
 
