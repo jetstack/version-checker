@@ -116,5 +116,17 @@ func (c *PodReconciler) checkContainer(ctx context.Context, log *logrus.Entry,
 		result.CurrentVersion, result.LatestVersion,
 	)
 
+	c.Metrics.ImageTimestamp(pod.Namespace, pod.Name,
+		container.Name, containerType,
+		result.ImageURL, result.Timestamp,
+	)
+
+	if result.Available != nil {
+		c.Metrics.ImageAvailable(pod.Namespace, pod.Name,
+			container.Name, containerType,
+			result.ImageURL, *result.Available,
+		)
+	}
+
 	return nil
 }

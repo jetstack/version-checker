@@ -111,3 +111,24 @@ func (v *Version) Fetch(ctx context.Context, imageURL string, _ *api.Options) (i
 
 	return tags, nil
 }
+func (v *Version) CurrentImage(ctx context.Context, imageURL, imageSHA, imageTag string) (*api.ImageTag, error) {
+	tagsI, err := v.imageCache.Get(ctx, imageURL, imageURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	tags := tagsI.([]api.ImageTag)
+
+	// Prefer an exact digest (SHA) match; fall back to a tag match so that
+	// manifest-list images (whose running platform SHA may not appear in the
+	// tag list) are still recognised as present upstream.
+	var tagMatch *api.ImageTag
+	for i := range tags {
+		if tags[i].MatchesSHA(imageSHA) {
+			return &tags[i], nil // has .Timestamp
+		}
+		if tagMatch == nil && imageTag != "" && tags[i].Tag == imageTag {
+			tagMatch = &tags[i]
+		}
+	}
+	return tagMatch, nil // nil == not found upstream (unavailable)
+}

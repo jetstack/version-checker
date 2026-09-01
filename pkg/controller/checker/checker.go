@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -22,6 +23,12 @@ type Result struct {
 	LatestVersion  string
 	ImageURL       string
 	IsLatest       bool
+	// Timestamp is the creation time of the currently running image, if it
+	// could be found upstream. Zero if the image was not found.
+	Timestamp time.Time
+	// Available indicates whether the running image was found upstream. Nil
+	// means availability could not be determined (a lookup error occurred).
+	Available *bool
 }
 
 func New(search search.Searcher) *Checker {
@@ -67,11 +74,34 @@ func (c *Checker) Container(ctx context.Context, log *logrus.Entry,
 
 	imageURL = c.overrideImageURL(log, imageURL, opts)
 
+	var result *Result
+	var err error
 	if opts.UseSHA {
-		return c.handleSHA(ctx, imageURL, statusSHA, opts, usingTag, currentTag)
+		result, err = c.handleSHA(ctx, imageURL, statusSHA, opts, usingTag, currentTag)
+	} else {
+		result, err = c.handleSemver(ctx, imageURL, statusSHA, currentTag, usingSHA, opts)
+	}
+	if err != nil {
+		return nil, err
 	}
 
-	return c.handleSemver(ctx, imageURL, statusSHA, currentTag, usingSHA, opts)
+	// Enrich the result with the creation timestamp and availability of the
+	// currently running image. This is best-effort: a lookup error must not
+	// discard the primary version-check result (availability stays unknown),
+	// while a nil image with no error means the running image was not found
+	// upstream (unavailable), leaving Timestamp as zero.
+	currentImage, err := c.search.CurrentImage(ctx, imageURL, statusSHA, currentTag)
+	if err != nil {
+		log.WithField("module", "checker").Warnf("failed to look up current image: %s", err)
+	} else {
+		available := currentImage != nil
+		result.Available = &available
+		if currentImage != nil {
+			result.Timestamp = currentImage.Timestamp
+		}
+	}
+
+	return result, nil
 }
 
 func (c *Checker) handleLatestOrEmptyTag(log *logrus.Entry, currentTag, currentSHA string, opts *api.Options) {
