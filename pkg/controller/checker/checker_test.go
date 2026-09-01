@@ -502,6 +502,18 @@ func TestIsLatestSemver(t *testing.T) {
 			},
 			expIsLatest: true,
 		},
+		"if current semver is equal, and latest has no SHA data, then true": {
+			imageURL:     "ghcr.io/test/repo",
+			currentSHA:   "sha256:current",
+			currentImage: semver.Parse("v1.2.4"),
+			searchResp: &api.ImageTag{
+				Tag: "v1.2.4",
+			},
+			expLatestImage: &api.ImageTag{
+				Tag: "v1.2.4",
+			},
+			expIsLatest: true,
+		},
 		"if current semver is more, then true": {
 			imageURL:     "docker.io",
 			currentSHA:   "123",

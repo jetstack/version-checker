@@ -19,6 +19,8 @@ type Options struct {
 	UseSHA bool `json:"use-sha,omitempty"`
 	// Resolve SHA to a TAG
 	ResolveSHAToTags bool `json:"resolve-sha-to-tags,omitempty"`
+	// Use GitHub releases as the source for latest GHCR versions.
+	UseGitHubRelease bool `json:"use-github-release,omitempty"`
 
 	// UseMetaData defines whether tags with '-alpha', '-debian.0' etc. is
 	// permissible.

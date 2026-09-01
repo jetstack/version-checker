@@ -22,6 +22,10 @@ const (
 	// set. All other options are ignored when this is set.
 	MatchRegexAnnotationKey = "match-regex.version-checker.io"
 
+	// UseGitHubReleaseAnnotationKey will use GitHub releases as the source for
+	// latest version checks against GHCR-backed images.
+	UseGitHubReleaseAnnotationKey = "use-github-release.version-checker.io"
+
 	// UseMetaDataAnnotationKey is defined as a tag containing anything after the
 	// patch digit.
 	// e.g. v1.0.1-gke.3 v1.0.1-alpha.0, v1.2.3.4...
