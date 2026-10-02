@@ -55,6 +55,7 @@ These registries support authentication.
 - [Installation Guide](docs/installation.md)
 - [Metrics](docs/metrics.md)
 - [New Features](docs/new_features.md)
+- [Roadmap](ROADMAP.md)
 
 ---
 
