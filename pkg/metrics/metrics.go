@@ -118,6 +118,14 @@ func (m *Metrics) AddImage(namespace, pod, container, containerType, imageURL st
 		isLatestF = 1.0
 	}
 
+	labels := buildContainerPartialLabels(namespace, pod, container, containerType)
+
+	// Remove any existing "current state" gauge series for this container before
+	// registering the newest values. Otherwise each version change leaves behind
+	// a distinct Prometheus series due to the current/latest version labels.
+	m.containerImageVersion.DeletePartialMatch(labels)
+	m.containerImageChecked.DeletePartialMatch(labels)
+
 	m.containerImageVersion.With(
 		buildFullLabels(namespace, pod, container, containerType, imageURL, currentVersion, latestVersion),
 	).Set(isLatestF)

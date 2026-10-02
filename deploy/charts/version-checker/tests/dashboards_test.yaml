@@ -21,10 +21,12 @@ tests:
       - isNotEmpty:
           path: .data["internal.json"]
 
-  - it: works w/ custom labels
+  - it: works w/ custom labels and annotations
     set:
       dashboards.labels:
         grafana: "123"
+      dashboards.annotations:
+        grafana_folder: "version-checker"
     asserts:
       - isKind:
           of: ConfigMap
@@ -33,8 +35,14 @@ tests:
       - equal:
           path: metadata.labels.grafana
           value: "123"
+      - equal:
+          path: metadata.annotations.grafana_folder
+          value: "version-checker"
 
   - it: Works w/ GrafanaDashboard
+    set:
+      dashboards.annotations:
+        grafana_folder: "version-checker"
     capabilities:
       apiVersions:
         - grafana.integreatly.org/v1beta1/GrafanaDashboard
@@ -62,6 +70,9 @@ tests:
       - equal:
           path: spec.configMapRef.name
           value: version-checker-dashboards
+      - equal:
+          path: metadata.annotations.grafana_folder
+          value: "version-checker"
 
       - documentSelector:
           path: metadata.name

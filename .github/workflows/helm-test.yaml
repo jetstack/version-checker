@@ -22,16 +22,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Golang
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
 
       - uses: azure/setup-helm@v5
         with:
-          version: v3.19.0
+          version: v4.2.2
 
       - run: helm lint deploy/charts/version-checker
 
@@ -40,21 +40,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Golang
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
 
       - uses: azure/setup-helm@v5
         with:
-          version: v3.19.0
+          version: v4.2.2
 
       - name: Install helm Plugins
         run: |
           if [ ! -e "${HELM_PLUGINS}/helm-unittest" ]; then
-            helm plugin install https://github.com/helm-unittest/helm-unittest.git
+            helm plugin install --verify=false https://github.com/helm-unittest/helm-unittest.git
           fi
 
       - name: Run Tests
@@ -70,7 +70,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install Kyverno CLI
         uses: kyverno/action-install-cli@v0.2.0
