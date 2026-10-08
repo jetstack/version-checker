@@ -18,6 +18,7 @@ import (
 type Searcher interface {
 	LatestImage(context.Context, string, *api.Options) (*api.ImageTag, error)
 	ResolveSHAToTag(ctx context.Context, imageURL string, imageSHA string) (string, error)
+	CurrentImage(ctx context.Context, imageURL, imageSHA, imageTag string) (*api.ImageTag, error)
 }
 
 // Ensure The search Struct implements a cacheHandler
@@ -76,6 +77,10 @@ func (s *Search) ResolveSHAToTag(ctx context.Context, imageURL string, imageSHA 
 	}
 
 	return tag, err
+}
+
+func (s *Search) CurrentImage(ctx context.Context, imageURL, imageSHA, imageTag string) (*api.ImageTag, error) {
+	return s.versionGetter.CurrentImage(ctx, imageURL, imageSHA, imageTag)
 }
 
 // calculateHashIndex returns a hash index given an imageURL and options.
