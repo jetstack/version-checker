@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/jetstack/version-checker/pkg/api"
 
@@ -74,6 +75,32 @@ func (c *Client) Tags(ctx context.Context, _, owner, repo string) ([]api.ImageTa
 		}
 
 		tags = append(tags, c.extractImageTags(versions)...)
+
+		if resp.NextPage == 0 {
+			break
+		}
+
+		opts.Page = resp.NextPage
+	}
+
+	return tags, nil
+}
+
+func (c *Client) ReleaseTags(ctx context.Context, owner, pkg string) ([]api.ImageTag, error) {
+	repo := releaseRepoFromPackage(pkg)
+	if repo == "" {
+		return nil, fmt.Errorf("unable to determine GitHub repository from package %q", pkg)
+	}
+
+	opts := &github.ListOptions{PerPage: 100}
+	var tags []api.ImageTag
+	for {
+		releases, resp, err := c.client.Repositories.ListReleases(ctx, owner, repo, opts)
+		if err != nil {
+			return nil, fmt.Errorf("getting releases: %w", err)
+		}
+
+		tags = append(tags, extractReleaseTags(releases)...)
 
 		if resp.NextPage == 0 {
 			break
@@ -161,4 +188,36 @@ func (c *Client) ownerType(ctx context.Context, owner string) (string, error) {
 	c.ownerTypes[owner] = ownerType
 
 	return ownerType, nil
+}
+
+func releaseRepoFromPackage(pkg string) string {
+	repo, _, _ := strings.Cut(pkg, "/")
+	return repo
+}
+
+func extractReleaseTags(releases []*github.RepositoryRelease) []api.ImageTag {
+	tags := make([]api.ImageTag, 0, len(releases))
+	for _, release := range releases {
+		if release.GetDraft() || release.GetTagName() == "" {
+			continue
+		}
+
+		tags = append(tags, api.ImageTag{
+			Tag:       release.GetTagName(),
+			Timestamp: releaseTimestamp(release),
+		})
+	}
+
+	return tags
+}
+
+func releaseTimestamp(release *github.RepositoryRelease) time.Time {
+	switch {
+	case release.PublishedAt != nil:
+		return release.PublishedAt.Time
+	case release.CreatedAt != nil:
+		return release.CreatedAt.Time
+	default:
+		return time.Time{}
+	}
 }

@@ -145,10 +145,23 @@ func (c *Checker) isLatestSemver(ctx context.Context, imageURL, currentSHA strin
 		isLatest = true
 	}
 
+	// GitHub release tags can be semver-only and may not include digest data.
+	// Only apply SHA mismatch logic when the latest image has comparable SHA(s).
+	hasComparableSHA := latestImage.SHA != ""
+	if !hasComparableSHA {
+		for _, child := range latestImage.Children {
+			if child.SHA != "" {
+				hasComparableSHA = true
+				break
+			}
+		}
+	}
+
 	// If using the same image version,
 	// but the SHA has been updated upstream,
 	// mark not latest
 	if currentImage.Equal(latestImageV) &&
+		hasComparableSHA &&
 		!latestImage.MatchesSHA(currentSHA) {
 		isLatest = false
 		if latestImage.SHA != "" {

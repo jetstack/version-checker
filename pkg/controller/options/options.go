@@ -38,6 +38,7 @@ func (b *Builder) Options(name string) (*api.Options, error) {
 		b.handleSHAOption,
 		b.handleSHAToTagOption,
 		b.handleMetadataOption,
+		b.handleGitHubReleaseOption,
 		b.handleRegexOption,
 		b.handlePinMajorOption,
 		b.handlePinMinorOption,
@@ -84,6 +85,14 @@ func (b *Builder) handleMetadataOption(name string, opts *api.Options, setNonSha
 	if useMetaData, ok := b.ans[b.index(name, api.UseMetaDataAnnotationKey)]; ok && useMetaData == "true" {
 		*setNonSha = true
 		opts.UseMetaData = true
+	}
+	return nil
+}
+
+func (b *Builder) handleGitHubReleaseOption(name string, opts *api.Options, setNonSha *bool, errs *[]string) error {
+	if useGitHubRelease, ok := b.ans[b.index(name, api.UseGitHubReleaseAnnotationKey)]; ok && useGitHubRelease == "true" {
+		*setNonSha = true
+		opts.UseGitHubRelease = true
 	}
 	return nil
 }
