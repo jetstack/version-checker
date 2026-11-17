@@ -42,7 +42,7 @@ tests:
               port: 8080
             initialDelaySeconds: 3
             periodSeconds: 3
-      - isNullOrEmpty:
+      - notExists:
           path: spec.template.spec.volumes
 
   #  Custom Envs

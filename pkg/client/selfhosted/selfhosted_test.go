@@ -206,10 +206,15 @@ func TestTags(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, tags, 2)
 
-			// We don't care of the order, we just want to make sure we have the tags
-			assert.ElementsMatch(t, []string{"v1.0.0", "v2.0.0"}, []string{tags[0].Tag, tags[1].Tag})
-			assert.Equal(t, api.Architecture("amd64"), tags[0].Architecture)
-			assert.Equal(t, "sha256:abcdef", tags[0].SHA)
+			actualTags := map[string]api.ImageTag{}
+			for _, tag := range tags {
+				actualTags[tag.Tag] = tag
+			}
+
+			assert.Contains(t, actualTags, "v1.0.0")
+			assert.Contains(t, actualTags, "v2.0.0")
+			assert.Equal(t, api.Architecture("amd64"), actualTags["v1.0.0"].Architecture)
+			assert.Equal(t, "sha256:abcdef", actualTags["v1.0.0"].SHA)
 		})
 
 		t.Run("MultiArch ManifestList v2.2", func(t *testing.T) {

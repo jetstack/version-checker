@@ -84,8 +84,11 @@ spec:
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- $podVolumes := include "version-checker.pod.volumes" . }}
+      {{- if $podVolumes }}
       volumes:
-        {{- include "version-checker.pod.volumes" . | nindent 8 }}
+        {{- $podVolumes | nindent 8 }}
+      {{- end }}
       {{- with .Values.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}

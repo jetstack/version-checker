@@ -76,4 +76,4 @@ jobs:
         uses: kyverno/action-install-cli@v0.2.0
 
       - run: |-
-          kyverno apply -p https://github.com/kyverno/policies/pod-security/restricted --git-branch main --resource <(helm template deploy/charts/version-checker/)
+          kyverno apply -p https://github.com/kyverno/policies/pod-security-vpol/restricted --git-branch main --resource <(helm template deploy/charts/version-checker/)

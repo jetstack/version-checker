@@ -332,6 +332,13 @@ func TestContainer(t *testing.T) {
 
 			result, err := checker.Container(context.TODO(), logrus.NewEntry(logrus.New()), pod, container, test.opts)
 			require.NoError(t, err)
+
+			// Container enriches successful results with availability; the fake
+			// resolves the current image, so every non-nil result is available.
+			if test.expResult != nil {
+				available := true
+				test.expResult.Available = &available
+			}
 			assert.Exactly(t, test.expResult, result)
 		})
 	}
