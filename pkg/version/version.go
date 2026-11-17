@@ -123,8 +123,13 @@ func (v *Version) CurrentImage(ctx context.Context, imageURL, imageSHA, imageTag
 	// tag list) are still recognised as present upstream.
 	var tagMatch *api.ImageTag
 	for i := range tags {
-		if tags[i].MatchesSHA(imageSHA) {
-			return &tags[i], nil // has .Timestamp
+		if tags[i].SHA == imageSHA {
+			return &tags[i], nil
+		}
+		for _, child := range tags[i].Children {
+			if child.SHA == imageSHA {
+				return child, nil
+			}
 		}
 		if tagMatch == nil && imageTag != "" && tags[i].Tag == imageTag {
 			tagMatch = &tags[i]
