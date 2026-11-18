@@ -1,13 +1,13 @@
 package docker
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
-	"strings"
+	neturl "net/url"
 	"time"
 
 	"golang.org/x/time/rate"
@@ -98,11 +98,25 @@ func (c *Client) Name() string {
 	return "dockerhub"
 }
 
+const maxPages = 100
+
 func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTag, error) {
+	repo, err := util.SafePath(repo)
+	if err != nil {
+		return nil, err
+	}
+	image, err = util.SafePath(image)
+	if err != nil {
+		return nil, err
+	}
 	url := fmt.Sprintf(lookupURL, repo, image)
 
 	var tags []api.ImageTag
-	for url != "" {
+	for page := 0; url != ""; page++ {
+		if page >= maxPages {
+			c.log.Warnf("%s/%s: more than %d tag pages, only the newest %d tags are checked", repo, image, maxPages, len(tags))
+			break
+		}
 		response, err := c.doRequest(ctx, url)
 		if err != nil {
 			return nil, err
@@ -157,6 +171,11 @@ func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTa
 		}
 
 		url = response.Next
+		if url != "" {
+			if u, err := neturl.Parse(url); err != nil || u.Host != "registry.hub.docker.com" {
+				return nil, fmt.Errorf("refusing to follow next page URL %q", url)
+			}
+		}
 	}
 
 	return tags, nil
@@ -181,25 +200,21 @@ func (c *Client) doRequest(ctx context.Context, url string) (*TagResponse, error
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := util.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
 
 	response := new(TagResponse)
 	if err := json.Unmarshal(body, response); err != nil {
-		return nil, fmt.Errorf("unexpected image tags response: %s", body)
+		return nil, fmt.Errorf("unexpected image tags response: %s", util.Truncate(body))
 	}
 
 	return response, nil
 }
 
 func basicAuthSetup(ctx context.Context, client *http.Client, opts Options) (string, error) {
-	upReader := strings.NewReader(
-		fmt.Sprintf(`{"username": "%s", "password": "%s"}`,
-			opts.Username, opts.Password,
-		),
-	)
+	upReader := bytes.NewReader(util.LoginBody(opts.Username, opts.Password))
 
 	req, err := http.NewRequest(http.MethodPost, loginURL, upReader)
 	if err != nil {
@@ -216,13 +231,13 @@ func basicAuthSetup(ctx context.Context, client *http.Client, opts Options) (str
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := util.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return "", errors.New(string(body))
+		return "", errors.New(util.Truncate(body))
 	}
 
 	response := new(AuthResponse)

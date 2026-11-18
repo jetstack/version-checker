@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 
 	"github.com/jetstack/version-checker/pkg/api"
 
@@ -24,7 +25,7 @@ type Options struct {
 
 type Client struct {
 	client     *github.Client
-	ownerTypes map[string]string
+	ownerTypes sync.Map // owner -> lowercased owner type; read by concurrent workers
 	opts       Options
 }
 
@@ -47,9 +48,8 @@ func New(opts Options) *Client {
 	}
 
 	return &Client{
-		client:     client,
-		opts:       opts,
-		ownerTypes: map[string]string{},
+		client: client,
+		opts:   opts,
 	}
 }
 
@@ -111,17 +111,17 @@ func (c *Client) buildPackageListOptions() *github.PackageListOptions {
 func (c *Client) extractImageTags(versions []*github.PackageVersion) []api.ImageTag {
 	tags := map[string]api.ImageTag{}
 	for _, ver := range versions {
-		if meta, ok := ver.GetMetadata(); ok {
+		if meta, ok := ver.GetMetadata(); ok && meta != nil && meta.Container != nil {
 
 			var sha string
-			if strings.HasPrefix(*ver.Name, "sha") {
-				sha = *ver.Name
+			if strings.HasPrefix(ver.GetName(), "sha") {
+				sha = ver.GetName()
 			}
 
 			base := api.ImageTag{
-				Tag:       *ver.Name,
+				Tag:       ver.GetName(),
 				SHA:       sha,
-				Timestamp: ver.CreatedAt.Time,
+				Timestamp: ver.GetCreatedAt().Time,
 			}
 
 			for _, tag := range meta.Container.Tags {
@@ -149,8 +149,8 @@ func (c *Client) extractImageTags(versions []*github.PackageVersion) []api.Image
 }
 
 func (c *Client) ownerType(ctx context.Context, owner string) (string, error) {
-	if ownerType, ok := c.ownerTypes[owner]; ok {
-		return ownerType, nil
+	if ownerType, ok := c.ownerTypes.Load(owner); ok {
+		return ownerType.(string), nil
 	}
 	user, _, err := c.client.Users.Get(ctx, owner)
 	if err != nil {
@@ -158,7 +158,7 @@ func (c *Client) ownerType(ctx context.Context, owner string) (string, error) {
 	}
 	ownerType := strings.ToLower(user.GetType())
 
-	c.ownerTypes[owner] = ownerType
+	c.ownerTypes.Store(owner, ownerType)
 
 	return ownerType, nil
 }

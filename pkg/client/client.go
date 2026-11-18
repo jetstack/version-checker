@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/sirupsen/logrus"
 
@@ -20,6 +21,10 @@ import (
 	"github.com/jetstack/version-checker/pkg/client/selfhosted"
 	"github.com/jetstack/version-checker/pkg/client/util"
 )
+
+// lookupTimeout is the maximum time a single image lookup may take. Selfhosted
+// registries are queried tag by tag, so very large repos need minutes.
+const lookupTimeout = 10 * time.Minute
 
 // Used for testing/mocking purposes
 type ClientHandler interface {
@@ -125,6 +130,10 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 
 // Tags returns the full list of image tags available, for a given image URL.
 func (c *Client) Tags(ctx context.Context, imageURL string) ([]api.ImageTag, error) {
+	// Bound total work per lookup: the registry host is pod-controlled and must not be able to pin a reconcile worker.
+	ctx, cancel := context.WithTimeout(ctx, lookupTimeout)
+	defer cancel()
+
 	client, host, path := c.fromImageURL(imageURL)
 	// The host is pod-controlled and is interpolated into request URLs.
 	if host != "" {

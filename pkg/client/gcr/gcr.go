@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/jetstack/version-checker/pkg/api"
+	"github.com/jetstack/version-checker/pkg/client/util"
 )
 
 const (
@@ -54,7 +54,10 @@ func (c *Client) Name() string {
 }
 
 func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.ImageTag, error) {
-	image = c.constructImageName(repo, image)
+	image, err := util.SafePath(c.constructImageName(repo, image))
+	if err != nil {
+		return nil, err
+	}
 	url := fmt.Sprintf(lookupURL, host, image)
 
 	req, err := c.buildRequest(ctx, url)
@@ -68,7 +71,7 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := util.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
