@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/MicahParks/keyfunc/v3"
 	"io"
 	"net/http"
 	"sync"
@@ -28,6 +29,9 @@ type Client struct {
 
 	cachedACRClient map[string]*acrClient
 	cacheMu         sync.Mutex
+
+	jwksMu sync.Mutex
+	jwks   keyfunc.Keyfunc
 }
 
 type Options struct {

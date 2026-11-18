@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/ecr"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 
 	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/jetstack/version-checker/pkg/client/util"
@@ -20,6 +22,9 @@ var _ api.ImageClient = (*Client)(nil)
 type Client struct {
 	Options
 	Config aws.Config
+
+	// callerAccounts caches the STS caller account per region.
+	callerAccounts sync.Map
 }
 
 type Options struct {
@@ -28,6 +33,9 @@ type Options struct {
 	AccessKeyID     string
 	SecretAccessKey string
 	SessionToken    string
+
+	// AllowCrossAccount permits lookups in registries owned by other AWS accounts.
+	AllowCrossAccount bool
 }
 
 func New(opts Options) *Client {
@@ -49,10 +57,25 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 	id := matches[1]
 	region := matches[3]
 
-	client, err := c.createClient(ctx, region)
+	client, cfg, err := c.createClient(ctx, region)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct ecr client for image host %s: %s",
 			host, err)
+	}
+
+	if !c.AllowCrossAccount {
+		account, ok := c.callerAccounts.Load(region)
+		if !ok {
+			out, err := sts.NewFromConfig(cfg).GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
+			if err != nil {
+				return nil, fmt.Errorf("failed to determine own aws account: %w", err)
+			}
+			account = aws.ToString(out.Account)
+			c.callerAccounts.Store(region, account)
+		}
+		if account != id {
+			return nil, fmt.Errorf("refusing cross-account ecr lookup for account %s (set --ecr-allow-cross-account to permit)", id)
+		}
 	}
 
 	repoName := util.JoinRepoImage(repo, image)
@@ -72,8 +95,8 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 		for _, img := range images.ImageDetails {
 			// Base data shared across tags
 			base := api.ImageTag{
-				SHA:       *img.ImageDigest,
-				Timestamp: *img.ImagePushedAt,
+				SHA:       aws.ToString(img.ImageDigest),
+				Timestamp: aws.ToTime(img.ImagePushedAt),
 			}
 
 			// Continue early if no tags available
@@ -99,7 +122,7 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 	return util.TagMaptoList(tags), nil
 }
 
-func (c *Client) createClient(ctx context.Context, region string) (*ecr.Client, error) {
+func (c *Client) createClient(ctx context.Context, region string) (*ecr.Client, aws.Config, error) {
 	var cfg aws.Config
 	var err error
 
@@ -118,7 +141,7 @@ func (c *Client) createClient(ctx context.Context, region string) (*ecr.Client, 
 		)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to construct aws credentials: %s", err)
+		return nil, cfg, fmt.Errorf("failed to construct aws credentials: %s", err)
 	}
-	return ecr.NewFromConfig(cfg), nil
+	return ecr.NewFromConfig(cfg), cfg, nil
 }
