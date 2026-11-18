@@ -51,6 +51,10 @@ type Options struct {
 	TokenPath string
 	CAPath    string
 	Insecure  bool
+
+	// DenyInternal refuses connections to loopback, private and link-local
+	// addresses, including via redirects. Used by the anonymous fallback client.
+	DenyInternal bool
 }
 type Client struct {
 	*http.Client
@@ -152,7 +156,12 @@ func configureTransport(client *Client, opts *Options) error {
 		baseTransport.TLSClientConfig = tlsConfig
 	}
 
+	baseTransport.DialContext = util.DialContext
+
+	// PublicOnly is first so it is the outermost layer and survives the
+	// Transporter middleware below, which replaces everything inside it.
 	client.Transport = transport.Chain(baseTransport,
+		transport.If(opts.DenyInternal, util.PublicOnly),
 		transport.If(logrus.IsLevelEnabled(logrus.DebugLevel), transport.LogRequests(transport.LogOptions{Concise: true})),
 		transport.If(opts.Transporter != nil, func(rt http.RoundTripper) http.RoundTripper { return opts.Transporter }))
 	return nil

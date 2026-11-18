@@ -51,6 +51,9 @@ type Options struct {
 	Quay       quay.Options
 	Selfhosted map[string]*selfhosted.Options
 
+	// FallbackAllowPrivateHosts allows anonymous fallback lookups against internal addresses.
+	FallbackAllowPrivateHosts bool
+
 	Transport http.RoundTripper
 }
 
@@ -85,11 +88,12 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 	}
 
 	// Create some of the fallback clients
+	opts.OCI.DenyInternal = !opts.FallbackAllowPrivateHosts
 	ociclient, err := oci.New(&opts.OCI, log)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OCI client: %w", err)
 	}
-	anonSelfHosted, err := selfhosted.New(ctx, log, &selfhosted.Options{Transporter: opts.Transport})
+	anonSelfHosted, err := selfhosted.New(ctx, log, &selfhosted.Options{Transporter: opts.Transport, DenyInternal: !opts.FallbackAllowPrivateHosts})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create anonymous Selfhosted client: %w", err)
 	}
@@ -105,6 +109,8 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create fallback client: %w", err)
 	}
+
+	fallbackClient.AllowPrivateHosts = opts.FallbackAllowPrivateHosts
 
 	c := &Client{
 		// Append all the clients in order of which we want to check against

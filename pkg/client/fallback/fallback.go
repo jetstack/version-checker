@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jetstack/version-checker/pkg/api"
+	"github.com/jetstack/version-checker/pkg/client/util"
 
 	"github.com/patrickmn/go-cache"
 
@@ -15,10 +16,17 @@ import (
 // Ensure that we are an ImageClient
 var _ api.ImageClient = (*Client)(nil)
 
+// maxCachedHosts bounds the host -> client cache.
+const maxCachedHosts = 1000
+
 type Client struct {
 	log       *logrus.Entry
 	hostCache *cache.Cache
 	clients   []api.ImageClient
+
+	// AllowPrivateHosts permits anonymous lookups against loopback, private
+	// and link-local addresses. Off by default to prevent pod-driven SSRF.
+	AllowPrivateHosts bool
 }
 
 func New(ctx context.Context, log *logrus.Entry, clients []api.ImageClient) (*Client, error) {
@@ -34,6 +42,11 @@ func (c *Client) Name() string {
 }
 
 func (c *Client) Tags(ctx context.Context, host, repo, image string) (tags []api.ImageTag, err error) {
+	if !c.AllowPrivateHosts {
+		if err := util.CheckPublicHost(ctx, host); err != nil {
+			return nil, fmt.Errorf("refusing fallback lookup (set --fallback-allow-private-hosts to permit): %w", err)
+		}
+	}
 	// Check if we have a cached client for the host
 	if client, found := c.hostCache.Get(host); found {
 		c.log.Infof("Found client for host %s in cache", host)
@@ -50,7 +63,10 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) (tags []api
 	// Try clients, one by one until we have none left..
 	for i, client := range c.clients {
 		if tags, err := client.Tags(ctx, host, repo, image); err == nil {
-			c.hostCache.SetDefault(host, client)
+			// Hosts are pod-controlled: bound how many are remembered.
+			if c.hostCache.ItemCount() < maxCachedHosts {
+				c.hostCache.SetDefault(host, client)
+			}
 			return tags, nil
 		}
 

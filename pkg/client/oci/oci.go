@@ -16,6 +16,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 
 	"github.com/jetstack/version-checker/pkg/api"
+	"github.com/jetstack/version-checker/pkg/client/util"
 )
 
 var numWorkers = runtime.NumCPU() * 5
@@ -23,6 +24,10 @@ var numWorkers = runtime.NumCPU() * 5
 type Options struct {
 	Transporter http.RoundTripper
 	Auth        *authn.AuthConfig
+
+	// DenyInternal refuses connections to loopback, private and link-local
+	// addresses, including via redirects, and caps response sizes.
+	DenyInternal bool
 }
 
 // maxTags bounds the per-tag manifest requests made for one lookup.
@@ -52,8 +57,21 @@ func New(opts *Options, log *logrus.Entry) (*Client, error) {
 		remote.WithUserAgent("version-checker/oci"),
 		remote.WithAuth(opts),
 	}
-	if opts.Transporter != nil {
-		pullOpts = append(pullOpts, remote.WithTransport(opts.Transporter))
+	rt := opts.Transporter
+	if opts.DenyInternal {
+		if rt == nil {
+			if t, ok := remote.DefaultTransport.(*http.Transport); ok {
+				t = t.Clone()
+				t.DialContext = util.DialContext
+				rt = t
+			}
+		}
+		if rt != nil {
+			rt = util.PublicOnly(rt)
+		}
+	}
+	if rt != nil {
+		pullOpts = append(pullOpts, remote.WithTransport(rt))
 	}
 
 	puller, err := remote.NewPuller(pullOpts...)
