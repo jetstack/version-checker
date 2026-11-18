@@ -125,6 +125,10 @@ func (o *Options) addAppFlags(fs *pflag.FlagSet) {
 		"pprof-serving-address", "", "",
 		"Address to serve pprof on for profiling.")
 
+	fs.BoolVar(&o.Client.ECR.AllowCrossAccount,
+		"ecr-allow-cross-account", false,
+		"Allow ECR lookups for registries outside the credentials' own AWS account. Disabled by default.")
+
 	fs.BoolVarP(&o.DefaultTestAll,
 		"test-all-containers", "a", false,
 		"If enabled, all containers will be tested, unless they have the "+

@@ -22,7 +22,7 @@ func (c *Client) getACRClient(ctx context.Context, host string) (*acrClient, err
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
 
-	if client, ok := c.cachedACRClient[host]; ok && time.Now().After(client.tokenExpiry) {
+	if client, ok := c.cachedACRClient[host]; ok && time.Now().Before(client.tokenExpiry) {
 		return client, nil
 	}
 
@@ -137,7 +137,7 @@ func (c *Client) getTokenExpiration(tokenString string) (time.Time, error) {
 	var err error
 	if c.JWKSURI != "" {
 		var k keyfunc.Keyfunc
-		k, err = keyfunc.NewDefaultCtx(context.TODO(), []string{c.JWKSURI})
+		k, err = c.keyfunc()
 		if err != nil {
 			return time.Time{}, err
 		}
@@ -160,4 +160,19 @@ func (c *Client) getTokenExpiration(tokenString string) (time.Time, error) {
 	}
 
 	return time.Time{}, fmt.Errorf("failed to find 'exp' claim in access token")
+}
+
+// keyfunc returns a single shared JWKS keyfunc, so only one refresh goroutine ever runs.
+func (c *Client) keyfunc() (keyfunc.Keyfunc, error) {
+	c.jwksMu.Lock()
+	defer c.jwksMu.Unlock()
+	if c.jwks != nil {
+		return c.jwks, nil
+	}
+	k, err := keyfunc.NewDefaultCtx(context.Background(), []string{c.JWKSURI})
+	if err != nil {
+		return nil, err
+	}
+	c.jwks = k
+	return k, nil
 }
