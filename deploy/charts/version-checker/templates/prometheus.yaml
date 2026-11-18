@@ -43,7 +43,7 @@ metadata:
 spec:
   replicas: {{ .Values.prometheus.replicas }}
   serviceAccountName: {{ .Values.prometheus.serviceAccountName }}
-  version: v2.20.1
+  version: v2.55.1
   serviceMonitorSelector:
     matchLabels:
       app: {{ include "version-checker.name" . }}

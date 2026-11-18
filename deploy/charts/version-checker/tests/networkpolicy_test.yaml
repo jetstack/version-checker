@@ -1,0 +1,34 @@
+suite: test networkpolicy
+templates:
+  - networkpolicy.yaml
+tests:
+  - it: is not created by default
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: denies all ingress when no peers are given
+    set:
+      networkPolicy.enabled: true
+    asserts:
+      - isKind:
+          of: NetworkPolicy
+      - equal:
+          path: spec.ingress
+          value: []
+
+  - it: allows the configured peers on the metrics port
+    set:
+      networkPolicy.enabled: true
+      versionChecker.metricsServingAddress: 0.0.0.0:9999
+      networkPolicy.ingressFrom:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+    asserts:
+      - equal:
+          path: spec.ingress[0].ports[0].port
+          value: 9999
+      - equal:
+          path: spec.ingress[0].from[0].namespaceSelector.matchLabels["kubernetes.io/metadata.name"]
+          value: monitoring

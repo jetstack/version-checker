@@ -48,6 +48,8 @@ versionChecker:
   metricsServingAddress: 0.0.0.0:8080
   # -- Enable/Disable the requirement for an enable.version-checker.io annotation on pods.
   testAllContainers: true
+  # -- Allow anonymous lookups against registries on loopback, private or link-local addresses (e.g. an in-cluster registry). Off by default so pod annotations and image hosts cannot make version-checker call internal services.
+  fallbackAllowPrivateHosts: false
 
 # Azure Container Registry Credentials Configuration
 acr:
@@ -78,6 +80,8 @@ ecr:
   secretAccessKey:
   # -- (string) ECR session token for read access to private registries
   sessionToken:
+  # -- Allow lookups in ECR registries owned by other AWS accounts than the one version-checker authenticates as. Off by default.
+  allowCrossAccount: false
 
 # Google Container Registry Credentials Configuration
 gcr:
@@ -110,6 +114,7 @@ selfhosted:
   #  username:
   #  password:
   #  token:
+  #  token_path: /v2/token
   #- name: EXAMPLE
   #  host: https://artifactory.example.com
   #  username: foo
@@ -121,16 +126,20 @@ selfhosted:
 # -- Provide an existing Secret within the cluster to use for authentication and configuration of version-checker
 existingSecret: ""
 
-# -- Setup version-checkers resource requests/limits
+# -- Setup version-checkers resource requests/limits. Raise the memory limit for clusters with many thousands of pods (they are all cached).
 resources:
-  {}
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
-  #
+  limits:
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# -- Restrict ingress to the metrics port with a NetworkPolicy (the metrics endpoint is unauthenticated)
+networkPolicy:
+  # -- Create a NetworkPolicy
+  enabled: false
+  # -- Peers (NetworkPolicyPeer list) allowed to reach the metrics port, e.g. your Prometheus. Empty allows no ingress.
+  ingressFrom: []
 
 # -- Set container-level security context
 securityContext:
