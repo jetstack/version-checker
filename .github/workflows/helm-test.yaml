@@ -25,11 +25,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Golang
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version-file: go.mod
 
-      - uses: azure/setup-helm@v5
+      - uses: azure/setup-helm@2f5e7bc67f1f9972ab16657bb795f36d8f04de0e # v5
         with:
           version: v4.2.2
 
@@ -43,18 +43,19 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Golang
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version-file: go.mod
 
-      - uses: azure/setup-helm@v5
+      - uses: azure/setup-helm@2f5e7bc67f1f9972ab16657bb795f36d8f04de0e # v5
         with:
           version: v4.2.2
 
       - name: Install helm Plugins
         run: |
           if [ ! -e "${HELM_PLUGINS}/helm-unittest" ]; then
-            helm plugin install --verify=false https://github.com/helm-unittest/helm-unittest.git
+            # --verify=false: git installs carry no provenance, so pin a release tag instead.
+            helm plugin install --verify=false https://github.com/helm-unittest/helm-unittest.git --version v1.2.1
           fi
 
       - name: Run Tests
@@ -73,7 +74,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install Kyverno CLI
-        uses: kyverno/action-install-cli@v0.2.0
+        uses: kyverno/action-install-cli@fcee92fca5c883169ef9927acf543e0b5fc58289 # v0.2.0
+        with:
+          # The default (v1.10.3) cannot load policies.kyverno.io/v1 ValidatingPolicy.
+          release: v1.20.0
 
       - run: |-
           kyverno apply -p https://github.com/kyverno/policies/pod-security-vpol/restricted --git-branch main --resource <(helm template deploy/charts/version-checker/)
