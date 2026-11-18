@@ -2,6 +2,7 @@ package quay
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -30,6 +31,10 @@ func (c *Client) newPager(repo, image string) *pager {
 }
 
 func (p *pager) fetchTags(ctx context.Context) error {
+	// Always wait for in-flight manifest fetches, including on error paths, so
+	// no goroutine outlives the call or races with the caller reading p.tags.
+	defer p.wg.Wait()
+
 	var (
 		page          = 1
 		hasAdditional = true
@@ -48,6 +53,13 @@ func (p *pager) fetchTags(ctx context.Context) error {
 	}
 
 	p.wg.Wait()
+
+	// Individual manifest failures skip a tag; only fail when nothing could be fetched.
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if len(p.tags) == 0 && len(p.errs) > 0 {
+		return errors.Join(p.errs...)
+	}
 
 	return nil
 }

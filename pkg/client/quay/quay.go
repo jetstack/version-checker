@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	neturl "net/url"
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -54,6 +56,14 @@ func (c *Client) Name() string {
 
 // Fetch the image tags from an upstream repository and image.
 func (c *Client) Tags(ctx context.Context, _, repo, image string) ([]api.ImageTag, error) {
+	repo, err := util.SafePath(repo)
+	if err != nil {
+		return nil, err
+	}
+	image, err = util.SafePath(image)
+	if err != nil {
+		return nil, err
+	}
 	p := c.newPager(repo, image)
 
 	if err := p.fetchTags(ctx); err != nil {
@@ -80,7 +90,7 @@ func (c *Client) fetchImageManifest(ctx context.Context, repo, image string, tag
 
 	// If a multi-arch image, call manifest endpoint
 	if tag.IsManifestList {
-		url := fmt.Sprintf(manifestURL, repo, image, tag.ManifestDigest)
+		url := fmt.Sprintf(manifestURL, repo, image, neturl.PathEscape(tag.ManifestDigest))
 		err := c.callManifests(ctx, timestamp, iTag, url)
 		if err != nil {
 			return nil, err
@@ -147,7 +157,7 @@ func (c *Client) makeRequest(ctx context.Context, url string, obj interface{}) e
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	if err := json.NewDecoder(resp.Body).Decode(obj); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, util.MaxResponseBytes)).Decode(obj); err != nil {
 		return err
 	}
 

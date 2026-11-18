@@ -25,6 +25,9 @@ type Options struct {
 	Auth        *authn.AuthConfig
 }
 
+// maxTags bounds the per-tag manifest requests made for one lookup.
+const maxTags = 5000
+
 func (o *Options) Authorization() (*authn.AuthConfig, error) {
 	if o.Auth != nil {
 		return o.Auth, nil
@@ -80,6 +83,10 @@ func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.Imag
 	bareTags, err := c.puller.List(ctx, reg.Repo(repo, image))
 	if err != nil {
 		return nil, fmt.Errorf("listing tags: %w", err)
+	}
+	if len(bareTags) > maxTags {
+		c.log.Warnf("%s: registry returned %d tags, only the first %d are checked", reg.Repo(repo, image), len(bareTags), maxTags)
+		bareTags = bareTags[:maxTags]
 	}
 	c.log.Infof("Collected %v tags..", len(bareTags))
 	return c.Manifests(ctx, reg.Repo(repo, image), bareTags)

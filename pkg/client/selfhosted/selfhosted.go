@@ -1,13 +1,13 @@
 package selfhosted
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"regexp"
@@ -103,6 +103,12 @@ func configureHost(ctx context.Context, client *Client, opts *Options) error {
 }
 
 func configureAuth(ctx context.Context, client *Client, opts *Options) error {
+	if len(opts.Username) == 0 && len(opts.Password) == 0 && len(opts.Bearer) == 0 {
+		return nil
+	}
+	if client.httpScheme == "http" {
+		client.log.Warnf("registry %q uses plain http: credentials are sent in cleartext", opts.Host)
+	}
 	if len(opts.Username) == 0 && len(opts.Password) == 0 {
 		return nil
 	}
@@ -164,13 +170,24 @@ func (c *Client) Name() string {
 // Tags will fetch the image tags from a given image URL. It must first query
 // the tags that are available, then query the 2.1 and 2.2 API endpoints to
 // gather the image digest and created time.
+// maxTags bounds the per-tag manifest requests made for one lookup.
+const maxTags = 5000
+
 func (c *Client) Tags(ctx context.Context, host, repo, image string) ([]api.ImageTag, error) {
-	path := util.JoinRepoImage(repo, image)
+	path, err := util.SafePath(util.JoinRepoImage(repo, image))
+	if err != nil {
+		return nil, err
+	}
 	tagURL := fmt.Sprintf(tagsPath, host, path)
 
 	var tagResponse TagResponse
 	if _, err := c.doRequest(ctx, tagURL, "", &tagResponse); err != nil {
 		return nil, err
+	}
+
+	if len(tagResponse.Tags) > maxTags {
+		c.log.Warnf("%s: registry returned %d tags, only the first %d are checked", path, len(tagResponse.Tags), maxTags)
+		tagResponse.Tags = tagResponse.Tags[:maxTags]
 	}
 
 	tags := map[string]api.ImageTag{}
@@ -259,29 +276,24 @@ func (c *Client) doRequest(ctx context.Context, url, header string, obj interfac
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := util.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, selfhostederrors.NewHTTPError(resp.StatusCode, body)
+		return nil, selfhostederrors.NewHTTPError(resp.StatusCode, body[:min(len(body), 256)])
 	}
 
 	if err := json.Unmarshal(body, obj); err != nil {
-		return nil, fmt.Errorf("unexpected %s response: %s - %w", url, body, err)
+		return nil, fmt.Errorf("unexpected %s response: %s - %w", url, util.Truncate(body), err)
 	}
 
 	return resp.Header, nil
 }
 
 func (c *Client) setupBasicAuth(ctx context.Context, url, tokenPath string) (string, error) {
-	upReader := strings.NewReader(
-		fmt.Sprintf(`{"username": "%s", "password": "%s"}`,
-			c.Username, c.Password,
-		),
-	)
+	upReader := bytes.NewReader(util.LoginBody(c.Username, c.Password))
 
 	tokenURL := url + tokenPath
 
@@ -300,13 +312,13 @@ func (c *Client) setupBasicAuth(ctx context.Context, url, tokenPath string) (str
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := util.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return "", selfhostederrors.NewHTTPError(resp.StatusCode, body)
+		return "", selfhostederrors.NewHTTPError(resp.StatusCode, body[:min(len(body), 256)])
 	}
 
 	response := new(AuthResponse)
