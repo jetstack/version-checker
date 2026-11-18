@@ -21,6 +21,7 @@ import (
 
 	"github.com/jetstack/version-checker/pkg/api"
 	"github.com/jetstack/version-checker/pkg/client"
+	"github.com/jetstack/version-checker/pkg/client/util"
 	"github.com/jetstack/version-checker/pkg/controller"
 	"github.com/jetstack/version-checker/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -100,8 +101,12 @@ func NewCommand(ctx context.Context) *cobra.Command {
 
 			metricsServer := metrics.New(log, ctrmetrics.Registry, mgr.GetCache())
 
+			// util.DialContext lets individual requests (fallback lookups) opt in
+			// to refusing internal addresses at connect time.
+			baseTransport := cleanhttp.DefaultTransport()
+			baseTransport.DialContext = util.DialContext
 			opts.Client.Transport = transport.Chain(
-				cleanhttp.DefaultTransport(),
+				baseTransport,
 				metricsServer.RoundTripper,
 			)
 
