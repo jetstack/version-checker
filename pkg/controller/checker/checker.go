@@ -53,7 +53,7 @@ func (c *Checker) Container(ctx context.Context, log *logrus.Entry,
 
 	if opts.ResolveSHAToTags {
 
-		if len(*opts.OverrideURL) > 0 {
+		if opts.OverrideURL != nil && len(*opts.OverrideURL) > 0 {
 			imageURL = *opts.OverrideURL
 		}
 		resolvedTag, err := c.search.ResolveSHAToTag(ctx, imageURL, currentSHA)
@@ -165,6 +165,10 @@ func (c *Checker) isLatestSemver(ctx context.Context, imageURL, currentSHA strin
 	if err != nil {
 		return nil, false, err
 	}
+
+	// latestImage is shared through the search cache: work on a copy.
+	img := *latestImage
+	latestImage = &img
 
 	latestImageV := semver.Parse(latestImage.Tag)
 

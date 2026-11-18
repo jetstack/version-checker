@@ -123,7 +123,7 @@ func (o *Options) addAppFlags(fs *pflag.FlagSet) {
 
 	fs.StringVarP(&o.PprofBindAddress,
 		"pprof-serving-address", "", "",
-		"Address to serve pprof on for profiling.")
+		"Address to serve pprof on for profiling. pprof is unauthenticated: bind to loopback (e.g. 127.0.0.1:6060).")
 
 	fs.BoolVar(&o.Client.FallbackAllowPrivateHosts,
 		"fallback-allow-private-hosts", false,

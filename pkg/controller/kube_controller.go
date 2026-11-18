@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -163,7 +164,7 @@ func (s *ClusterVersionScheduler) getLatestVersionFromUpstream(channel string) (
 		return "", fmt.Errorf("unexpected content-type %s when fetching channel %s", resp.Header.Get("content-type"), channel)
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1024))
 	if err != nil {
 		return "", fmt.Errorf("failed to read response body: %w", err)
 	}
@@ -176,14 +177,12 @@ func (s *ClusterVersionScheduler) getLatestVersionFromUpstream(channel string) (
 	return version, nil
 }
 
+var channelRe = regexp.MustCompile(`^(latest|stable)-1\.\d{1,3}$`)
+
 func isValidKubernetesChannel(channel string) bool {
 	// Only allow official Kubernetes channels
 	validChannels := []string{"stable", "latest"}
 
 	// Allow latest-X.Y and stable-X.Y formats
-	if strings.HasPrefix(channel, "latest-1.") || strings.HasPrefix(channel, "stable-1.") {
-		return true
-	}
-
-	return slices.Contains(validChannels, channel)
+	return slices.Contains(validChannels, channel) || channelRe.MatchString(channel)
 }

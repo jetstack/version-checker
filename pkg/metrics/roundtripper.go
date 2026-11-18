@@ -7,6 +7,7 @@ import (
 	"net/http/httptrace"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -16,6 +17,9 @@ import (
 
 type RoundTripper struct {
 	base http.RoundTripper
+
+	domainMu sync.Mutex
+	domains  map[string]struct{}
 
 	clientInFlightGauge prometheus.Gauge
 	clientCounter       *prometheus.CounterVec
@@ -103,8 +107,28 @@ func extractDomain(req *http.Request) string {
 	return host
 }
 
+const maxDomainLabels = 100
+
+// boundDomain caps distinct "domain" label values (hosts are pod-controlled)
+// so a pod author cannot create unbounded metric series.
+func (t *RoundTripper) boundDomain(d string) string {
+	t.domainMu.Lock()
+	defer t.domainMu.Unlock()
+	if t.domains == nil {
+		t.domains = map[string]struct{}{}
+	}
+	if _, ok := t.domains[d]; ok {
+		return d
+	}
+	if len(t.domains) >= maxDomainLabels {
+		return "other"
+	}
+	t.domains[d] = struct{}{}
+	return d
+}
+
 func (t *RoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	domain := extractDomain(req)
+	domain := t.boundDomain(extractDomain(req))
 
 	// Track request duration
 	startTime := time.Now()

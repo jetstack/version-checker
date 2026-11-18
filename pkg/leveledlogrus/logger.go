@@ -1,25 +1,39 @@
 // Creates a leveled logger compatible with hashicorp/go-retryablehttp
 package leveledlogger
 
-import "github.com/sirupsen/logrus"
+import (
+	"strings"
+
+	"github.com/sirupsen/logrus"
+)
+
+// clean strips control characters so remote-controlled text cannot forge log lines.
+func clean(s string) string {
+	return strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f {
+			return ' '
+		}
+		return r
+	}, s)
+}
 
 type Logger struct {
 	*logrus.Entry
 }
 
 func (l *Logger) Error(msg string, keysAndValues ...interface{}) {
-	l.fields(keysAndValues).Error(msg)
+	l.fields(keysAndValues).Error(clean(msg))
 }
 
 func (l *Logger) Info(msg string, keysAndValues ...interface{}) {
-	l.fields(keysAndValues).Info(msg)
+	l.fields(keysAndValues).Info(clean(msg))
 }
 func (l *Logger) Debug(msg string, keysAndValues ...interface{}) {
-	l.fields(keysAndValues).Debug(msg)
+	l.fields(keysAndValues).Debug(clean(msg))
 }
 
 func (l *Logger) Warn(msg string, keysAndValues ...interface{}) {
-	l.fields(keysAndValues).Warn(msg)
+	l.fields(keysAndValues).Warn(clean(msg))
 }
 
 func (l *Logger) fields(keysAndValues []interface{}) *logrus.Entry {

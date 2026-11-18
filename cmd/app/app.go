@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 
 	logrusr "github.com/bombsimon/logrusr/v4"
@@ -61,6 +62,12 @@ func NewCommand(ctx context.Context) *cobra.Command {
 			}
 
 			log.Warnf("flag --test-all-containers=%t %s", opts.DefaultTestAll, defaultTestAllInfoMsg)
+
+			if a := opts.PprofBindAddress; a != "" && a != "0" {
+				if h, _, err := net.SplitHostPort(a); err != nil || (h != "localhost" && !net.ParseIP(h).IsLoopback()) {
+					log.Warnf("pprof is unauthenticated and bound to %q: bind it to loopback", a)
+				}
+			}
 
 			mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 				LeaderElection: false,
