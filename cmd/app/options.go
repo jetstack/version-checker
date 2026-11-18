@@ -472,7 +472,9 @@ func validSelfHostedOpts(opts *Options) bool {
 	// opts set using env vars
 	if opts.Client.Selfhosted != nil {
 		for _, selfHostedOpts := range opts.Client.Selfhosted {
-			return isValidOption(selfHostedOpts.Host, "")
+			if !isValidOption(selfHostedOpts.Host, "") {
+				return false
+			}
 		}
 	}
 

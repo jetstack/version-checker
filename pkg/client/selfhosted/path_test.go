@@ -65,6 +65,18 @@ func TestIsHost(t *testing.T) {
 			host:  "foo.docker.repositories.yourdomain.ext",
 			expIs: true,
 		},
+		"URL fragment trick should be false": {
+			host:  "evil.com#.docker.repositories.yourdomain.ext",
+			expIs: false,
+		},
+		"URL query trick should be false": {
+			host:  "evil.com?.docker.repositories.yourdomain.ext",
+			expIs: false,
+		},
+		"URL userinfo trick should be false": {
+			host:  "x@evil.com.docker.repositories.yourdomain.ext",
+			expIs: false,
+		},
 	}
 
 	options := &Options{
@@ -134,4 +146,9 @@ func TestRepoImage(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewRejectsSchemelessHost(t *testing.T) {
+	_, err := New(context.TODO(), logrus.NewEntry(logrus.New()), &Options{Host: "registry.example.com:5000"})
+	assert.Error(t, err)
 }

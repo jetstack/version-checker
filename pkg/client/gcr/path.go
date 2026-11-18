@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	reg = regexp.MustCompile(`(^(.*\.)?gcr\.io$|^(.*\.)?k8s\.io$|^(.+)-docker\.pkg\.dev$)`)
+	reg = regexp.MustCompile(`^(([a-zA-Z0-9-]+\.)?gcr\.io|([a-zA-Z0-9-]+\.)?k8s\.io|[a-zA-Z0-9-]+-docker\.pkg\.dev)$`)
 )
 
 func (c *Client) IsHost(host string) bool {

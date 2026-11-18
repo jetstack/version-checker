@@ -9,7 +9,9 @@ import (
 
 const (
 	// Regex template to be used to check "isHost".
-	hostRegTemplate = `^.*%s$`
+	// The optional prefix is restricted to hostname characters: `.*` would
+	// match URL metacharacters (#, ?, @) and route credentials to another host.
+	hostRegTemplate = `^([A-Za-z0-9-]+\.)*%s$`
 )
 
 func (c *Client) IsHost(host string) bool {
@@ -40,7 +42,11 @@ func parseURL(rawurl string) (*regexp.Regexp, string, error) {
 		return nil, "", fmt.Errorf("failed parsing host %q: %s", rawurl, err)
 	}
 
-	hostRegTemplate := fmt.Sprintf(hostRegTemplate, parsedURL.Host)
+	if parsedURL.Host == "" || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
+		return nil, "", fmt.Errorf("host %q must be a http(s) URL such as https://registry.example.com", rawurl)
+	}
+
+	hostRegTemplate := fmt.Sprintf(hostRegTemplate, regexp.QuoteMeta(parsedURL.Host))
 	hostRegex, err := regexp.Compile(hostRegTemplate)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to parse regex: %s for host %q: %s",
