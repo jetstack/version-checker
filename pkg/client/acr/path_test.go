@@ -51,6 +51,18 @@ func TestIsHost(t *testing.T) {
 			host:  "azurecr.iofoo",
 			expIs: false,
 		},
+		"credential-forwarding suffix host should be false": {
+			host:  "x.azurecr.io.attacker.example",
+			expIs: false,
+		},
+		"embedded host should be false": {
+			host:  "attacker.example/.azurecr.io",
+			expIs: false,
+		},
+		"URL fragment trick should be false": {
+			host:  "evil.com#.azurecr.io",
+			expIs: false,
+		},
 	}
 
 	handler := new(Client)

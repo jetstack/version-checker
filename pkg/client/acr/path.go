@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	reg = regexp.MustCompile(`.*\.azurecr\.io|.*\.azurecr\.cn|.*\.azurecr\.de|.*\.azurecr\.us`)
+	reg = regexp.MustCompile(`^[a-zA-Z0-9-]+\.azurecr\.(io|cn|de|us)$`)
 )
 
 func (c *Client) IsHost(host string) bool {

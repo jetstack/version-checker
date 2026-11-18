@@ -59,6 +59,22 @@ func TestIsHost(t *testing.T) {
 			host:  "registry.k8s.io",
 			expIs: true,
 		},
+		"URL fragment trick should be false": {
+			host:  "evil.com#.gcr.io",
+			expIs: false,
+		},
+		"URL query trick should be false": {
+			host:  "evil.com?.k8s.io",
+			expIs: false,
+		},
+		"look-alike k8s.io host should be false": {
+			host:  "evilk8s.io",
+			expIs: false,
+		},
+		"suffix host should be false": {
+			host:  "gcr.io.attacker.example",
+			expIs: false,
+		},
 	}
 
 	handler := new(Client)

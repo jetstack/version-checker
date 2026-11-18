@@ -18,6 +18,7 @@ import (
 	"github.com/jetstack/version-checker/pkg/client/oci"
 	"github.com/jetstack/version-checker/pkg/client/quay"
 	"github.com/jetstack/version-checker/pkg/client/selfhosted"
+	"github.com/jetstack/version-checker/pkg/client/util"
 )
 
 // Used for testing/mocking purposes
@@ -125,6 +126,12 @@ func New(ctx context.Context, log *logrus.Entry, opts Options) (*Client, error) 
 // Tags returns the full list of image tags available, for a given image URL.
 func (c *Client) Tags(ctx context.Context, imageURL string) ([]api.ImageTag, error) {
 	client, host, path := c.fromImageURL(imageURL)
+	// The host is pod-controlled and is interpolated into request URLs.
+	if host != "" {
+		if err := util.ValidHost(host); err != nil {
+			return nil, err
+		}
+	}
 
 	c.log.Debugf("using client %q for image URL %q", client.Name(), imageURL)
 	repo, image := client.RepoImageFromPath(path)
