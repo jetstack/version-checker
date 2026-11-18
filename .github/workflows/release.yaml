@@ -21,7 +21,7 @@ jobs:
     outputs:
       name: "${{ steps.release_number.outputs.substring != '' && steps.release_number.outputs.substring || github.ref_name }}"
     steps:
-      - uses: bhowell2/github-substring-action@1.0.2
+      - uses: bhowell2/github-substring-action@840a63713530fface80dec51acc55ced1d64f24a # 1.0.2
         id: release_number
         continue-on-error: true
         with:
@@ -45,12 +45,12 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Golang
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version-file: go.mod
 
       - name: Find and Replace Helm Chart Version
-        uses: jacobtomlinson/gha-find-replace@v3
+        uses: jacobtomlinson/gha-find-replace@2ff30f644d2e0078fc028beb9193f5ff0dcad39e # v3
         with:
           find: 'v(\d+)\.(\d+)\.(\d+)(-rc(\d)+)?'
           replace: "${{needs.release-name.outputs.name}}"
@@ -58,7 +58,7 @@ jobs:
           regex: true
 
       - name: Find and Replace Kubernetes Manifests
-        uses: jacobtomlinson/gha-find-replace@v3
+        uses: jacobtomlinson/gha-find-replace@2ff30f644d2e0078fc028beb9193f5ff0dcad39e # v3
         with:
           find: 'v(\d+)\.(\d+)\.(\d+)(-rc(\d)+)?'
           replace: "${{needs.release-name.outputs.name}}"
@@ -66,7 +66,7 @@ jobs:
           regex: true
 
       - name: Find and Replace Makefile versions
-        uses: jacobtomlinson/gha-find-replace@v3
+        uses: jacobtomlinson/gha-find-replace@2ff30f644d2e0078fc028beb9193f5ff0dcad39e # v3
         with:
           find: 'v(\d+)\.(\d+)\.(\d+)(-rc(\d)+)?'
           replace: "${{needs.release-name.outputs.name}}"
@@ -74,7 +74,7 @@ jobs:
           regex: true
 
       - name: Install Helm Docs
-        uses: envoy/install-helm-docs@v1.0.0
+        uses: envoy/install-helm-docs@05313083ef2cfaea27c4c3d7cb725242d22ea88b # v1.0.0
         with:
           version: 1.14.2
       - name: Update Helm Docs
@@ -84,7 +84,7 @@ jobs:
           helm-docs
 
       - name: Detect any Local Changes
-        uses: dorny/paths-filter@v4
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         id: filter
         with:
           base: HEAD
@@ -97,29 +97,31 @@ jobs:
 
       - name: Commit files
         if: steps.filter.outputs.versions == 'true'
+        env:
+          RELEASE_NAME: ${{ needs.release-name.outputs.name }}
         run: |
           set -x
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git status
-          git commit -a -m "Bump versions to ${{needs.release-name.outputs.name}}"
+          git commit -a -m "Bump versions to ${RELEASE_NAME}"
 
       - name: Push changes
         if: steps.filter.outputs.versions == 'true'
-        uses: ad-m/github-push-action@v1.3.0
+        uses: ad-m/github-push-action@881a6320fdb16eb5318c5054f31c218aec2b324c # v1.3.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: ${{ github.ref_name }}
 
       - name: Build Changelog
         id: github_release
-        uses: mikepenz/release-changelog-builder-action@v6
+        uses: mikepenz/release-changelog-builder-action@b0db9d18b53447ef9f940a46c8f31653c4d9f621 # v6
         with:
           ignorePreReleases: true
           toTag: "main"
 
       - name: Create Release PR
-        uses: devops-infra/action-pull-request@v1.4.0
+        uses: devops-infra/action-pull-request@1d8aa3c4a6060a1410641f700f91353af65cc94b # v1.4.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           target_branch: main
@@ -146,8 +148,7 @@ jobs:
           path: version-checker
 
       - name: Setup Cosign
-        uses: sigstore/cosign-installer@main
-
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # main
       # Temporarily disabled while org auth is being sorted.
       # - name: checkout jetstack-charts
       #   uses: actions/checkout@v6
@@ -158,7 +159,7 @@ jobs:
       #     path: jetstack-charts
 
       - name: Setup Helm
-        uses: azure/setup-helm@v5
+        uses: azure/setup-helm@2f5e7bc67f1f9972ab16657bb795f36d8f04de0e # v5
         with:
           version: v4.2.2
 
@@ -173,10 +174,12 @@ jobs:
           helm package version-checker/deploy/charts/version-checker -d jetstack-charts/charts/
 
       - name: Sign Helm Chart
+        env:
+          RELEASE_NAME: ${{ needs.release-name.outputs.name }}
         run: |
           cosign sign-blob -y \
-            jetstack-charts/charts/version-checker-${{ needs.release-name.outputs.name }}.tgz \
-            --bundle jetstack-charts/charts/version-checker-${{ needs.release-name.outputs.name }}.tgz.cosign.bundle
+            "jetstack-charts/charts/version-checker-${RELEASE_NAME}.tgz" \
+            --bundle "jetstack-charts/charts/version-checker-${RELEASE_NAME}.tgz.cosign.bundle"
 
       # FIXME: We need a Repo Created in Quay ahead of time for this to work
       # - name: Push to Quay
@@ -204,7 +207,7 @@ jobs:
       #     base: main
 
       - name: Upload chart artifacts for manual publishing
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: helm-chart-${{ needs.release-name.outputs.name }}
           path: jetstack-charts/charts/*
@@ -228,15 +231,14 @@ jobs:
           cosign-release: "v2.2.4"
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
-
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
         with:
           platforms: linux/amd64,linux/arm64
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v4
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
         with:
           registry: quay.io
           username: ${{ secrets.QUAY_USERNAME }}
@@ -244,7 +246,7 @@ jobs:
 
       - name: Build and push (if applicable)
         id: build-and-push
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64
@@ -261,10 +263,10 @@ jobs:
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
         env:
           # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
-          TAGS: quay.io/jetstack/version-checker:${{github.ref_name}}
+          REF_NAME: ${{ github.ref_name }}
           DIGEST: ${{ steps.build-and-push.outputs.digest }}
         run: |-
-          cosign sign --yes "quay.io/jetstack/version-checker:${{github.ref_name}}@${DIGEST}"
+          cosign sign --yes "quay.io/jetstack/version-checker:${REF_NAME}@${DIGEST}"
 
   github-release:
     name: Create/Update GitHub Release
@@ -275,10 +277,10 @@ jobs:
       - release-name
     steps:
       - name: Create Release / Change Logs
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3
         with:
           tag_name: ${{ needs.release-name.outputs.name }}
           target_commitish: ${{ github.ref_name }}
           draft: ${{ !startsWith(github.ref, 'refs/tags/') }}
-          prerelease: ${{ contains('-rc', github.ref_name) || !startsWith(github.ref, 'refs/tags/') }}
+          prerelease: ${{ contains(github.ref_name, '-rc') || !startsWith(github.ref, 'refs/tags/') }}
           generate_release_notes: true

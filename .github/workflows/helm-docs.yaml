@@ -21,12 +21,9 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v7.0.1
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Check for values.yaml changes
-        uses: dorny/paths-filter@v4
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         id: filter
         with:
           filters: |
@@ -35,7 +32,7 @@ jobs:
               - 'deploy/charts/version-checker/Chart.yaml'
       - name: Install Helm Docs
         if: steps.filter.outputs.values == 'true'
-        uses: envoy/install-helm-docs@v1.0.0
+        uses: envoy/install-helm-docs@05313083ef2cfaea27c4c3d7cb725242d22ea88b # v1.0.0
         with:
           version: 1.14.2
       - name: Update Helm Docs
@@ -45,7 +42,7 @@ jobs:
           cd deploy/charts/version-checker
           helm-docs
       - name: Check for README.md changes
-        uses: dorny/paths-filter@v4
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         id: filter-readme
         with:
           base: HEAD
@@ -62,8 +59,7 @@ jobs:
           git commit -m "[HELM] Update helm docs"
       - name: Push Changes
         if: steps.filter-readme.outputs.readme == 'true'
-        uses: ad-m/github-push-action@v1.3.0
+        uses: ad-m/github-push-action@881a6320fdb16eb5318c5054f31c218aec2b324c # v1.3.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ github.head_ref }}
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          branch: ${{ github.ref_name }}

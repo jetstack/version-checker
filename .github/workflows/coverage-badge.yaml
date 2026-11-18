@@ -13,13 +13,13 @@ jobs:
     name: Update coverage badge
     steps:
       - name: Checkout
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
           fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
 
       - name: Setup go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version-file: 'go.mod'
 
@@ -29,12 +29,12 @@ jobs:
           go tool cover -func=coverage.out -o=coverage.out
 
       - name: Go Coverage Badge  # Pass the `coverage.out` output to this action
-        uses: tj-actions/coverage-badge-go@v3
+        uses: tj-actions/coverage-badge-go@481919ec72da287775fef015fd9011dc75a5db05 # v3
         with:
           filename: coverage.out
 
       - name: Verify Changed files
-        uses: tj-actions/verify-changed-files@v20
+        uses: tj-actions/verify-changed-files@a1c6acee9df209257a246f2cc6ae8cb6581c1edf # v20
         id: verify-changed-files
         with:
           files: README.md
@@ -49,7 +49,7 @@ jobs:
 
       - name: Push changes
         if: steps.verify-changed-files.outputs.files_changed == 'true'
-        uses: ad-m/github-push-action@master
+        uses: ad-m/github-push-action@7fba72704ad2db819788db8f2d9e7d1dfbebe089 # master
         with:
           github_token: ${{ github.token }}
-          branch: ${{ github.head_ref }}
+          branch: ${{ github.ref_name }}
