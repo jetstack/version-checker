@@ -41,6 +41,9 @@ func NewCommand(ctx context.Context) *cobra.Command {
 		Long:  helpOutput,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			opts.complete()
+			if err := opts.validateIntervals(); err != nil {
+				return err
+			}
 
 			logLevel, err := logrus.ParseLevel(opts.LogLevel)
 			if err != nil {
@@ -94,8 +97,8 @@ func NewCommand(ctx context.Context) *cobra.Command {
 
 			// Readiness probe
 			if err := mgr.AddMetricsServerExtraHandler("/readyz",
-				http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-					if mgr.GetCache().WaitForCacheSync(context.Background()) {
+				http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if mgr.GetCache().WaitForCacheSync(r.Context()) {
 						w.WriteHeader(http.StatusOK)
 						_, _ = w.Write([]byte("ready"))
 					} else {

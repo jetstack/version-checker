@@ -31,6 +31,12 @@ func buildLastUpdatedLabels(namespace, pod, container, containerType, imageURL s
 	}
 }
 
+// buildContainerImageLabels matches the metrics that are keyed by container
+// and image but have no container_type label.
+func buildContainerImageLabels(namespace, pod, container string) prometheus.Labels {
+	return prometheus.Labels{"namespace": namespace, "pod": pod, "container": container}
+}
+
 func buildPodPartialLabels(namespace, pod string) prometheus.Labels {
 	return prometheus.Labels{
 		"namespace": namespace,

@@ -3,6 +3,7 @@ package app
 import (
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -358,4 +359,10 @@ func TestAssignSelfhosted(t *testing.T) {
 			assert.Exactly(t, test.expOptions.Selfhosted, o.Client.Selfhosted)
 		})
 	}
+}
+
+func TestValidateIntervals(t *testing.T) {
+	assert.NoError(t, (&Options{CacheTimeout: time.Minute, KubeInterval: time.Minute}).validateIntervals())
+	assert.Error(t, (&Options{CacheTimeout: 0, KubeInterval: time.Minute}).validateIntervals())
+	assert.Error(t, (&Options{CacheTimeout: time.Minute, KubeInterval: -1}).validateIntervals())
 }
