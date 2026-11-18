@@ -166,7 +166,9 @@ func (c *Checker) isLatestSemver(ctx context.Context, imageURL, currentSHA strin
 		return nil, false, err
 	}
 
-	latestImageV := semver.Parse(latestImage.Tag)
+	result := *latestImage
+
+	latestImageV := semver.Parse(result.Tag)
 
 	var isLatest bool
 
@@ -179,23 +181,23 @@ func (c *Checker) isLatestSemver(ctx context.Context, imageURL, currentSHA strin
 	// but the SHA has been updated upstream,
 	// mark not latest
 	if currentImage.Equal(latestImageV) &&
-		!latestImage.MatchesSHA(currentSHA) {
+		!result.MatchesSHA(currentSHA) {
 		isLatest = false
-		if latestImage.SHA != "" {
+		if result.SHA != "" {
 			// Add the SHA as a prefix to identify that it has been updated!
-			latestImage.Tag = fmt.Sprintf("%s@%s", latestImage.Tag, latestImage.SHA)
+			result.Tag = fmt.Sprintf("%s@%s", result.Tag, result.SHA)
 		} else {
-			for _, child := range latestImage.Children {
+			for _, child := range result.Children {
 				// Take first child's SHA for latest image tag
 				if child.SHA != currentSHA {
-					latestImage.Tag = fmt.Sprintf("%s@%s", latestImage.Tag, child.SHA)
+					result.Tag = fmt.Sprintf("%s@%s", result.Tag, child.SHA)
 					break
 				}
 			}
 		}
 	}
 
-	return latestImage, isLatest, nil
+	return &result, isLatest, nil
 }
 
 // isLatestSHA will return the the result of whether the given image is the latest, according to image SHA.
