@@ -93,7 +93,13 @@ func (b *Builder) handleRegexOption(name string, opts *api.Options, setNonSha *b
 		*setNonSha = true
 		opts.MatchRegex = &matchRegex
 
-		regexMatcher, err := regexp.Compile(matchRegex)
+		var regexMatcher *regexp.Regexp
+		var err error
+		if len(matchRegex) > 1024 {
+			err = fmt.Errorf("regex longer than 1024 bytes")
+		} else {
+			regexMatcher, err = regexp.Compile(matchRegex)
+		}
 		if err != nil {
 			*errs = append(*errs, fmt.Sprintf("failed to compile regex at annotation %q: %s", api.MatchRegexAnnotationKey, err))
 		} else {

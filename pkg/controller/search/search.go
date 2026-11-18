@@ -2,9 +2,10 @@ package search
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"hash/fnv"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -90,10 +91,11 @@ func calculateHashIndex(imageURL string, opts *api.Options) (string, error) {
 		return "", fmt.Errorf("failed to marshal options: %s", err)
 	}
 
-	hash := fnv.New32()
-	if _, err := hash.Write(append(optsJSON, []byte(imageURL)...)); err != nil {
-		return "", fmt.Errorf("failed to calculate search hash: %s", err)
-	}
+	// sha256 (not a 32-bit hash) so one pod cannot craft a colliding key to poison another pod's cached result.
+	// Length-prefix the URL so (opts, url) pairs cannot be shifted across the boundary.
+	h := sha256.New()
+	_, _ = fmt.Fprintf(h, "%d:%s", len(imageURL), imageURL)
+	h.Write(optsJSON)
 
-	return fmt.Sprintf("%d", hash.Sum32()), nil
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
