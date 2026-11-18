@@ -476,6 +476,15 @@ func (o *Options) assignSelfhosted(envs []string) {
 	}
 }
 
+// validateIntervals rejects durations that would panic time.NewTicker or
+// disable the cache.
+func (o *Options) validateIntervals() error {
+	if o.CacheTimeout <= 0 || o.KubeInterval <= 0 {
+		return fmt.Errorf("--image-cache-timeout and --kube-interval must be greater than zero")
+	}
+	return nil
+}
+
 func validSelfHostedOpts(opts *Options) bool {
 	// opts set using env vars
 	if opts.Client.Selfhosted != nil {

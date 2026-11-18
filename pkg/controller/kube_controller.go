@@ -48,6 +48,7 @@ func NewKubeReconciler(
 	log = log.WithField("controller", "channel")
 
 	httpClient := retryablehttp.NewClient()
+	httpClient.HTTPClient.Timeout = 10 * time.Second
 	httpClient.RetryMax = 3
 	httpClient.RetryWaitMin = 1 * time.Second
 	httpClient.RetryWaitMax = 30 * time.Second

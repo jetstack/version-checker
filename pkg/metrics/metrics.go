@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
 
@@ -34,6 +35,11 @@ type Metrics struct {
 	kubernetesVersion *prometheus.GaugeVec
 
 	cache k8sclient.Reader
+
+	// errorImage remembers which image each container's failure counter is
+	// for (key "namespace/pod/container"), so the counter of a replaced image
+	// can be dropped instead of accumulating series.
+	errorImage map[string]string
 
 	// Contains all metrics for the roundtripper
 	roundTripper *RoundTripper
@@ -118,8 +124,9 @@ func New(log *logrus.Entry, reg ctrmetrics.RegistererGatherer, cache k8sclient.R
 	)
 
 	return &Metrics{
-		log:   log.WithField("module", "metrics"),
-		cache: cache,
+		log:        log.WithField("module", "metrics"),
+		cache:      cache,
+		errorImage: map[string]string{},
 
 		registry:                reg,
 		containerImageVersion:   containerImageVersion,
@@ -168,9 +175,12 @@ func (m *Metrics) RemoveImage(namespace, pod, container, containerType string) {
 	labels := buildContainerPartialLabels(namespace, pod, container, containerType)
 
 	total += m.containerImageVersion.DeletePartialMatch(labels)
-	total += m.containerImageDuration.DeletePartialMatch(labels)
 	total += m.containerImageChecked.DeletePartialMatch(labels)
-	total += m.containerImageErrors.DeletePartialMatch(labels)
+	// Duration and errors have no container_type label, so a partial match
+	// that includes it would match nothing.
+	total += m.containerImageDuration.DeletePartialMatch(buildContainerImageLabels(namespace, pod, container))
+	total += m.containerImageErrors.DeletePartialMatch(buildContainerImageLabels(namespace, pod, container))
+	delete(m.errorImage, namespace+"/"+pod+"/"+container)
 	total += m.containerImageTimestamp.DeletePartialMatch(labels)
 	total += m.containerImageAvailable.DeletePartialMatch(labels)
 
@@ -194,6 +204,11 @@ func (m *Metrics) RemovePod(namespace, pod string) {
 	total += m.containerImageErrors.DeletePartialMatch(
 		buildPodPartialLabels(namespace, pod),
 	)
+	for k := range m.errorImage {
+		if strings.HasPrefix(k, namespace+"/"+pod+"/") {
+			delete(m.errorImage, k)
+		}
+	}
 	total += m.containerImageTimestamp.DeletePartialMatch(
 		buildPodPartialLabels(namespace, pod),
 	)
@@ -213,6 +228,8 @@ func (m *Metrics) RegisterImageDuration(namespace, pod, container, image string,
 		return
 	}
 
+	// One series per container: drop the one for a previous image.
+	m.containerImageDuration.DeletePartialMatch(buildContainerImageLabels(namespace, pod, container))
 	m.containerImageDuration.WithLabelValues(
 		namespace, pod, container, image,
 	).Set(time.Since(startTime).Seconds())
@@ -226,6 +243,14 @@ func (m *Metrics) ReportError(namespace, pod, container, imageURL string) {
 		m.log.WithField("metric", "ReportError").Warnf("pod %s/%s not found, not registering error", namespace, pod)
 		return
 	}
+
+	// A replaced image starts a new failure count rather than a new series
+	// next to the old one.
+	key := namespace + "/" + pod + "/" + container
+	if prev, ok := m.errorImage[key]; ok && prev != imageURL {
+		m.containerImageErrors.DeletePartialMatch(buildContainerImageLabels(namespace, pod, container))
+	}
+	m.errorImage[key] = imageURL
 
 	m.containerImageErrors.WithLabelValues(
 		namespace, pod, container, imageURL,

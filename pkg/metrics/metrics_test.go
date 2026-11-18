@@ -278,3 +278,25 @@ func TestPodAnnotationsChangeAfterRegistration(t *testing.T) {
 		testutil.CollectAndCount(metrics.containerImageVersion.MetricVec, MetricNamespace+"_is_latest_version"),
 	)
 }
+
+// A container whose image changes, or that is no longer checked, must not
+// leave lookup duration and failure series behind.
+func TestImageSeriesDoNotAccumulate(t *testing.T) {
+	m := New(logrus.NewEntry(logrus.New()), prometheus.NewRegistry(), fakek8s)
+	ctx := context.Background()
+	require.NoError(t, fakek8s.DeleteAllOf(ctx, &corev1.Pod{}))
+	require.NoError(t, fakek8s.Create(ctx, &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "p", Namespace: "ns"},
+	}))
+
+	for _, img := range []string{"a", "b", "c"} {
+		m.RegisterImageDuration("ns", "p", "c", img, time.Now())
+		m.ReportError("ns", "p", "c", img)
+	}
+	assert.Equal(t, 1, testutil.CollectAndCount(m.containerImageDuration))
+	assert.Equal(t, 1, testutil.CollectAndCount(m.containerImageErrors))
+
+	m.RemoveImage("ns", "p", "c", "init")
+	assert.Equal(t, 0, testutil.CollectAndCount(m.containerImageDuration))
+	assert.Equal(t, 0, testutil.CollectAndCount(m.containerImageErrors))
+}
