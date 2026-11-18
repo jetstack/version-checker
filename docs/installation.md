@@ -45,6 +45,15 @@ of the container in the pod.
 
 However, by passing the following flag,`-a, --test-all-containers` version-checker will test all containers within the cluster.
 
+### Registry access restrictions
+Image hosts and the `override-url.version-checker.io` annotation come from pod specs, so version-checker restricts where it will connect:
+
+- Anonymous lookups (images whose registry is not one of the configured ones) refuse loopback, private, link-local and CGNAT addresses, including redirects to them. An in-cluster registry that needs this can either be configured as a `selfhosted` registry or allowed with `--fallback-allow-private-hosts` (`versionChecker.fallbackAllowPrivateHosts` in the Helm chart).
+- ECR lookups only target the AWS account version-checker authenticates as. Registries in other accounts need `--ecr-allow-cross-account` (`ecr.allowCrossAccount`).
+- Selfhosted registry `host` values must be full URLs, e.g. `https://registry.example.com`.
+
+The metrics endpoint is unauthenticated. Set `networkPolicy.enabled=true` and `networkPolicy.ingressFrom` in the Helm chart to limit who can reach it.
+
 ### Supported Annotations
 
 `version-checker` supports the following annotations to enrich version checking on image tags:

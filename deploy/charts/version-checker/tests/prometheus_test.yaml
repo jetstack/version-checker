@@ -60,7 +60,7 @@ tests:
       - documentIndex: 3
         equal:
           path: spec.version
-          value: v2.20.1
+          value: v2.55.1
       - documentIndex: 3
         equal:
           path: spec.serviceMonitorSelector.matchLabels

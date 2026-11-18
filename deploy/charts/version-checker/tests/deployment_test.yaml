@@ -16,7 +16,12 @@ tests:
           value: quay.io/jetstack/version-checker:latest
       - equal:
           path: spec.template.spec.containers[0].resources
-          value: {}
+          value:
+            limits:
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
       - equal:
           path: spec.template.metadata.labels["app.kubernetes.io/name"]
           value: version-checker
@@ -104,6 +109,30 @@ tests:
           path: spec.template.spec.containers[0].args
           count: 1
           content: "--test-all-containers=false"
+
+  - it: fallbackAllowPrivateHosts is off by default
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: "--fallback-allow-private-hosts=true"
+
+  - it: fallbackAllowPrivateHosts
+    set:
+      versionChecker.fallbackAllowPrivateHosts: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          count: 1
+          content: "--fallback-allow-private-hosts=true"
+
+  - it: ecr.allowCrossAccount
+    set:
+      ecr.allowCrossAccount: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          count: 1
+          content: "--ecr-allow-cross-account=true"
 
   # ACR
   - it: ACR should work
@@ -245,6 +274,20 @@ tests:
             valueFrom:
               secretKeyRef:
                 key: ghcr.token
+                name: version-checker
+
+  - it: GHCR hostname
+    set:
+      ghcr.hostname: ghcr.example.com
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          count: 1
+          content:
+            name: VERSION_CHECKER_GHCR_HOSTNAME
+            valueFrom:
+              secretKeyRef:
+                key: ghcr.hostname
                 name: version-checker
 
   # Quay
@@ -488,14 +531,15 @@ tests:
       resources:
         limits:
           cpu: 100m
-          memory: 512Mi
+          memory: 1Gi
+        requests: null
     asserts:
       - equal:
           path: spec.template.spec.containers[0].resources
           value:
             limits:
               cpu: 100m
-              memory: 512Mi
+              memory: 1Gi
 
   - it: Custom Labels to Pod
     set:

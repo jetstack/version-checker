@@ -51,7 +51,22 @@ spec:
       serviceAccountName: version-checker
       containers:
         - image: quay.io/jetstack/version-checker:v0.11.0
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65534
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
           ports:
             - containerPort: 8080
           name: version-checker

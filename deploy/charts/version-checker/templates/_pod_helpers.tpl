@@ -3,6 +3,12 @@
 - "--log-level={{.Values.versionChecker.logLevel}}"
 - "--metrics-serving-address={{.Values.versionChecker.metricsServingAddress}}"
 - "--test-all-containers={{.Values.versionChecker.testAllContainers}}"
+{{- if .Values.versionChecker.fallbackAllowPrivateHosts }}
+- "--fallback-allow-private-hosts=true"
+{{- end }}
+{{- if .Values.ecr.allowCrossAccount }}
+- "--ecr-allow-cross-account=true"
+{{- end }}
 {{- end -}}
 
 {{- define "version-checker.pod.envs.selfhosted" -}}
@@ -36,6 +42,13 @@
         secretKeyRef:
           name: {{ $chartname }}
           key: selfhosted.{{ $element.name }}.token
+    {{- end -}}
+    {{- if and (hasKey $element "token_path") $element.token_path }}
+    - name: VERSION_CHECKER_SELFHOSTED_TOKEN_PATH_{{ $element.name }}
+      valueFrom:
+        secretKeyRef:
+          name: {{ $chartname }}
+          key: selfhosted.{{ $element.name }}.token_path
     {{- end -}}
     {{- if and (hasKey $element "ca_path") $element.ca_path }}
     - name: VERSION_CHECKER_SELFHOSTED_CA_PATH_{{ $element.name }}
@@ -153,6 +166,13 @@
       secretKeyRef:
         name: {{ $chartname }}
         key: ghcr.token
+  {{- end }}
+  {{- if .Values.ghcr.hostname }}
+  - name: VERSION_CHECKER_GHCR_HOSTNAME
+    valueFrom:
+      secretKeyRef:
+        name: {{ $chartname }}
+        key: ghcr.hostname
   {{- end -}}
 {{- end -}}
 
